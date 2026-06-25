@@ -282,47 +282,94 @@ const OrderHistory = () => {
       </div>
 
       {/* ── Summary Stats Row ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(160px, 1fr))', gap: isMobile ? 10 : 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(160px, 1fr))', gap: isMobile ? 8 : 16 }}>
         {[
-          { label: 'Total Orders', value: totalOrders, color: 'var(--color-turquoise)', bg: 'rgba(0,242,254,0.1)', icon: <ClipboardList size={20} /> },
-          { label: 'Total Deposited', value: formatCost(totalDeposited), color: 'var(--color-green)', bg: 'rgba(0,255,135,0.1)', icon: <ArrowDownLeft size={20} /> },
-          { label: 'Total Spent', value: formatCost(totalSpent), color: 'var(--color-pink)', bg: 'rgba(255,0,127,0.1)', icon: <ArrowUpRight size={20} /> },
+          { label: 'Orders', value: totalOrders, color: 'var(--color-turquoise)', bg: 'rgba(0,242,254,0.1)', icon: <ClipboardList size={isMobile ? 16 : 20} /> },
+          { label: 'Deposited', value: formatCost(totalDeposited), color: 'var(--color-green)', bg: 'rgba(0,255,135,0.1)', icon: <ArrowDownLeft size={isMobile ? 16 : 20} /> },
+          { label: 'Spent', value: formatCost(totalSpent), color: 'var(--color-pink)', bg: 'rgba(255,0,127,0.1)', icon: <ArrowUpRight size={isMobile ? 16 : 20} /> },
         ].map((s, i) => (
-          <div key={i} className="glass-panel" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 8 : 14, padding: isMobile ? 12 : 18 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color, flexShrink: 0 }}>
+          <div key={i} className="glass-panel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: isMobile ? 6 : 10, padding: isMobile ? '10px 10px' : 18, minWidth: 0 }}>
+            <div style={{ width: isMobile ? 30 : 44, height: isMobile ? 30 : 44, borderRadius: isMobile ? 8 : 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color, flexShrink: 0 }}>
               {s.icon}
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{s.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-heading)', color: s.color }}>{s.value}</div>
+            <div style={{ minWidth: 0, width: '100%' }}>
+              <div style={{ fontSize: isMobile ? 10 : 12, color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</div>
+              <div style={{ fontSize: isMobile ? 13 : 20, fontWeight: 800, fontFamily: 'var(--font-heading)', color: s.color, wordBreak: 'break-all' }}>{s.value}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* ── Filter & Search Bar ── */}
-      <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+      <div className="glass-panel" style={{ padding: isMobile ? '12px' : '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-        {/* Search */}
-        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 180 }}>
-          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-          <input
-            className="form-input"
-            style={{ paddingLeft: 36, height: 40 }}
-            placeholder="Search orders…"
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-          />
+        {/* Top row: Search + Sort */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Search */}
+          <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <input
+              className="form-input"
+              style={{ paddingLeft: 36, height: 40, width: '100%' }}
+              placeholder="Search orders…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+            />
+          </div>
+
+          {/* Sort dropdown */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              onClick={() => setShowSortMenu(v => !v)}
+              className="btn btn-secondary"
+              style={{ fontSize: 12, padding: '5px 12px', height: 40, gap: 6, whiteSpace: 'nowrap' }}
+            >
+              <Filter size={14} />
+              {!isMobile && SORT_OPTIONS.find(s => s.value === sortBy)?.label}
+              {showSortMenu ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            </button>
+            {showSortMenu && (
+              <div style={{
+                position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 200,
+                background: 'var(--bg-modal)', border: '1px solid var(--border-color)',
+                borderRadius: 12, padding: 8, minWidth: 160,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+              }}>
+                {SORT_OPTIONS.map(opt => (
+                  <div
+                    key={opt.value}
+                    onClick={() => { setSortBy(opt.value); setShowSortMenu(false); }}
+                    style={{
+                      padding: '9px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
+                      color: sortBy === opt.value ? 'var(--color-turquoise)' : 'var(--text-secondary)',
+                      background: sortBy === opt.value ? 'rgba(0,242,254,0.08)' : 'transparent',
+                      fontWeight: sortBy === opt.value ? 700 : 500,
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    {opt.label}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Type filter pills */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0 }}>
+        {/* Type filter pills - always scrollable */}
+        <div style={{ 
+          display: 'flex', 
+          gap: 6, 
+          overflowX: 'auto', 
+          paddingBottom: 2,
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none',
+        }}>
           {ALL_TYPES.map(t => (
             <button
               key={t}
               onClick={() => { setFilterType(t); setPage(1); }}
               style={{
-                padding: '5px 12px',
+                padding: '5px 10px',
                 borderRadius: 99,
                 fontSize: 12,
                 fontWeight: 700,
@@ -333,50 +380,15 @@ const OrderHistory = () => {
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 5,
+                gap: 4,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               {t !== 'All' && typeIcon(t)}
               {t}
             </button>
           ))}
-        </div>
-
-        {/* Sort dropdown */}
-        <div style={{ position: 'relative', marginLeft: 'auto' }}>
-          <button
-            onClick={() => setShowSortMenu(v => !v)}
-            className="btn btn-secondary"
-            style={{ fontSize: 12, padding: '5px 12px', height: 40, gap: 6 }}
-          >
-            <Filter size={14} />
-            {SORT_OPTIONS.find(s => s.value === sortBy)?.label}
-            {showSortMenu ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          </button>
-          {showSortMenu && (
-            <div style={{
-              position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 200,
-              background: 'var(--bg-modal)', border: '1px solid var(--border-color)',
-              borderRadius: 12, padding: 8, minWidth: 160,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
-            }}>
-              {SORT_OPTIONS.map(opt => (
-                <div
-                  key={opt.value}
-                  onClick={() => { setSortBy(opt.value); setShowSortMenu(false); }}
-                  style={{
-                    padding: '9px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
-                    color: sortBy === opt.value ? 'var(--color-turquoise)' : 'var(--text-secondary)',
-                    background: sortBy === opt.value ? 'rgba(0,242,254,0.08)' : 'transparent',
-                    fontWeight: sortBy === opt.value ? 700 : 500,
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  {opt.label}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 

@@ -206,8 +206,10 @@ const SmmPanel = () => {
         maxWidth: '100%',
         flexWrap: 'nowrap',
         WebkitOverflowScrolling: 'touch',
-        scrollbarWidth: 'none'
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
       }}>
+        <style>{`.smm-tab-strip::-webkit-scrollbar { display: none; }`}</style>
         {tabs.map(tab => {
           const active = activeTab === tab;
           const platKey = tab === 'X / Twitter' ? 'Twitter' : tab === 'Others' ? 'Google' : tab;

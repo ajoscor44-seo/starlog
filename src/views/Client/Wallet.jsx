@@ -112,20 +112,23 @@ const Wallet = () => {
           <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Fund Your Account</h3>
           
           {/* Deposit Tabs */}
-          <div className="tabs-container" style={{ marginBottom: '20px', overflowX: isMobile ? 'auto' : 'visible', flexWrap: isMobile ? 'nowrap' : 'wrap' }}>
+          <div className="tabs-container" style={{ marginBottom: '20px', flexWrap: isMobile ? 'wrap' : 'wrap', gap: isMobile ? '8px' : '12px', borderBottom: 'none', paddingBottom: 0 }}>
             <button 
               className={`tab-btn ${depositTab === 'pocketfi' ? 'active' : ''}`}
               onClick={() => setDepositTab('pocketfi')}
+              style={{ flex: isMobile ? '1 1 auto' : 'initial', borderRadius: '10px', border: `1px solid ${depositTab === 'pocketfi' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: depositTab === 'pocketfi' ? 'rgba(0,242,254,0.08)' : 'transparent', whiteSpace: 'nowrap' }}
             >
-              Virtual Bank Account (Auto)
+              🏦 Bank Account (Auto)
             </button>
             <button 
               className={`tab-btn ${depositTab === 'crypto' ? 'active' : ''}`}
               onClick={() => setDepositTab('crypto')}
+              style={{ flex: isMobile ? '1 1 auto' : 'initial', borderRadius: '10px', border: `1px solid ${depositTab === 'crypto' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: depositTab === 'crypto' ? 'rgba(0,242,254,0.08)' : 'transparent', whiteSpace: 'nowrap' }}
             >
-              USDT (Crypto)
+              💎 USDT (Crypto)
             </button>
           </div>
+
 
           {/* Tab: PocketFi Virtual Wallet */}
           {depositTab === 'pocketfi' && (
