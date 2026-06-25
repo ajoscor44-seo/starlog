@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { Share2, Link, Layers, AlertCircle, Sparkles, Send, Check, ChevronRight, Info, Zap, X } from 'lucide-react';
+import { Share2, Link, Layers, AlertCircle, Sparkles, Send, Info, Zap, X } from 'lucide-react';
 
 // Platform color themes
 const PLATFORM_THEMES = {
@@ -245,96 +245,102 @@ const SmmPanel = () => {
         })}
       </div>
 
-      {/* ── CARDS GRID ── */}
-      <div>
-        <div className="subs-grid" style={{ marginTop: 0 }}>
-          {filteredServices.map(srv => {
-            const theme = PLATFORM_THEMES[srv.logo || srv.platform] || PLATFORM_THEMES.Instagram;
-            const glowClass = `glass-panel interactive sub-card`;
-            
-            return (
-              <div 
-                key={srv.id} 
-                className={glowClass}
-                style={{
-                  ...getGlowStyle(srv.logo || srv.platform),
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  minHeight: '340px'
-                }}
-              >
-                <div>
-                  <div className="sub-header">
-                    <div className="sub-icon" style={{
-                      overflow: 'hidden',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'rgba(0,0,0,0.4)',
-                      borderRadius: '8px',
-                      border: `1px solid ${theme.border}`,
-                      width: '40px',
-                      height: '40px'
-                    }}>
-                      <PlatformIcon platform={srv.logo || srv.platform} size={20} />
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '15px', color: 'var(--text-primary)', fontWeight: '700' }}>
-                        {srv.name.replace(/\(Standard\)|\(High Quality\)|\(Instant\)|\(Stable\)|\(Fast\)|\(Active\)|\(Active Followers\)|\(Active Profiles\)/, '')}
-                      </h4>
-                      <span className="badge" style={{ 
-                        fontSize: '9px', 
-                        padding: '2px 8px',
-                        background: theme.bg,
-                        color: theme.color,
-                        border: `1px solid ${theme.border}`,
-                        marginTop: '4px'
-                      }}>
-                        {srv.platform}
-                      </span>
-                    </div>
-                  </div>
+      {/* ── SERVICE LIST (compact rows) ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {filteredServices.length === 0 && (
+          <div className="glass-panel" style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 14 }}>
+            No services available for this platform yet.
+          </div>
+        )}
+        {filteredServices.map(srv => {
+          const theme = PLATFORM_THEMES[srv.logo || srv.platform] || PLATFORM_THEMES.Instagram;
 
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '14px 0 8px 0' }}>
-                    <span style={{ fontSize: '24px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--color-green)' }}>
-                      {formatCost(srv.pricePerThousandNgn)}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>/ 1,000 units</span>
-                  </div>
-
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 14px 0' }}>
-                    {srv.description || 'Launch instant optimization campaigns for this profile. Secure organic high-retention rates automatically.'}
-                  </p>
-
-                  <ul className="sub-details" style={{ margin: '8px 0 0 0' }}>
-                    {(srv.features || ['Organic drip-feed', '100% Audit Safe', 'Instant Setup']).map((feat, i) => (
-                      <li key={i} style={{ fontSize: '11px', gap: '6px', marginBottom: '6px' }}>
-                        <Check size={12} style={{ color: theme.color || 'var(--color-green)' }} />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <button 
-                  className="btn btn-primary" 
-                  style={{ 
-                    width: '100%', 
-                    marginTop: '20px',
-                    background: theme.color === '#ffffff' ? '#ffffff' : theme.bg,
-                    border: `1px solid ${theme.border}`,
-                    color: theme.color === '#ffffff' ? '#000000' : theme.color,
-                    boxShadow: 'none'
-                  }}
-                  onClick={() => setSelectedService(srv)}
-                >
-                  Order Boost <ChevronRight size={14} style={{ marginLeft: 2 }} />
-                </button>
+          return (
+            <div
+              key={srv.id}
+              className="glass-panel interactive"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: isMobile ? 10 : 16,
+                padding: isMobile ? '12px 14px' : '14px 20px',
+                border: `1px solid ${theme.border}`,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onClick={() => setSelectedService(srv)}
+            >
+              {/* Platform Icon */}
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'rgba(0,0,0,0.35)',
+                border: `1px solid ${theme.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <PlatformIcon platform={srv.logo || srv.platform} size={20} />
               </div>
-            );
-          })}
-        </div>
+
+              {/* Name + badge */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: isMobile ? 13 : 14, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {srv.name.replace(/\(Standard\)|\(High Quality\)|\(Instant\)|\(Stable\)|\(Fast\)|\(Active\)|\(Active Followers\)|\(Active Profiles\)/, '').trim()}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                  <span style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    padding: '1px 7px',
+                    borderRadius: 99,
+                    background: theme.bg,
+                    color: theme.color,
+                    border: `1px solid ${theme.border}`,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}>
+                    {srv.category || srv.platform}
+                  </span>
+                  {!isMobile && (
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      Min: {(srv.min || 100).toLocaleString()} &middot; Max: {(srv.max || 100000).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Price */}
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--color-green)', whiteSpace: 'nowrap' }}>
+                  {formatCost(srv.pricePerThousandNgn)}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>/ 1K units</div>
+              </div>
+
+              {/* Action Button */}
+              <button
+                className="btn btn-primary"
+                style={{
+                  padding: isMobile ? '7px 12px' : '8px 18px',
+                  fontSize: isMobile ? 12 : 13,
+                  flexShrink: 0,
+                  background: theme.color === '#ffffff' ? '#ffffff' : theme.bg,
+                  border: `1px solid ${theme.border}`,
+                  color: theme.color === '#ffffff' ? '#000' : theme.color,
+                  boxShadow: 'none',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+                onClick={e => { e.stopPropagation(); setSelectedService(srv); }}
+              >
+                {isMobile ? 'Boost' : 'Order Boost'}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* ── CAMPAIGN CONFIGURATION CHECKOUT MODAL ── */}
