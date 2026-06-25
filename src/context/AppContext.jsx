@@ -1,0 +1,1647 @@
+import React, { createContext, useState, useEffect } from 'react';
+import { supabase } from '../supabase';
+
+export const AppContext = createContext();
+
+// Mock Catalogs
+const initialSubscriptions = [
+  { id: 'sub-netflix', name: 'Netflix Premium (Shared)', category: 'Entertainment', priceNgn: 3000, priceUsd: 4, features: ['Ultra HD 4K', '1 Device Access', 'Instant Delivery', '30 Days Validity'] },
+  { id: 'sub-spotify', name: 'Spotify Premium Family (Shared)', category: 'Music', priceNgn: 1200, priceUsd: 1.6, features: ['Ad-free playback', 'Offline listening', 'Shared Playlists', '30 Days Validity'] },
+  { id: 'sub-claude', name: 'Claude 3.5 Sonnet Pro (Shared)', category: 'AI Tools', priceNgn: 6500, priceUsd: 8.5, features: ['5x more usage', 'Early access features', 'High-speed processing', '30 Days Validity'] },
+  { id: 'sub-chatgpt', name: 'ChatGPT Plus (Shared)', category: 'AI Tools', priceNgn: 5500, priceUsd: 7.2, features: ['GPT-4o Access', 'DALL-E Image Creation', 'Custom GPTs', '30 Days Validity'] },
+  { id: 'sub-youtube', name: 'YouTube Premium (Shared)', category: 'Entertainment', priceNgn: 1500, priceUsd: 2, features: ['Background play', 'No Ads', 'YT Music Included', '30 Days Validity'] },
+  { id: 'sub-surfshark', name: 'Surfshark VPN (Shared)', category: 'Security', priceNgn: 1800, priceUsd: 2.4, features: ['Unlimited devices', 'Strict no-logs policy', 'High speed servers', '30 Days Validity'] },
+];
+
+const initialCountries = [
+  { id: 'us', name: 'United States', flag: '🇺🇸', code: '+1' },
+  { id: 'gb', name: 'United Kingdom', flag: '🇬🇧', code: '+44' },
+  { id: 'ng', name: 'Nigeria', flag: '🇳🇬', code: '+234' },
+  { id: 'ca', name: 'Canada', flag: '🇨🇦', code: '+1' },
+  { id: 'za', name: 'South Africa', flag: '🇿🇦', code: '+27' },
+  { id: 'de', name: 'Germany', flag: '🇩🇪', code: '+49' },
+  { id: 'fr', name: 'France', flag: '🇫🇷', code: '+33' },
+  { id: 'in', name: 'India', flag: '🇮🇳', code: '+91' },
+  { id: 'ru', name: 'Russia', flag: '🇷🇺', code: '+7' },
+  { id: 'br', name: 'Brazil', flag: '🇧🇷', code: '+55' },
+];
+
+const initialOtpServices = [
+  { id: 'srv-whatsapp', name: 'WhatsApp', emoji: '💬', priceNgn: 800, priceUsd: 1.0 },
+  { id: 'srv-telegram', name: 'Telegram', emoji: '✈️', priceNgn: 1200, priceUsd: 1.5 },
+  { id: 'srv-google', name: 'Google / Gmail', emoji: '🔍', priceNgn: 500, priceUsd: 0.65 },
+  { id: 'srv-openai', name: 'OpenAI / ChatGPT', emoji: '🤖', priceNgn: 600, priceUsd: 0.8 },
+  { id: 'srv-facebook', name: 'Facebook', emoji: '📘', priceNgn: 400, priceUsd: 0.5 },
+  { id: 'srv-instagram', name: 'Instagram', emoji: '📸', priceNgn: 400, priceUsd: 0.5 },
+  { id: 'srv-tiktok', name: 'TikTok', emoji: '🎵', priceNgn: 300, priceUsd: 0.4 },
+  { id: 'srv-netflix', name: 'Netflix OTP', emoji: '🎬', priceNgn: 500, priceUsd: 0.65 },
+  { id: 'srv-discord', name: 'Discord', emoji: '👾', priceNgn: 450, priceUsd: 0.6 },
+  { id: 'srv-twitter', name: 'X / Twitter', emoji: '🐦', priceNgn: 600, priceUsd: 0.8 },
+  { id: 'srv-microsoft', name: 'Microsoft', emoji: '💻', priceNgn: 500, priceUsd: 0.65 },
+  { id: 'srv-apple', name: 'Apple', emoji: '🍎', priceNgn: 700, priceUsd: 0.9 },
+  { id: 'srv-yahoo', name: 'Yahoo', emoji: '📧', priceNgn: 400, priceUsd: 0.5 },
+  { id: 'srv-steam', name: 'Steam', emoji: '🎮', priceNgn: 500, priceUsd: 0.65 },
+  { id: 'srv-uber', name: 'Uber', emoji: '🚗', priceNgn: 400, priceUsd: 0.5 },
+];
+
+const initialEsimPackages = [
+  { id: 'esim-us-5gb', country: 'United States', flag: '🇺🇸', region: 'North America', dataGb: 5, durationDays: 30, priceNgn: 7500, priceUsd: 10 },
+  { id: 'esim-us-unl', country: 'United States', flag: '🇺🇸', region: 'North America', dataGb: 999, durationDays: 30, priceNgn: 18000, priceUsd: 24, isUnlimited: true },
+  { id: 'esim-eu-10gb', country: 'Europe Regional', flag: '🇪🇺', region: 'Europe', dataGb: 10, durationDays: 30, priceNgn: 11000, priceUsd: 14.5 },
+  { id: 'esim-uk-3gb', country: 'United Kingdom', flag: '🇬🇧', region: 'Europe', dataGb: 3, durationDays: 7, priceNgn: 3800, priceUsd: 5 },
+  { id: 'esim-global-20gb', country: 'Global (85 Countries)', flag: '🌍', region: 'Global', dataGb: 20, durationDays: 365, priceNgn: 34000, priceUsd: 45 },
+  { id: 'esim-ng-5gb', country: 'Nigeria', flag: '🇳🇬', region: 'Africa', dataGb: 5, durationDays: 14, priceNgn: 6000, priceUsd: 8 },
+  { id: 'esim-asia-10gb', country: 'Asia Pacific Regional', flag: '🌏', region: 'Asia', dataGb: 10, durationDays: 30, priceNgn: 12500, priceUsd: 16 },
+];
+
+const SMM_SERVICE_MAPPING = {
+  'smm-ig-fol-std': { apiServiceId: 7336, platform: 'Instagram', name: 'Instagram Followers [Standard - Safe - Fast]', pricePerThousandNgn: 2000 },
+  'smm-ig-fol-hq': { apiServiceId: 6453, platform: 'Instagram', name: 'Instagram Followers [High Quality - Non-Drop - Stable]', pricePerThousandNgn: 3000 },
+  'smm-ig-lik-hq': { apiServiceId: 6454, platform: 'Instagram', name: 'Instagram Likes [HQ - Instant Delivery]', pricePerThousandNgn: 600 },
+  'smm-tt-fol-hq': { apiServiceId: 6517, platform: 'TikTok', name: 'TikTok Followers [Real Profiles - Stable]', pricePerThousandNgn: 10500 },
+  'smm-tt-lik-fast': { apiServiceId: 6527, platform: 'TikTok', name: 'TikTok Likes [Fast Speed - High Quality]', pricePerThousandNgn: 800 },
+  'smm-tg-mem-hq': { apiServiceId: 6172, platform: 'Telegram', name: 'Telegram Members [HQ - Zero Drop]', pricePerThousandNgn: 1800 },
+  'smm-yt-sub-real': { apiServiceId: 7537, platform: 'YouTube', name: 'YouTube Subscribers [100% Real - Guaranteed]', pricePerThousandNgn: 65000 },
+  'smm-yt-vw-ads': { apiServiceId: 6498, platform: 'YouTube', name: 'YouTube Views [Stable - No Drop]', pricePerThousandNgn: 5500 },
+};
+
+const initialSmmServices = [
+  // ── Instagram (Real API) ──
+  {
+    id: 'smm-ig-fol-std', platform: 'Instagram', category: 'Followers',
+    name: 'Instagram Followers (Standard)',
+    pricePerThousandNgn: 2000, pricePerThousandUsd: 2.6, min: 100, max: 50000,
+    description: 'Real-looking standard followers delivered at a safe organic drip-feed rate. Ideal for growing a new account without triggering algorithmic penalties.',
+    features: ['Drip-feed delivery', 'Profile photos & posts', '30-day refill guarantee'],
+    logo: 'Instagram'
+  },
+  {
+    id: 'smm-ig-fol-hq', platform: 'Instagram', category: 'Followers',
+    name: 'Instagram Followers (High Quality)',
+    pricePerThousandNgn: 3000, pricePerThousandUsd: 4.0, min: 50, max: 20000,
+    description: 'Premium high-retention followers from established accounts. Best for influencers and brands who need stable numbers that sustain long-term.',
+    features: ['Zero-drop guarantee', 'Premium account profiles', 'Lifetime refill'],
+    logo: 'Instagram'
+  },
+  {
+    id: 'smm-ig-lik-hq', platform: 'Instagram', category: 'Likes',
+    name: 'Instagram Likes (Instant)',
+    pricePerThousandNgn: 600, pricePerThousandUsd: 0.8, min: 50, max: 100000,
+    description: 'High-quality instant likes from active Instagram profiles. Boosts your post into the explore feed algorithm and increases organic reach.',
+    features: ['Instant start ≤ 5 min', 'Explore algorithm boost', 'Safe for all accounts'],
+    logo: 'Instagram'
+  },
+  // ── TikTok (Real API) ──
+  {
+    id: 'smm-tt-fol-hq', platform: 'TikTok', category: 'Followers',
+    name: 'TikTok Followers (Stable)',
+    pricePerThousandNgn: 10500, pricePerThousandUsd: 14.0, min: 50, max: 10000,
+    description: 'High-retention TikTok followers from real profiles. Excellent for reaching the 1K follower milestone for TikTok Live access and monetization.',
+    features: ['Real account profiles', 'Stable retention', 'Monetization-safe'],
+    logo: 'TikTok'
+  },
+  {
+    id: 'smm-tt-lik-fast', platform: 'TikTok', category: 'Likes',
+    name: 'TikTok Video Likes (Fast)',
+    pricePerThousandNgn: 800, pricePerThousandUsd: 1.0, min: 100, max: 500000,
+    description: 'Fast-delivery TikTok likes that trigger the "For You Page" algorithm for viral momentum.',
+    features: ['FYP algorithm trigger', 'Starts within minutes', 'No password needed'],
+    logo: 'TikTok'
+  },
+  // ── Telegram (Real API) ──
+  {
+    id: 'smm-tg-mem-hq', platform: 'Telegram', category: 'Members',
+    name: 'Telegram Channel Members',
+    pricePerThousandNgn: 1800, pricePerThousandUsd: 2.4, min: 100, max: 100000,
+    description: 'Genuine-looking Telegram channel members with profile photos and usernames. Zero-drop guarantee.',
+    features: ['Zero-drop for life', 'Profile photos included', 'Group & channel support'],
+    logo: 'Telegram'
+  },
+  // ── YouTube (Real API) ──
+  {
+    id: 'smm-yt-sub-real', platform: 'YouTube', category: 'Subscribers',
+    name: 'YouTube Subscribers (Active)',
+    pricePerThousandNgn: 65000, pricePerThousandUsd: 86.0, min: 10, max: 5000,
+    description: 'YouTube subscribers from active accounts. Helps cross the 1,000 sub threshold for partner program onboarding.',
+    features: ['Monetization-eligible', 'Audit-safe accounts', '30-day replacement guarantee'],
+    logo: 'YouTube'
+  },
+  {
+    id: 'smm-yt-vw-ads', platform: 'YouTube', category: 'Views',
+    name: 'YouTube High-Retention Views',
+    pricePerThousandNgn: 5500, pricePerThousandUsd: 7.3, min: 1000, max: 500000,
+    description: 'Ad-safe YouTube views delivered from diverse IPs and devices with realistic watch time patterns.',
+    features: ['Ad-revenue safe', 'Watch time included', 'SEO ranking boost'],
+    logo: 'YouTube'
+  },
+  // ── Spotify (Simulated) ──
+  {
+    id: 'smm-spot-streams-sim', platform: 'Spotify', category: 'Streams',
+    name: 'Spotify Premium Music Plays',
+    pricePerThousandNgn: 1200, pricePerThousandUsd: 1.6, min: 1000, max: 1000000,
+    description: 'Premium royalty-eligible Spotify plays from active user slots. 100% safe for artist distribution accounts.',
+    features: ['Royalties eligible', 'Premium account streams', 'High retention (90s+)'],
+    logo: 'Spotify', isSimulated: true
+  },
+  // ── X / Twitter (Simulated) ──
+  {
+    id: 'smm-x-fol-sim', platform: 'X / Twitter', category: 'Followers',
+    name: 'X (Twitter) Active Followers',
+    pricePerThousandNgn: 9000, pricePerThousandUsd: 12.0, min: 100, max: 20000,
+    description: 'Real-looking global profiles to boost credibility. Safe delivery speed to prevent flag bans.',
+    features: ['Global profiles', 'Safe organic growth', 'No drop guarantee'],
+    logo: 'Twitter', isSimulated: true
+  },
+  // ── Facebook (Simulated) ──
+  {
+    id: 'smm-fb-fans-sim', platform: 'Facebook', category: 'Fans',
+    name: 'Facebook Page Likes & Fans',
+    pricePerThousandNgn: 3500, pricePerThousandUsd: 4.6, min: 100, max: 50000,
+    description: 'High-quality page followers and likes to expand your brand authority. Increases organic post reach.',
+    features: ['Likes + Followers combined', '100% safe execution', 'Real profiles'],
+    logo: 'Facebook', isSimulated: true
+  },
+  // ── Twitch (Simulated) ──
+  {
+    id: 'smm-twitch-fol-sim', platform: 'Twitch', category: 'Followers',
+    name: 'Twitch Channel Followers',
+    pricePerThousandNgn: 4000, pricePerThousandUsd: 5.3, min: 100, max: 10000,
+    description: 'Instant followers to meet Twitch Affiliate requirements. Helps you grow your live stream presence.',
+    features: ['Affiliate ready', 'Fast provisioning', 'Permanent followers'],
+    logo: 'Twitch', isSimulated: true
+  },
+  // ── Discord (Simulated) ──
+  {
+    id: 'smm-disc-mem-sim', platform: 'Discord', category: 'Members',
+    name: 'Discord Server Members',
+    pricePerThousandNgn: 7600, pricePerThousandUsd: 10.0, min: 100, max: 5000,
+    description: 'High-quality server members with custom avatars, nicknames, and active statuses to populate servers.',
+    features: ['Avatars & Status included', 'Anti-kick safe', 'Online/Offline mix'],
+    logo: 'Discord', isSimulated: true
+  },
+  // ── SEO & Web Traffic (Simulated) ──
+  {
+    id: 'smm-seo-traffic-sim', platform: 'SEO & Traffic', category: 'Web Traffic',
+    name: 'Google Organic SEO Visitors',
+    pricePerThousandNgn: 500, pricePerThousandUsd: 0.66, min: 1000, max: 500000,
+    description: 'Direct organic search keyword traffic. Safe for AdSense websites. Low bounce rate with 1m+ duration.',
+    features: ['Google search source', 'AdSense safe views', 'Custom keyword tracking'],
+    logo: 'Google', isSimulated: true
+  }
+];
+
+
+const WHOLESALE_BASE_PRICES = {
+  // Subscriptions
+  'sub-netflix': 2000,
+  'sub-spotify': 800,
+  'sub-claude': 4500,
+  'sub-chatgpt': 3800,
+  'sub-youtube': 1000,
+  'sub-surfshark': 1200,
+
+  // eSIM
+  'esim-us-5gb': 5000,
+  'esim-us-unl': 12000,
+  'esim-eu-10gb': 7500,
+  'esim-uk-3gb': 2500,
+  'esim-global-20gb': 22000,
+  'esim-ng-5gb': 4000,
+  'esim-asia-10gb': 8000,
+
+  // Static OTP
+  'srv-whatsapp': 500,
+  'srv-telegram': 800,
+  'srv-google': 330,
+  'srv-openai': 400,
+  'srv-facebook': 250,
+  'srv-instagram': 250,
+  'srv-tiktok': 200,
+  'srv-netflix': 330,
+  'srv-discord': 300,
+  'srv-twitter': 400,
+  'srv-microsoft': 330,
+  'srv-apple': 450,
+  'srv-yahoo': 250,
+  'srv-steam': 330,
+  'srv-uber': 250
+};
+
+
+export const AppProvider = ({ children }) => {
+  // Profit Markup rate state
+  const [profitMarkup, setProfitMarkup] = useState(() => {
+    const saved = localStorage.getItem('zp_profit_markup');
+    return saved ? JSON.parse(saved) : { subs: 30, otp: 50, esim: 40, smm: 50 };
+  });
+
+  const [triggerRecalc, setTriggerRecalc] = useState(0);
+
+  const updateProfitMarkup = (category, value) => {
+    setProfitMarkup(prev => {
+      const updated = { ...prev, [category]: Number(value) };
+      localStorage.setItem('zp_profit_markup', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Authentication states
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState({ full_name: '', phone: '' });
+
+  // Routing and active session states
+  const [activeTab, setActiveTab] = useState('landing');
+  const [activeSession, setActiveSession] = useState(null);
+
+  // Virtual Wallet details from PocketFi / Database
+  const [virtualWallet, setVirtualWallet] = useState(null);
+
+  const [walletBalance, setWalletBalance] = useState(10000);
+
+  const [currency, setCurrency] = useState(() => {
+    return localStorage.getItem('zp_currency') || 'NGN';
+  });
+
+  const [isAdmin, setIsAdmin] = useState(true);
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('zp_theme') || 'light';
+  });
+
+  const toggleTheme = () => {
+    setTheme(curr => curr === 'light' ? 'dark' : 'light');
+  };
+
+  useEffect(() => {
+    document.body.className = theme === 'light' ? 'light-theme' : 'dark-theme';
+    localStorage.setItem('zp_theme', theme);
+  }, [theme]);
+
+  const [subscriptions, setSubscriptions] = useState(() => {
+    const saved = localStorage.getItem('zp_catalog_subs');
+    return saved ? JSON.parse(saved) : initialSubscriptions;
+  });
+
+  const [countries, setCountries] = useState(initialCountries);
+
+  const [otpServices, setOtpServices] = useState(() => {
+    const saved = localStorage.getItem('zp_catalog_otp');
+    return saved ? JSON.parse(saved) : initialOtpServices;
+  });
+
+  const [esimPackages, setEsimPackages] = useState(() => {
+    const saved = localStorage.getItem('zp_catalog_esim');
+    return saved ? JSON.parse(saved) : initialEsimPackages;
+  });
+
+  const [smmServices, setSmmServices] = useState(() => {
+    const saved = localStorage.getItem('zp_catalog_smm');
+    return saved ? JSON.parse(saved) : initialSmmServices;
+  });
+
+  const calculatePrice = (id, defaultPrice, category) => {
+    const overrides = JSON.parse(localStorage.getItem('zp_price_overrides') || '{}');
+    if (overrides[id] !== undefined) {
+      return Number(overrides[id]);
+    }
+    const basePrice = WHOLESALE_BASE_PRICES[id];
+    if (basePrice !== undefined) {
+      const markup = profitMarkup[category] || 0;
+      return Math.round(basePrice * (1 + markup / 100));
+    }
+    return defaultPrice;
+  };
+
+  useEffect(() => {
+    // Recalculate Subscriptions
+    setSubscriptions(curr => {
+      const updated = curr.map(sub => {
+        const priceNgn = calculatePrice(sub.id, sub.priceNgn, 'subs');
+        return {
+          ...sub,
+          priceNgn,
+          priceUsd: priceNgn / 750
+        };
+      });
+      localStorage.setItem('zp_catalog_subs', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Recalculate OTP
+    setOtpServices(curr => {
+      const updated = curr.map(otp => {
+        const priceNgn = calculatePrice(otp.id, otp.priceNgn, 'otp');
+        return {
+          ...otp,
+          priceNgn,
+          priceUsd: priceNgn / 750
+        };
+      });
+      localStorage.setItem('zp_catalog_otp', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Recalculate eSIM
+    setEsimPackages(curr => {
+      const updated = curr.map(pkg => {
+        const priceNgn = calculatePrice(pkg.id, pkg.priceNgn, 'esim');
+        return {
+          ...pkg,
+          priceNgn,
+          priceUsd: priceNgn / 750
+        };
+      });
+      localStorage.setItem('zp_catalog_esim', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Recalculate SMM
+    setSmmServices(curr => {
+      const updated = curr.map(smm => {
+        const overrides = JSON.parse(localStorage.getItem('zp_price_overrides') || '{}');
+        if (overrides[smm.id] !== undefined) {
+          const priceNgn = Number(overrides[smm.id]);
+          return {
+            ...smm,
+            pricePerThousandNgn: priceNgn,
+            pricePerThousandUsd: priceNgn / 750
+          };
+        }
+        const wholesaleCosts = {
+          'smm-ig-fol-std': 1300,
+          'smm-ig-fol-hq': 2000,
+          'smm-ig-lik-hq': 400,
+          'smm-tt-fol-hq': 7000,
+          'smm-tt-lik-fast': 500,
+          'smm-tg-mem-hq': 1200,
+          'smm-yt-sub-real': 43000,
+          'smm-yt-vw-ads': 3600
+        };
+        const basePrice = wholesaleCosts[smm.id] || smm.pricePerThousandNgn / 1.5;
+        const priceNgn = Math.round(basePrice * (1 + profitMarkup.smm / 100));
+        return {
+          ...smm,
+          pricePerThousandNgn: priceNgn,
+          pricePerThousandUsd: priceNgn / 750
+        };
+      });
+      localStorage.setItem('zp_catalog_smm', JSON.stringify(updated));
+      return updated;
+    });
+  }, [profitMarkup, triggerRecalc]);
+
+  // User orders and transactions
+  const [transactions, setTransactions] = useState([
+    { id: 'tx-001', type: 'Deposit', amountNgn: 5000, amountUsd: 6.6, method: 'Virtual Bank Transfer', date: new Date(Date.now() - 3600000 * 24).toLocaleString(), status: 'SUCCESS' },
+    { id: 'tx-002', type: 'Purchase', amountNgn: 1500, amountUsd: 2.0, method: 'Wallet (YouTube Premium)', date: new Date(Date.now() - 3600000 * 12).toLocaleString(), status: 'SUCCESS' }
+  ]);
+
+  useEffect(() => {
+    // 1. Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsLoggedIn(true);
+        setUser(session.user);
+      }
+    });
+
+    // 2. Listen to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setIsLoggedIn(true);
+        setUser(session.user);
+      } else {
+        setIsLoggedIn(false);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Fetch and sync SMM reseller services dynamically from the API
+  useEffect(() => {
+    const fetchSmmServices = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('smm-gateway', {
+          body: { action: 'services' }
+        });
+
+        if (!error && data && data.status) {
+          const apiServices = data.data;
+          
+          setSmmServices(curr => {
+            const updated = curr.map(item => {
+              if (item.apiServiceId) {
+                const apiSrv = apiServices.find(s => Number(s.service) === Number(item.apiServiceId));
+                if (apiSrv) {
+                  const resellerRate = Number(apiSrv.rate);
+                  const userPricePerThousand = Math.round(resellerRate * (1 + profitMarkup.smm / 100)); // Dynamic profit markup margin
+                  return {
+                    ...item,
+                    pricePerThousandNgn: userPricePerThousand,
+                    pricePerThousandUsd: userPricePerThousand / 750,
+                    min: Number(apiSrv.min || item.min || 100),
+                    max: Number(apiSrv.max || item.max || 100000)
+                  };
+                }
+              }
+              return item;
+            });
+            localStorage.setItem('zp_catalog_smm', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching SMM services:', err);
+      }
+    };
+
+    if (isLoggedIn) {
+      fetchSmmServices();
+    }
+  }, [isLoggedIn, profitMarkup.smm]);
+
+
+  // Sync state with Supabase in Realtime when user logs in
+  useEffect(() => {
+    if (!user) {
+      // Clear/Reset to defaults when logged out
+      setWalletBalance(10000);
+      setTransactions([
+        { id: 'tx-001', type: 'Deposit', amountNgn: 5000, amountUsd: 6.6, method: 'Virtual Bank Transfer', date: new Date(Date.now() - 3600000 * 24).toLocaleString(), status: 'SUCCESS' },
+        { id: 'tx-002', type: 'Purchase', amountNgn: 1500, amountUsd: 2.0, method: 'Wallet (YouTube Premium)', date: new Date(Date.now() - 3600000 * 12).toLocaleString(), status: 'SUCCESS' }
+      ]);
+      setVirtualWallet(null);
+      setProfile({ full_name: '', phone: '' });
+      return;
+    }
+
+    // A. Fetch initial profile data (balance, full_name, phone)
+    const fetchProfileData = async () => {
+      const { data: dbProfile } = await supabase
+        .from('profiles')
+        .select('wallet_balance, full_name, phone')
+        .eq('id', user.id)
+        .single();
+      if (dbProfile) {
+        setWalletBalance(Number(dbProfile.wallet_balance));
+        setProfile({
+          full_name: dbProfile.full_name || '',
+          phone: dbProfile.phone || ''
+        });
+      }
+    };
+
+    // B. Fetch initial transactions list
+    const fetchTransactions = async () => {
+      const { data: txs } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (txs && txs.length > 0) {
+        setTransactions(txs.map(tx => ({
+          id: tx.id,
+          type: tx.type,
+          amountNgn: Number(tx.amount),
+          amountUsd: Number(tx.amount) / 750,
+          method: tx.method,
+          date: new Date(tx.created_at).toLocaleString(),
+          status: tx.status
+        })));
+      } else if (txs && txs.length === 0) {
+        setTransactions([]);
+      }
+    };
+
+    // C. Fetch virtual wallet details
+    const fetchVirtualWallet = async () => {
+      const { data: wallet } = await supabase
+        .from('virtual_wallets')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (wallet) {
+        setVirtualWallet(wallet);
+      }
+    };
+
+    fetchProfileData();
+    fetchTransactions();
+    fetchVirtualWallet();
+
+    // D. Listen to realtime DB notifications
+    // Listen for updates on Profiles
+    const profileChannel = supabase
+      .channel(`public:profiles:id=eq.${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${user.id}`
+      }, (payload) => {
+        if (payload.new) {
+          setWalletBalance(Number(payload.new.wallet_balance));
+          setProfile({
+            full_name: payload.new.full_name || '',
+            phone: payload.new.phone || ''
+          });
+        }
+      })
+      .subscribe();
+
+    // Listen for new transactions
+    const txChannel = supabase
+      .channel(`public:transactions:user_id=eq.${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'transactions',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        if (payload.new) {
+          const tx = payload.new;
+          setTransactions(prev => [
+            {
+              id: tx.id,
+              type: tx.type,
+              amountNgn: Number(tx.amount),
+              amountUsd: Number(tx.amount) / 750,
+              method: tx.method,
+              date: new Date(tx.created_at).toLocaleString(),
+              status: tx.status
+            },
+            ...prev.filter(t => t.id !== tx.id) // avoid duplicates if already prepended
+          ]);
+        }
+      })
+      .subscribe();
+
+    // Listen for virtual wallet updates
+    const walletChannel = supabase
+      .channel(`public:virtual_wallets:user_id=eq.${user.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'virtual_wallets',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          setVirtualWallet(null);
+        } else if (payload.new) {
+          setVirtualWallet(payload.new);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileChannel);
+      supabase.removeChannel(txChannel);
+      supabase.removeChannel(walletChannel);
+    };
+  }, [user]);
+
+  const loginUser = (email) => {
+    setIsLoggedIn(true);
+    setUser({ email });
+  };
+
+  const logoutUser = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const [activeOtps, setActiveOtps] = useState(() => {
+    const saved = localStorage.getItem('zp_activeOtps');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [rentedNumbers, setRentedNumbers] = useState(() => {
+    const saved = localStorage.getItem('zp_rentedNumbers');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [activeEsims, setActiveEsims] = useState(() => {
+    const saved = localStorage.getItem('zp_activeEsims');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [smmOrders, setSmmOrders] = useState(() => {
+    const saved = localStorage.getItem('zp_smmOrders');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [accountSubscriptions, setAccountSubscriptions] = useState(() => {
+    const saved = localStorage.getItem('zp_accountSubs');
+    return saved ? JSON.parse(saved) : [
+      { id: 'as-001', name: 'YouTube Premium (Shared)', email: 'discountzar.yt82@gmail.com', pass: 'DiscountZarPass45!', screen: 'Screen 2', expiry: new Date(Date.now() + 3600000 * 24 * 18).toLocaleDateString(), status: 'ACTIVE' }
+    ];
+  });
+
+  // Sync to local storage on change
+  useEffect(() => {
+    localStorage.setItem('zp_walletBalance', walletBalance);
+  }, [walletBalance]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_currency', currency);
+  }, [currency]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_isAdmin', isAdmin);
+  }, [isAdmin]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_activeOtps', JSON.stringify(activeOtps));
+  }, [activeOtps]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_rentedNumbers', JSON.stringify(rentedNumbers));
+  }, [rentedNumbers]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_activeEsims', JSON.stringify(activeEsims));
+  }, [activeEsims]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_smmOrders', JSON.stringify(smmOrders));
+  }, [smmOrders]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_accountSubs', JSON.stringify(accountSubscriptions));
+  }, [accountSubscriptions]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_catalog_subs', JSON.stringify(subscriptions));
+  }, [subscriptions]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_catalog_otp', JSON.stringify(otpServices));
+  }, [otpServices]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_catalog_esim', JSON.stringify(esimPackages));
+  }, [esimPackages]);
+
+  useEffect(() => {
+    localStorage.setItem('zp_catalog_smm', JSON.stringify(smmServices));
+  }, [smmServices]);
+
+  // Helper conversions
+  const formatCost = (costNgn) => {
+    const value = Number(costNgn || 0);
+    if (currency === 'NGN') {
+      return `₦${value.toLocaleString()}`;
+    } else {
+      // Approximate conversion rate N1000 = $1.3
+      const converted = (value / 750).toFixed(2);
+      return `$${converted}`;
+    }
+  };
+
+  const getPrice = (item) => {
+    return currency === 'NGN' ? item.priceNgn : item.priceUsd;
+  };
+
+  // Actions
+  const toggleCurrency = () => {
+    setCurrency(curr => curr === 'NGN' ? 'USD' : 'NGN');
+  };
+
+  const executePurchase = async (amount, type, method) => {
+    if (!user) return { success: false, msg: 'Please log in to make purchases' };
+    
+    const { data, error } = await supabase.rpc('process_purchase', {
+      p_user_id: user.id,
+      p_amount: amount,
+      p_type: type,
+      p_method: method
+    });
+
+    if (error) {
+      return { success: false, msg: error.message };
+    }
+    return { success: true };
+  };
+
+  const depositWallet = async (amount, method) => {
+    const isNgn = currency === 'NGN';
+    const amountNgn = isNgn ? Number(amount) : Number(amount) * 750;
+    const amountUsd = isNgn ? Number(amount) / 750 : Number(amount);
+
+    if (user) {
+      const ref = `tx-${Math.floor(100000 + Math.random() * 900000)}`;
+      const { error } = await supabase.rpc('process_deposit', {
+        p_tx_id: ref,
+        p_user_id: user.id,
+        p_amount: amountNgn,
+        p_method: method
+      });
+      if (error) {
+        console.error("Deposit failed in database:", error);
+        return { success: false, msg: error.message };
+      }
+      return { success: true, reference: ref };
+    } else {
+      setWalletBalance(prev => prev + amountNgn);
+      setTransactions(prev => [
+        {
+          id: `tx-${Math.floor(100000 + Math.random() * 900000)}`,
+          type: 'Deposit',
+          amountNgn,
+          amountUsd,
+          method,
+          date: new Date().toLocaleString(),
+          status: 'SUCCESS'
+        },
+        ...prev
+      ]);
+      return { success: true };
+    }
+  };
+
+  const generatePocketFiWallet = async (bank = 'paga') => {
+    if (!user) return { success: false, msg: 'Please log in first' };
+
+    try {
+      // Fetch user profile to verify phone normalization
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .single();
+
+      if (profileErr) throw new Error("Could not load user profile: " + profileErr.message);
+
+      let currentPhone = profile.phone || '';
+      let normalizedPhone = currentPhone.replace(/\D/g, '');
+      if (normalizedPhone.startsWith('234') && normalizedPhone.length === 13) {
+        normalizedPhone = '0' + normalizedPhone.substring(3);
+      }
+      if (normalizedPhone.length === 10 && !normalizedPhone.startsWith('0')) {
+        normalizedPhone = '0' + normalizedPhone;
+      }
+
+      if (normalizedPhone !== currentPhone) {
+        const { error: updateErr } = await supabase
+          .from('profiles')
+          .update({ phone: normalizedPhone })
+          .eq('id', user.id);
+        if (updateErr) throw new Error("Could not update profile phone: " + updateErr.message);
+      }
+
+      const { data, error } = await supabase.functions.invoke('pocketfi-create-wallet', {
+        body: { bank }
+      });
+
+      if (!error && data && data.status) {
+        setVirtualWallet(data.wallet);
+        return { success: true, wallet: data.wallet };
+      }
+      
+      if (error) throw error;
+      
+    } catch (e) {
+      console.error("PocketFi API Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const simulatePocketFiDeposit = async (amount) => {
+    if (!user) return { success: false, msg: 'Please log in first' };
+    
+    const ref = `sim-${Math.floor(100000 + Math.random() * 900000)}`;
+    const depositRes = await supabase.rpc('process_deposit', {
+      p_tx_id: ref,
+      p_user_id: user.id,
+      p_amount: Number(amount),
+      p_method: 'PocketFi Bank Transfer (Simulated)'
+    });
+
+    if (depositRes.error) {
+      return { success: false, msg: depositRes.error.message };
+    }
+    return { success: true, reference: ref };
+  };
+
+  const buySharedSubscription = async (subId) => {
+    const sub = subscriptions.find(s => s.id === subId);
+    if (!sub) return { success: false, msg: 'Subscription not found' };
+
+    const price = sub.priceNgn;
+    const purchaseRes = await executePurchase(price, 'Purchase', `Wallet (${sub.name})`);
+    if (!purchaseRes.success) {
+      return purchaseRes;
+    }
+    
+    const serviceNick = sub.name.split(' ')[0].toLowerCase();
+    const mockEmail = `discountzar.${serviceNick}${Math.floor(10 + Math.random() * 89)}@discountzar.ng`;
+    const mockPass = `DiscountZar$${Math.floor(1000 + Math.random() * 8999)}`;
+    const mockScreen = `Profile Screen ${Math.floor(1 + Math.random() * 4)}`;
+
+    const newSub = {
+      id: `as-${Math.floor(100000 + Math.random() * 900000)}`,
+      name: sub.name,
+      email: mockEmail,
+      pass: mockPass,
+      screen: mockScreen,
+      expiry: new Date(Date.now() + 3600000 * 24 * 30).toLocaleDateString(),
+      status: 'ACTIVE'
+    };
+
+    setAccountSubscriptions(prev => [newSub, ...prev]);
+    return { success: true, sub: newSub };
+  };
+
+  const requestOtpNumber = async (countryId, serviceId, dynamicServiceObj = null) => {
+    const country = countries.find(c => c.id === countryId);
+    const service = dynamicServiceObj || otpServices.find(s => s.id === serviceId);
+    if (!country || !service) return { success: false, msg: 'Invalid parameters selected' };
+
+    const price = service.priceNgn;
+    const purchaseRes = await executePurchase(price, 'Purchase', `OTP Verification (${service.name} - ${country.name})`);
+    if (!purchaseRes.success) {
+      return purchaseRes;
+    }
+
+    try {
+      const countryMap = {
+        us: 'usa',
+        gb: 'england',
+        ng: 'nigeria',
+        ca: 'canada',
+        za: 'southafrica',
+        de: 'germany',
+        fr: 'france',
+        in: 'india',
+        ru: 'russia',
+        br: 'brazil'
+      };
+      
+      const cleanService = service.id.replace('srv-', '').toLowerCase();
+      const cleanCountry = countryMap[country.id] || country.name.toLowerCase().replace(/\s/g, '');
+
+      // Invoke Supabase Edge Function to buy number from 5SIM
+      const { data, error } = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'buy', country: cleanCountry, service: cleanService }
+      });
+
+      if (error || !data || !data.status) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to retrieve verification number'));
+      }
+
+      const order = data.data;
+
+      const newOtp = {
+        id: `otp-${order.id}`,
+        fivesimOrderId: order.id,
+        phoneNumber: order.phone,
+        country: country.name,
+        flag: country.flag,
+        service: service.name,
+        priceNgn: price,
+        status: 'WAITING',
+        timestamp: new Date().toLocaleString(),
+        expiryTime: Date.now() + 15 * 60 * 1000, // 15 mins
+        code: null,
+        smsMessage: null
+      };
+
+      setActiveOtps(prev => [newOtp, ...prev]);
+      return { success: true, otp: newOtp };
+
+    } catch (e) {
+      console.error("5SIM API Buy Error:", e);
+      
+      // Auto-refund since buy failed
+      const ref = `ref-fail-${Math.floor(100000 + Math.random() * 900000)}`;
+      await supabase.rpc('process_deposit', {
+        p_tx_id: ref,
+        p_user_id: user.id,
+        p_amount: price,
+        p_method: `OTP Purchase Failed Refund (${service.name})`
+      });
+
+      return { success: false, msg: "Buy failed: " + e.message };
+    }
+  };
+
+  const cancelOtp = async (otpId) => {
+    const otp = activeOtps.find(o => o.id === otpId);
+    if (!otp) return { success: false, msg: 'OTP request not found' };
+    if (otp.status !== 'WAITING') return { success: false, msg: 'OTP session already finished' };
+
+    try {
+      if (otp.fivesimOrderId) {
+        await supabase.functions.invoke('sms-gateway', {
+          body: { action: 'cancel', orderId: otp.fivesimOrderId }
+        });
+      }
+    } catch (e) {
+      console.error("Failed to cancel order on 5sim:", e);
+    }
+
+    const ref = `ref-${Math.floor(100000 + Math.random() * 900000)}`;
+    const refundRes = await supabase.rpc('process_deposit', {
+      p_tx_id: ref,
+      p_user_id: user.id,
+      p_amount: otp.priceNgn,
+      p_method: `OTP Refund (${otp.service})`
+    });
+
+    if (refundRes.error) {
+      return { success: false, msg: refundRes.error.message };
+    }
+
+    setActiveOtps(prev => prev.map(o => o.id === otpId ? { ...o, status: 'REFUNDED' } : o));
+    return { success: true };
+  };
+
+  const fetchOtpServicesForCountry = async (countryId) => {
+    const countryMap = {
+      us: 'usa',
+      gb: 'england',
+      ng: 'nigeria',
+      ca: 'canada',
+      za: 'southafrica',
+      de: 'germany',
+      fr: 'france',
+      in: 'india',
+      ru: 'russia',
+      br: 'brazil'
+    };
+    const cleanCountry = countryMap[countryId] || 'usa';
+
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'products', country: cleanCountry }
+      });
+
+      if (error || !data || !data.status) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch services'));
+      }
+
+      const products = data.data;
+      const parsed = Object.entries(products)
+        .filter(([key, val]) => val.Category === 'activation' && val.Qty > 0)
+        .map(([key, val]) => {
+          const displayName = key.charAt(0).toUpperCase() + key.slice(1);
+          // Convert RUB to NGN using dynamic OTP profit markup (base rate ~ 16.67 NGN/RUB)
+          const baseExchangeRate = 16.67;
+          const markupMultiplier = 1 + (profitMarkup.otp / 100);
+          const priceNgn = Math.max(300, Math.round(val.Price * baseExchangeRate * markupMultiplier));
+
+          const emojis = {
+            whatsapp: '💬',
+            telegram: '✈️',
+            google: '🔍',
+            openai: '🤖',
+            facebook: '📘',
+            instagram: '📸',
+            tiktok: '🎵',
+            netflix: '🎬',
+            discord: '👾',
+            twitter: '🐦',
+            microsoft: '💻',
+            apple: '🍎',
+            yahoo: '📧',
+            steam: '🎮',
+            uber: '🚗',
+            lyft: '🚙',
+            airbnb: '🏡'
+          };
+
+          return {
+            id: `srv-${key}`,
+            name: displayName,
+            emoji: emojis[key] || '📱',
+            priceNgn,
+            priceUsd: priceNgn / 750,
+            qty: val.Qty
+          };
+        })
+        .sort((a, b) => b.qty - a.qty);
+
+      return { success: true, services: parsed };
+    } catch (e) {
+      console.error("Error fetching dynamic 5sim services:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const reuseOtpNumber = async (number, serviceName, countryName, flag) => {
+    const service = otpServices.find(s => s.name.toLowerCase() === serviceName.toLowerCase() || s.id === serviceName);
+    if (!service) return { success: false, msg: 'Invalid service selected' };
+
+    const price = service.priceNgn;
+    const purchaseRes = await executePurchase(price, 'Purchase', `OTP Reuse (${service.name} - ${number})`);
+    if (!purchaseRes.success) {
+      return purchaseRes;
+    }
+
+    try {
+      const cleanService = service.id.replace('srv-', '').toLowerCase();
+      const cleanNumber = number.replace(/\D/g, ''); // strip '+' and spaces
+
+      // Invoke Supabase Edge Function to reuse number from 5SIM
+      const { data, error } = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'reuse', product: cleanService, number: cleanNumber }
+      });
+
+      if (error) {
+        // Handle the case where the edge function itself returned a non-2xx HTTP code
+        const rawMsg = error.message || '';
+        if (rawMsg.includes('non-2xx') || rawMsg.includes('Edge Function')) {
+          throw new Error('The reuse service is temporarily unavailable. Please try again in a moment, or contact support if the issue persists.');
+        }
+        throw new Error(error.message);
+      }
+
+      if (!data || !data.status) {
+        throw new Error(data?.error || 'Failed to reuse verification number');
+      }
+
+      const order = data.data;
+
+      const newOtp = {
+        id: `otp-${order.id}`,
+        fivesimOrderId: order.id,
+        phoneNumber: order.phone,
+        country: countryName || 'Reused',
+        flag: flag || '🔄',
+        service: service.name,
+        priceNgn: price,
+        status: 'WAITING',
+        timestamp: new Date().toLocaleString(),
+        expiryTime: Date.now() + 15 * 60 * 1000, // 15 mins
+        code: null,
+        smsMessage: null
+      };
+
+      setActiveOtps(prev => [newOtp, ...prev]);
+      setActiveSession(newOtp);
+      setActiveTab('otp');
+      return { success: true, otp: newOtp };
+
+    } catch (e) {
+      console.error("5SIM API Reuse Error:", e);
+      
+      // Auto-refund since reuse failed
+      const ref = `ref-fail-${Math.floor(100000 + Math.random() * 900000)}`;
+      await supabase.rpc('process_deposit', {
+        p_tx_id: ref,
+        p_user_id: user.id,
+        p_amount: price,
+        p_method: `OTP Reuse Failed Refund (${service.name})`
+      });
+
+      return { success: false, msg: e.message };
+    }
+  };
+
+
+  const rentNumber = async (countryId, serviceName, durationDays) => {
+    const country = countries.find(c => c.id === countryId);
+    if (!country) return { success: false, msg: 'Country not found' };
+
+    let rateNgn = 2500;
+    if (durationDays === 30) rateNgn = 7000;
+    if (durationDays === 90) rateNgn = 18000;
+    if (serviceName !== 'All Services') {
+      rateNgn = Math.round(rateNgn * 0.7);
+    }
+
+    const purchaseRes = await executePurchase(rateNgn, 'Purchase', `Number Rental (${durationDays} Days - ${country.name})`);
+    if (!purchaseRes.success) {
+      return purchaseRes;
+    }
+
+    const randomDigits = Math.floor(100000000 + Math.random() * 899999999);
+    const phoneNumber = `${country.code}${randomDigits}`;
+
+    const newRental = {
+      id: `rent-${Math.floor(100000 + Math.random() * 900000)}`,
+      phoneNumber,
+      country: country.name,
+      flag: country.flag,
+      service: serviceName,
+      durationDays,
+      expiryDate: new Date(Date.now() + 3600000 * 24 * durationDays).toLocaleDateString(),
+      priceNgn: rateNgn,
+      messages: [],
+      status: 'ACTIVE'
+    };
+
+    setRentedNumbers(prev => [newRental, ...prev]);
+    return { success: true, rental: newRental };
+  };
+
+  const buyEsim = async (packageId) => {
+    const pkg = esimPackages.find(p => p.id === packageId);
+    if (!pkg) return { success: false, msg: 'eSIM Package not found' };
+
+    const price = pkg.priceNgn;
+    const purchaseRes = await executePurchase(price, 'Purchase', `eSIM Setup (${pkg.country} - ${pkg.dataGb}GB)`);
+    if (!purchaseRes.success) {
+      return purchaseRes;
+    }
+
+    try {
+      // Map country to ISO3
+      const countryIso3Map = {
+        'United States': 'USA',
+        'United Kingdom': 'GBR',
+        'Europe Regional': 'EUR',
+        'Global (85 Countries)': 'USA', // Sotel plans fallback
+        'Nigeria': 'NGA',
+        'Asia Pacific Regional': 'USA'
+      };
+      
+      const iso3 = countryIso3Map[pkg.country] || 'USA';
+
+      // Invoke Supabase Edge Function to buy eSIM from Sotel
+      const { data, error } = await supabase.functions.invoke('esim-gateway', {
+        body: { 
+          action: 'buy', 
+          iso3: iso3,
+          dataGb: pkg.dataGb
+        }
+      });
+
+      if (error || !data || !data.status) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to provision eSIM'));
+      }
+
+      const sim = data.data; // contains iccid, activationCode, smdp
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent('LPA:1$' + sim.smdp + '$' + sim.activationCode)}`;
+
+      const newEsim = {
+        id: `esim-${sim.id || Math.floor(100000 + Math.random() * 900000)}`,
+        country: pkg.country,
+        planName: `${pkg.isUnlimited ? 'Unlimited Data' : pkg.dataGb + ' GB'} - ${pkg.durationDays} Days`,
+        iccid: sim.iccid,
+        smdppa: sim.smdp,
+        activationCode: sim.activationCode,
+        qrCodeUrl: qrUrl,
+        totalDataGb: pkg.dataGb,
+        usedDataGb: 0,
+        expiryDate: new Date(Date.now() + 3600000 * 24 * pkg.durationDays).toLocaleDateString(),
+        status: 'ACTIVE'
+      };
+
+      setActiveEsims(prev => [newEsim, ...prev]);
+      return { success: true, esim: newEsim };
+
+    } catch (e) {
+      console.error("Termii eSIM Buy Error:", e);
+      
+      // Auto-refund since buy failed
+      const ref = `ref-esim-fail-${Math.floor(100000 + Math.random() * 900000)}`;
+      await supabase.rpc('process_deposit', {
+        p_tx_id: ref,
+        p_user_id: user.id,
+        p_amount: price,
+        p_method: `eSIM Setup Failed Refund (${pkg.country})`
+      });
+
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const submitSmmOrder = async (serviceId, targetUrl, quantity) => {
+    const service = smmServices.find(s => s.id === serviceId);
+    if (!service) return { success: false, msg: 'SMM Service not found' };
+
+    const qty = Number(quantity);
+    const minLimit = service.min || 100;
+    const maxLimit = service.max || 100000;
+    if (qty < minLimit) return { success: false, msg: `Minimum order quantity is ${minLimit}` };
+    if (qty > maxLimit) return { success: false, msg: `Maximum order quantity is ${maxLimit}` };
+
+    const costNgn = Math.round(service.pricePerThousandNgn * (qty / 1000));
+    const purchaseRes = await executePurchase(costNgn, 'Purchase', `SMM Order (${service.platform} ${qty} Units)`);
+    if (!purchaseRes.success) {
+      return purchaseRes;
+    }
+
+    if (service.isSimulated || serviceId.endsWith('-sim')) {
+      const smmOrderId = Math.floor(100000 + Math.random() * 900000);
+      const newOrder = {
+        id: `smm-${smmOrderId}`,
+        owletOrderId: smmOrderId,
+        platform: service.platform,
+        serviceName: service.name,
+        targetUrl,
+        quantity: qty,
+        costNgn,
+        date: new Date().toLocaleString(),
+        status: 'In Progress'
+      };
+
+      setSmmOrders(prev => [newOrder, ...prev]);
+
+      // Automatically complete simulated order in 20 seconds
+      setTimeout(() => {
+        setSmmOrders(current =>
+          current.map(o => o.id === `smm-${smmOrderId}` ? { ...o, status: 'Completed' } : o)
+        );
+      }, 20000);
+
+      return { success: true, order: newOrder };
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('smm-gateway', {
+        body: {
+          action: 'add',
+          service: service.apiServiceId,
+          link: targetUrl,
+          quantity: qty
+        }
+      });
+
+      if (error || !data || !data.status) {
+        const ref = `ref-smm-${Math.floor(100000 + Math.random() * 900000)}`;
+        await supabase.rpc('process_deposit', {
+          p_tx_id: ref,
+          p_user_id: user.id,
+          p_amount: costNgn,
+          p_method: `SMM Order Failed Refund`
+        });
+        return { success: false, msg: error?.message || data?.error || 'SMM Gateway Error' };
+      }
+
+      const smmOrderId = data.data.order;
+      
+      const newOrder = {
+        id: `smm-${smmOrderId}`,
+        owletOrderId: smmOrderId,
+        platform: service.platform,
+        serviceName: service.name,
+        targetUrl,
+        quantity: qty,
+        costNgn,
+        date: new Date().toLocaleString(),
+        status: 'In Progress'
+      };
+
+      setSmmOrders(prev => [newOrder, ...prev]);
+      return { success: true, order: newOrder };
+
+    } catch (err) {
+      const ref = `ref-smm-${Math.floor(100000 + Math.random() * 900000)}`;
+      await supabase.rpc('process_deposit', {
+        p_tx_id: ref,
+        p_user_id: user.id,
+        p_amount: costNgn,
+        p_method: `SMM Order Failed Refund`
+      });
+      return { success: false, msg: err.message || 'SMM Order Execution Failed' };
+    }
+  };
+
+
+  // Real-time Admin SMS Simulation
+  const simulateSmsDelivery = (phoneNumber, smsText) => {
+    // 1. Search in Active OTPs
+    const matchingOtp = activeOtps.find(o => o.phoneNumber === phoneNumber && o.status === 'WAITING');
+    
+    if (matchingOtp) {
+      // Extract numeric OTP if found (usually 4-8 digits)
+      const matches = smsText.match(/\b\d{4,8}\b/);
+      const extractedCode = matches ? matches[0] : 'OTP-Code';
+
+      setActiveOtps(current => 
+        current.map(o => o.id === matchingOtp.id ? { 
+          ...o, 
+          status: 'RECEIVED', 
+          code: extractedCode, 
+          smsMessage: smsText 
+        } : o)
+      );
+      return { success: true, msg: 'SMS dispatched to verification session successfully.' };
+    }
+
+    // 2. Search in Rented Numbers
+    const matchingRental = rentedNumbers.find(r => r.phoneNumber === phoneNumber && r.status === 'ACTIVE');
+    if (matchingRental) {
+      const newMsg = {
+        id: `msg-${Date.now()}`,
+        text: smsText,
+        timestamp: new Date().toLocaleTimeString()
+      };
+
+      setRentedNumbers(current => 
+        current.map(r => r.id === matchingRental.id ? { 
+          ...r, 
+          messages: [newMsg, ...r.messages] 
+        } : r)
+      );
+      return { success: true, msg: 'SMS dispatched to rented inbox successfully.' };
+    }
+
+    return { success: false, msg: 'Number not active or session expired.' };
+  };
+
+  const updatePrices = (type, id, val) => {
+    const overrides = JSON.parse(localStorage.getItem('zp_price_overrides') || '{}');
+    overrides[id] = Number(val);
+    localStorage.setItem('zp_price_overrides', JSON.stringify(overrides));
+    setTriggerRecalc(prev => prev + 1);
+  };
+
+  const setManualWallet = (amount) => {
+    setWalletBalance(Number(amount));
+  };
+
+  // Handle active OTP countdown expirations and poll 5SIM for SMS
+  useEffect(() => {
+    if (!user) return;
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const activeWaiting = activeOtps.filter(o => o.status === 'WAITING');
+
+      activeWaiting.forEach(async (otp) => {
+        // 1. Expiration check
+        if (now > otp.expiryTime) {
+          await cancelOtp(otp.id);
+          return;
+        }
+
+        // 2. Poll 5SIM check status
+        if (otp.fivesimOrderId) {
+          try {
+            const { data, error } = await supabase.functions.invoke('sms-gateway', {
+              body: { action: 'check', orderId: otp.fivesimOrderId }
+            });
+
+            if (!error && data && data.status) {
+              const checkData = data.data;
+
+              // Check if SMS was received
+              if (checkData.sms && checkData.sms.length > 0) {
+                const smsObj = checkData.sms[0];
+                const extractedCode = smsObj.code || smsObj.text.match(/\b\d{4,8}\b/)?.[0] || 'Code';
+
+                setActiveOtps(current =>
+                  current.map(o => o.id === otp.id ? {
+                    ...o,
+                    status: 'RECEIVED',
+                    code: extractedCode,
+                    smsMessage: smsObj.text
+                  } : o)
+                );
+
+                // Call finish on 5SIM
+                await supabase.functions.invoke('sms-gateway', {
+                  body: { action: 'finish', orderId: otp.fivesimOrderId }
+                });
+              } else if (checkData.status === 'CANCELED' || checkData.status === 'TIMEOUT') {
+                // If 5sim expired or canceled on their end, refund client
+                const ref = `ref-exp-${Math.floor(100000 + Math.random() * 900000)}`;
+                await supabase.rpc('process_deposit', {
+                  p_tx_id: ref,
+                  p_user_id: user.id,
+                  p_amount: otp.priceNgn,
+                  p_method: `OTP Expired Refund (${otp.service})`
+                });
+
+                setActiveOtps(current =>
+                  current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o)
+                );
+              }
+            }
+          } catch (err) {
+            console.error("Error polling 5sim order:", otp.fivesimOrderId, err);
+          }
+        }
+      });
+    }, 6000); // Check/poll every 6 seconds
+
+    return () => clearInterval(timer);
+  }, [activeOtps, user]);
+
+  // Simulate data usage progression for active eSIMs to show dynamic telemetry
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveEsims(current => {
+        let changed = false;
+        const next = current.map(esim => {
+          if (esim.status === 'ACTIVE' && esim.usedDataGb < esim.totalDataGb) {
+            changed = true;
+            const inc = esim.totalDataGb === 999 ? 0.05 : esim.totalDataGb * 0.01; // slow increase
+            const nextUsed = Math.min(esim.totalDataGb, Number((esim.usedDataGb + inc).toFixed(2)));
+            return { ...esim, usedDataGb: nextUsed };
+          }
+          return esim;
+        });
+        return changed ? next : current;
+      });
+    }, 12000);
+
+  }, [activeEsims]);
+
+  // Handle SMM Campaign status polling
+  useEffect(() => {
+    if (!user || smmOrders.length === 0) return;
+
+    const timer = setInterval(() => {
+      const activeSmm = smmOrders.filter(o => o.status === 'In Progress' && o.owletOrderId);
+
+      activeSmm.forEach(async (order) => {
+        try {
+          const { data, error } = await supabase.functions.invoke('smm-gateway', {
+            body: { action: 'status', order: order.owletOrderId }
+          });
+
+          if (!error && data && data.status) {
+            const apiStatus = data.data.status; // Pending, In progress, Completed, Partial, Canceled
+
+            if (apiStatus === 'Completed') {
+              setSmmOrders(current =>
+                current.map(o => o.id === order.id ? { ...o, status: 'Completed' } : o)
+              );
+            } else if (apiStatus === 'Canceled') {
+              const ref = `ref-smm-cancel-${Math.floor(100000 + Math.random() * 900000)}`;
+              await supabase.rpc('process_deposit', {
+                p_tx_id: ref,
+                p_user_id: user.id,
+                p_amount: order.costNgn,
+                p_method: `SMM Campaign Canceled Refund`
+              });
+
+              setSmmOrders(current =>
+                current.map(o => o.id === order.id ? { ...o, status: 'Canceled' } : o)
+              );
+            } else if (apiStatus === 'Partial') {
+              const remains = Number(data.data.remains || 0);
+              const quantity = Number(order.quantity);
+              if (remains > 0 && quantity > 0) {
+                const ratio = remains / quantity;
+                const refundAmount = Math.round(order.costNgn * ratio);
+                
+                if (refundAmount > 0) {
+                  const ref = `ref-smm-part-${Math.floor(100000 + Math.random() * 900000)}`;
+                  await supabase.rpc('process_deposit', {
+                    p_tx_id: ref,
+                    p_user_id: user.id,
+                    p_amount: refundAmount,
+                    p_method: `SMM Campaign Partial Refund (${remains} units)`
+                  });
+                }
+              }
+
+              setSmmOrders(current =>
+                current.map(o => o.id === order.id ? { ...o, status: 'Partial' } : o)
+              );
+            }
+          }
+        } catch (err) {
+          console.error("Error polling SMM order status:", order.owletOrderId, err);
+        }
+      });
+    }, 12000);
+
+    return () => clearInterval(timer);
+  }, [smmOrders, user]);
+
+  const updateProfile = async (full_name, phone) => {
+    if (!user) return { success: false, msg: 'User session not found' };
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name, phone, updated_at: new Date() })
+        .eq('id', user.id);
+      if (error) throw error;
+      setProfile({ full_name, phone });
+      return { success: true };
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      return { success: false, msg: err.message };
+    }
+  };
+
+  const updatePassword = async (newPassword) => {
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      return { success: true };
+    } catch (err) {
+      console.error("Error updating password:", err);
+      return { success: false, msg: err.message };
+    }
+  };
+
+
+  const adminFetchAllTransactions = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'admin-get-transactions' }
+      });
+      if (error || !data || !data.status) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch transactions'));
+      }
+      return { success: true, data: data.data };
+    } catch (e) {
+      console.error("Admin Fetch Transactions Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const adminFetchAllProfiles = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'admin-get-profiles' }
+      });
+      if (error || !data || !data.status) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch profiles'));
+      }
+      return { success: true, data: data.data };
+    } catch (e) {
+      console.error("Admin Fetch Profiles Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const adminUpdateProfileBalance = async (targetUserId, newBalance) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'admin-update-profile', targetUserId, newBalance }
+      });
+      if (error || !data || !data.status) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to update profile balance'));
+      }
+      return { success: true, data: data.data };
+    } catch (e) {
+      console.error("Admin Update Profile Balance Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+
+  return (
+    <AppContext.Provider value={{
+      isLoggedIn,
+      user,
+      profile,
+      updateProfile,
+      updatePassword,
+      loginUser,
+      logoutUser,
+      walletBalance,
+      currency,
+      isAdmin,
+      setIsAdmin,
+      subscriptions,
+      countries,
+      otpServices,
+      esimPackages,
+      smmServices,
+      transactions,
+      activeOtps,
+      rentedNumbers,
+      activeEsims,
+      smmOrders,
+      accountSubscriptions,
+      formatCost,
+      getPrice,
+      toggleCurrency,
+      depositWallet,
+      buySharedSubscription,
+      requestOtpNumber,
+      cancelOtp,
+      rentNumber,
+      buyEsim,
+      submitSmmOrder,
+      simulateSmsDelivery,
+      updatePrices,
+      setManualWallet,
+      theme,
+      toggleTheme,
+      virtualWallet,
+      generatePocketFiWallet,
+      simulatePocketFiDeposit,
+      activeTab,
+      setActiveTab,
+      activeSession,
+      setActiveSession,
+      reuseOtpNumber,
+      fetchOtpServicesForCountry,
+      profitMarkup,
+      updateProfitMarkup,
+      adminFetchAllTransactions,
+      adminFetchAllProfiles,
+      adminUpdateProfileBalance
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+};
