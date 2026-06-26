@@ -505,7 +505,7 @@ const OrderHistory = () => {
                     {isCredit ? '+' : order.amountNgn > 0 ? '−' : ''}{formatCost(order.amountNgn)}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    ≈ ${(order.amountNgn / 750).toFixed(2)} USD
+                    ≈ ${(order.amountNgn / 1350).toFixed(2)} USD
                   </div>
                 </div>
 
@@ -617,7 +617,7 @@ const OrderHistory = () => {
                   {formatCost(selectedOrder.amountNgn)}
                 </h3>
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  ≈ ${(selectedOrder.amountNgn / 750).toFixed(2)} USD
+                  ≈ ${(selectedOrder.amountNgn / 1350).toFixed(2)} USD
                 </span>
               </div>
 

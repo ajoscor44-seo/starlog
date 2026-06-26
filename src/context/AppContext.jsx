@@ -325,7 +325,7 @@ export const AppProvider = ({ children }) => {
         return {
           ...sub,
           priceNgn,
-          priceUsd: priceNgn / 750
+          priceUsd: priceNgn / 1350
         };
       });
       localStorage.setItem('zp_catalog_subs', JSON.stringify(updated));
@@ -339,7 +339,7 @@ export const AppProvider = ({ children }) => {
         return {
           ...otp,
           priceNgn,
-          priceUsd: priceNgn / 750
+          priceUsd: priceNgn / 1350
         };
       });
       localStorage.setItem('zp_catalog_otp', JSON.stringify(updated));
@@ -353,7 +353,7 @@ export const AppProvider = ({ children }) => {
         return {
           ...pkg,
           priceNgn,
-          priceUsd: priceNgn / 750
+          priceUsd: priceNgn / 1350
         };
       });
       localStorage.setItem('zp_catalog_esim', JSON.stringify(updated));
@@ -369,7 +369,7 @@ export const AppProvider = ({ children }) => {
           return {
             ...smm,
             pricePerThousandNgn: priceNgn,
-            pricePerThousandUsd: priceNgn / 750
+            pricePerThousandUsd: priceNgn / 1350
           };
         }
         const wholesaleCosts = {
@@ -387,7 +387,7 @@ export const AppProvider = ({ children }) => {
         return {
           ...smm,
           pricePerThousandNgn: priceNgn,
-          pricePerThousandUsd: priceNgn / 750
+          pricePerThousandUsd: priceNgn / 1350
         };
       });
       localStorage.setItem('zp_catalog_smm', JSON.stringify(updated));
@@ -452,7 +452,7 @@ export const AppProvider = ({ children }) => {
                   return {
                     ...item,
                     pricePerThousandNgn: userPricePerThousand,
-                    pricePerThousandUsd: userPricePerThousand / 750,
+                    pricePerThousandUsd: userPricePerThousand / 1350,
                     min: Number(apiSrv.min || item.min || 100),
                     max: Number(apiSrv.max || item.max || 100000)
                   };
@@ -529,7 +529,7 @@ export const AppProvider = ({ children }) => {
           id: tx.id,
           type: tx.type,
           amountNgn: Number(tx.amount),
-          amountUsd: Number(tx.amount) / 750,
+          amountUsd: Number(tx.amount) / 1350,
           method: tx.method,
           date: new Date(tx.created_at).toLocaleString(),
           status: tx.status
@@ -621,7 +621,7 @@ export const AppProvider = ({ children }) => {
               id: tx.id,
               type: tx.type,
               amountNgn: Number(tx.amount),
-              amountUsd: Number(tx.amount) / 750,
+              amountUsd: Number(tx.amount) / 1350,
               method: tx.method,
               date: new Date(tx.created_at).toLocaleString(),
               status: tx.status
@@ -754,7 +754,7 @@ export const AppProvider = ({ children }) => {
       return `₦${value.toLocaleString()}`;
     } else {
       // Approximate conversion rate N1000 = $1.3
-      const converted = (value / 750).toFixed(2);
+      const converted = (value / 1350).toFixed(2);
       return `$${converted}`;
     }
   };
@@ -786,8 +786,8 @@ export const AppProvider = ({ children }) => {
 
   const depositWallet = async (amount, method) => {
     const isNgn = currency === 'NGN';
-    const amountNgn = isNgn ? Number(amount) : Number(amount) * 750;
-    const amountUsd = isNgn ? Number(amount) / 750 : Number(amount);
+    const amountNgn = isNgn ? Number(amount) : Number(amount) * 1350;
+    const amountUsd = isNgn ? Number(amount) / 1350 : Number(amount);
 
     if (user) {
       const ref = `tx-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -1141,7 +1141,7 @@ export const AppProvider = ({ children }) => {
             name: displayName,
             emoji: emojis[key] || '📱',
             priceNgn,
-            priceUsd: priceNgn / 750,
+            priceUsd: priceNgn / 1350,
             qty: val.Qty
           };
         })

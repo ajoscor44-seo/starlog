@@ -55,7 +55,7 @@ const RentNumbers = () => {
       if (!c) return 0;
       const costUsd = Number(c.pricing[duration]) || 0;
       const markup = profitMarkup?.otp || 50;
-      return Math.round(costUsd * 1500 * (1 + (markup / 100)));
+      return Math.round(costUsd * 1350 * (1 + (markup / 100)));
     } else {
       let rateNgn = 2500;
       if (duration === 30) rateNgn = 7000;

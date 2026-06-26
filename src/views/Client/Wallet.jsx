@@ -65,7 +65,7 @@ const Wallet = () => {
 
   const confirmCryptoPayment = async () => {
     const isNgn = currency === 'NGN';
-    const finalAmount = isNgn ? cryptoAmount * 750 : cryptoAmount;
+    const finalAmount = isNgn ? cryptoAmount * 1350 : cryptoAmount;
     const channelName = selectedCryptoChannel === 'binance' ? 'Binance Pay' : 'Bybit UID Transfer';
     await depositWallet(finalAmount, `Crypto (${channelName})`);
     setShowCryptoModal(false);
@@ -285,7 +285,7 @@ const Wallet = () => {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(0, 242, 254, 0.05)', border: '1px solid rgba(0, 242, 254, 0.15)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                 <Coins size={16} style={{ color: 'var(--color-turquoise)', flexShrink: 0 }} />
-                <span>USDT deposits are calculated automatically using current rates (₦750 / $1).</span>
+                <span>USDT deposits are calculated automatically using current rates (₦1350 / $1).</span>
               </div>
 
               <button type="submit" className="btn btn-accent" style={{ padding: '14px', marginTop: '10px' }}>

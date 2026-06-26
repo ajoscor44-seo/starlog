@@ -139,7 +139,7 @@ const SMSVerification = () => {
             const merged = smsPoolShortTermServices.map(s => {
               const priceObj = pricingData.find(p => p.service === s.ID);
               const costUsd = priceObj ? parseFloat(priceObj.price) : 0;
-              const NGN_RATE = 1500;
+              const NGN_RATE = 1350;
               const priceNgn = Math.round(costUsd * NGN_RATE * (1 + (profitMarkup.otp / 100)));
               
               return {
