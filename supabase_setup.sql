@@ -2,6 +2,8 @@
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  followup_email_sent boolean default false not null,
   full_name text,
   phone text,
   wallet_balance numeric(10,2) default 0.00 not null
