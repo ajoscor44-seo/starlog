@@ -115,6 +115,10 @@ begin
   where id = p_user_id
   for update;
 
+  if p_amount <= 0 then
+    raise exception 'Invalid amount. Must be greater than 0.';
+  end if;
+
   if current_balance is null then
     raise exception 'Profile not found';
   end if;
@@ -155,6 +159,10 @@ language plpgsql
 security definer
 as $$
 begin
+  if p_amount <= 0 then
+    return false; -- Invalid deposit amount
+  end if;
+
   -- Check if transaction has already been processed to prevent duplication
   if exists (select 1 from public.transactions where id = p_tx_id) then
     return false;

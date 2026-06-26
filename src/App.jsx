@@ -86,7 +86,7 @@ function AppContent() {
           <Route path="profile" element={<Profile />} />
           <Route path="api" element={isAdmin ? <DeveloperApi /> : <Navigate to="/dashboard" replace />} />
           <Route path="support" element={<Support />} />
-          <Route path="admin" element={<AdminDashboard />} />
+          <Route path="admin" element={isAdmin ? <AdminDashboard /> : <Navigate to="/dashboard" replace />} />
         </Route>
       </Route>
 

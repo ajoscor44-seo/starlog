@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate, useMatch } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { createPortal } from 'react-dom';
@@ -127,11 +128,8 @@ const SocialMediaLogs = () => {
               <h1 style={{ fontSize: isMobile ? '24px' : '32px', margin: '0 0 16px 0', lineHeight: '1.3' }}>{selectedLog.name}</h1>
               
               {selectedLog.description ? (
-                <div 
-                  className="social-log-html-content"
-                  style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: '1.6', background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', wordBreak: 'break-word' }}
-                  dangerouslySetInnerHTML={{ __html: selectedLog.description.replace(/color:\s*[^;"]+;?/gi, '').replace(/background(?:-color)?:\s*[^;"]+;?/gi, '') }}
-                />
+                <div className="social-log-html-content" style={{ marginTop: 12, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', background: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8, wordBreak: 'break-word' }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedLog.description.replace(/color:\s*[^;"]+;?/gi, '').replace(/background(?:-color)?:\s*[^;"]+;?/gi, '')) }} />
               ) : (
                 <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No description available for this product.</div>
               )}
@@ -430,7 +428,7 @@ const SocialMediaLogs = () => {
                   <div 
                     className="social-log-html-content"
                     style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}
-                    dangerouslySetInnerHTML={{ __html: log.description.replace(/color:\s*[^;"]+;?/gi, '').replace(/background(?:-color)?:\s*[^;"]+;?/gi, '') }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(log.description.replace(/color:\s*[^;"]+;?/gi, '').replace(/background(?:-color)?:\s*[^;"]+;?/gi, '')) }}
                   />
                 )}
               </div>

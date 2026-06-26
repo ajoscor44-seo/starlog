@@ -36,6 +36,21 @@ serve(async (req) => {
       throw new Error('Missing action parameter')
     }
 
+    if (action.startsWith('admin-')) {
+      const { data: profile, error: profileError } = await supabaseClient
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+        
+      if (profileError || !profile || profile.is_admin !== true) {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Admin access required' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403,
+        })
+      }
+    }
+
     // Intercept admin endpoints that use SUPABASE_SERVICE_ROLE_KEY to bypass RLS
     if (action === 'admin-get-transactions') {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
