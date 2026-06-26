@@ -1,6 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { supabase } from '../../lib/supabaseClient';
 import { Key, Copy, Check, Clock, AlertTriangle, AlertCircle, RefreshCw, XCircle, Search } from 'lucide-react';
 
 const serviceLogoMap = {
@@ -78,7 +79,8 @@ const SMSVerification = () => {
     reuseOtpNumber,
     fetchOtpServicesForCountry,
     smsPoolShortTermCountries,
-    smsPoolShortTermServices
+    smsPoolShortTermServices,
+    profitMarkup
   } = useContext(AppContext);
   const isMobile = useIsMobile();
   const [otpPage, setOtpPage] = useState(1);
@@ -94,6 +96,7 @@ const SMSVerification = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isRebuying, setIsRebuying] = useState(false);
   const [dynamicServices, setDynamicServices] = useState([]);
+  const [smsPoolDynamicServices, setSmsPoolDynamicServices] = useState([]);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
   
   const [errorMsg, setErrorMsg] = useState('');
@@ -109,23 +112,58 @@ const SMSVerification = () => {
 
   useEffect(() => {
     const loadServices = async () => {
-      if (!selectedCountry) {
-        setDynamicServices([]);
-        return;
-      }
+      if (!selectedCountry) return;
+      
       setIsLoadingServices(true);
-      const res = await fetchOtpServicesForCountry(selectedCountry);
-      setIsLoadingServices(false);
-      if (res.success && res.services.length > 0) {
-        setDynamicServices(res.services);
-        setSelectedService(res.services[0].id);
+      if (server === 'server1') {
+        const res = await fetchOtpServicesForCountry(selectedCountry);
+        if (res.success && res.services.length > 0) {
+          setDynamicServices(res.services);
+          setSelectedService(res.services[0].id);
+        } else {
+          setDynamicServices([]);
+          setSelectedService(otpServices[0].id);
+        }
       } else {
-        setDynamicServices([]);
-        setSelectedService(otpServices[0].id);
+        // Server 2 (SMSPool) fetching prices for selected country
+        try {
+          const res = await supabase.functions.invoke('smspool-gateway', {
+            body: { action: 'get_pricing', country: selectedCountry }
+          });
+          if (!res.error && res.data?.status) {
+            // The API returns an array of prices, e.g. [{ service: 1012, price: "1.20" }, ...]
+            // Some services might appear multiple times if they exist in multiple pools, so we take the cheapest or first.
+            const pricingData = res.data.data || [];
+            
+            // Map the pricing to the smsPoolShortTermServices
+            const merged = smsPoolShortTermServices.map(s => {
+              const priceObj = pricingData.find(p => p.service === s.ID);
+              const costUsd = priceObj ? parseFloat(priceObj.price) : 0;
+              const NGN_RATE = 1500;
+              const priceNgn = Math.round(costUsd * NGN_RATE * (1 + (profitMarkup.otp / 100)));
+              
+              return {
+                ...s,
+                priceNgn
+              };
+            });
+            // We only keep services that have a price for this country
+            const availableServices = merged.filter(s => s.priceNgn > 0);
+            setSmsPoolDynamicServices(availableServices);
+            if (availableServices.length > 0) {
+              setSelectedService(availableServices[0].ID);
+            } else {
+              setSelectedService(null);
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
       }
+      setIsLoadingServices(false);
     };
     loadServices();
-  }, [selectedCountry]);
+  }, [selectedCountry, server]);
 
   useEffect(() => {
     // Automatically select first country when switching servers
@@ -144,7 +182,7 @@ const SMSVerification = () => {
 
   const activeServicesList = server === 'server1' 
     ? (dynamicServices.length > 0 ? dynamicServices : otpServices) 
-    : smsPoolShortTermServices;
+    : smsPoolDynamicServices;
 
   const filteredServices = activeServicesList.filter(s =>
     (s.name || '').toLowerCase().includes(searchService.toLowerCase())

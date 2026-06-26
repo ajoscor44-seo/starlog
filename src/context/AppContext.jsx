@@ -1553,10 +1553,24 @@ export const AppProvider = ({ children }) => {
 
   const fetchSmsPoolShortTermData = async () => {
     try {
+      const getFlagEmoji = (countryCode) => {
+        if (!countryCode) return '🏳️';
+        const codePoints = countryCode
+          .toUpperCase()
+          .split('')
+          .map(char => 127397 + char.charCodeAt(0));
+        return String.fromCodePoint(...codePoints);
+      };
+
       // Fetch Countries
       const cRes = await supabase.functions.invoke('smspool-gateway', { body: { action: 'get_countries' } });
       if (!cRes.error && cRes.data?.status) {
-        setSmsPoolShortTermCountries(cRes.data.data || []);
+        const countries = cRes.data.data || [];
+        const countriesWithFlags = countries.map(c => ({
+          ...c,
+          flag: getFlagEmoji(c.short_name)
+        }));
+        setSmsPoolShortTermCountries(countriesWithFlags);
       }
       // Fetch Services
       const sRes = await supabase.functions.invoke('smspool-gateway', { body: { action: 'get_services' } });

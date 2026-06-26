@@ -50,6 +50,10 @@ serve(async (req) => {
       url = `https://api.smspool.net/country/retrieve_all?key=${apiKey}`
     } else if (action === 'get_services') {
       url = `https://api.smspool.net/service/retrieve_all?key=${apiKey}`
+    } else if (action === 'get_pricing') {
+      const { country } = requestBody
+      url = 'https://api.smspool.net/request/pricing'
+      formData.append('country', country)
     } else if (action === 'order_sms') {
       const { country, service, quantity, pricing_option } = requestBody
       url = 'https://api.smspool.net/purchase/sms'
