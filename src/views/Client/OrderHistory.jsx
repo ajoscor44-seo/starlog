@@ -39,6 +39,7 @@ const typeIcon = (type) => {
     Rental: <Phone size={16} />,
     SMM: <Share2 size={16} />,
     Subscription: <CreditCard size={16} />,
+    'Social Log': <Share2 size={16} />,
   };
   return map[type] || <CreditCard size={16} />;
 };
@@ -53,6 +54,7 @@ const typeBg = (type) => {
     Rental: 'rgba(255,185,0,0.12)',
     SMM: 'rgba(255,0,127,0.10)',
     Subscription: 'rgba(0,242,254,0.10)',
+    'Social Log': 'rgba(171,71,252,0.12)',
   };
   return map[type] || 'rgba(255,255,255,0.05)';
 };
@@ -67,6 +69,7 @@ const typeColor = (type) => {
     Rental: 'var(--color-amber)',
     SMM: 'var(--color-pink)',
     Subscription: 'var(--color-turquoise)',
+    'Social Log': '#ab47fc',
   };
   return map[type] || 'var(--text-secondary)';
 };
@@ -83,7 +86,7 @@ const statusBadge = (status) => {
   return <span className="badge badge-info">{status}</span>;
 };
 
-const ALL_TYPES = ['All', 'Deposit', 'Purchase', 'Refund', 'OTP', 'eSIM', 'Rental', 'SMM', 'Subscription'];
+const ALL_TYPES = ['All', 'Deposit', 'Purchase', 'Refund', 'OTP', 'eSIM', 'Rental', 'SMM', 'Social Log', 'Subscription'];
 const SORT_OPTIONS = [
   { label: 'Newest First', value: 'date_desc' },
   { label: 'Oldest First', value: 'date_asc' },
@@ -100,6 +103,7 @@ const OrderHistory = () => {
     rentedNumbers = [],
     activeEsims = [],
     smmOrders = [],
+    socialMediaOrders = [],
     formatCost = (v) => `₦${Number(v).toLocaleString()}`,
     reuseOtpNumber
   } = useContext(AppContext) || {};
@@ -199,8 +203,23 @@ const OrderHistory = () => {
       });
     });
 
+    // Social Media Log Orders
+    socialMediaOrders.forEach(slo => {
+      orders.push({
+        id: slo.id || `slo-${Math.random()}`,
+        type: 'Social Log',
+        method: `Social Log — ${slo.plan_name || 'Account'}`,
+        amountNgn: slo.cost || 0,
+        date: slo.date || '—',
+        status: (slo.status || 'completed').toUpperCase(),
+        detail: slo.ologstore_order_id ? `Ref: ${slo.ologstore_order_id}` : null,
+        rawDate: slo.created_at || slo.date,
+        raw: slo,
+      });
+    });
+
     return orders;
-  }, [transactions, activeOtps, rentedNumbers, activeEsims, smmOrders]);
+  }, [transactions, activeOtps, rentedNumbers, activeEsims, smmOrders, socialMediaOrders]);
 
   /* Filter + search + sort */
   const filtered = useMemo(() => {
@@ -742,6 +761,55 @@ const OrderHistory = () => {
                       </div>
                       <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold', textTransform: 'uppercase' }}>Scan to Install eSIM Profile</span>
                     </div>
+                  </>
+                )}
+
+                {selectedOrder.type === 'Social Log' && selectedOrder.raw && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Product</span>
+                      <span style={{ color: '#ab47fc', fontWeight: '700' }}>{selectedOrder.raw.plan_name}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Quantity</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{selectedOrder.raw.quantity || 1} Account(s)</span>
+                    </div>
+                    {selectedOrder.raw.ologstore_order_id && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Provider Ref</span>
+                        <code style={{ fontFamily: 'monospace', color: 'var(--text-primary)', fontSize: '12px' }}>{selectedOrder.raw.ologstore_order_id}</code>
+                      </div>
+                    )}
+                    {selectedOrder.raw.account_details && (() => {
+                      const details = selectedOrder.raw.account_details;
+                      const renderKV = (obj) => Object.entries(obj).filter(([k]) => !['raw_response', 'status', 'item_number'].includes(k)).map(([key, value]) => (
+                        <div key={key} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                          <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <code style={{ fontFamily: 'monospace', color: 'var(--text-primary)', fontSize: '13px', wordBreak: 'break-all', textAlign: 'right', maxWidth: '200px' }}>{String(value || 'N/A')}</code>
+                            <button 
+                              onClick={() => { navigator.clipboard.writeText(String(value || '')); }}
+                              style={{ background: 'transparent', border: 'none', color: 'var(--color-turquoise)', cursor: 'pointer', flexShrink: 0 }}
+                              title={`Copy ${key}`}
+                            >
+                              <Copy size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ));
+                      if (Array.isArray(details)) {
+                        return details.map((item, idx) => (
+                          <div key={idx}>
+                            {item.item_number && <div style={{ fontSize: '11px', color: '#ab47fc', fontWeight: 'bold', marginBottom: '4px', marginTop: idx > 0 ? '8px' : 0 }}>Item #{item.item_number}</div>}
+                            {renderKV(item)}
+                          </div>
+                        ));
+                      }
+                      if (details.status && details.status !== 'completed') {
+                        return <div style={{ padding: '8px', fontSize: '13px', color: '#eab308' }}>Order status: {details.status}. Delivery pending.</div>;
+                      }
+                      return renderKV(details);
+                    })()}
                   </>
                 )}
 

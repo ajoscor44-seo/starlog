@@ -153,16 +153,45 @@ const SocialMediaLogs = () => {
                 <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '20px', textAlign: 'left', marginBottom: '24px' }}>
                   <h4 style={{ margin: '0 0 16px', color: '#ab47fc', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Credentials</h4>
                   
-                  {Object.entries(purchaseSuccess.account_details || {}).map(([key, value]) => (
-                    <div key={key} style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{key.replace('_', ' ')}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <code style={{ fontSize: '14px', color: '#fff', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', flex: 1, fontFamily: 'var(--mono)', wordBreak: 'break-all' }}>
-                          {value?.toString() || 'N/A'}
-                        </code>
+                  {(() => {
+                    const details = purchaseSuccess.account_details;
+                    if (!details || (typeof details === 'object' && Object.keys(details).length === 0)) {
+                      return <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Order is being processed. Check your order history for delivery updates.</div>;
+                    }
+                    // If it's an array (multiple items)
+                    if (Array.isArray(details)) {
+                      return details.map((item, idx) => (
+                        <div key={idx} style={{ marginBottom: idx < details.length - 1 ? '16px' : '0', paddingBottom: idx < details.length - 1 ? '16px' : '0', borderBottom: idx < details.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                          {item.item_number && <div style={{ fontSize: '11px', color: '#ab47fc', marginBottom: '8px', fontWeight: 'bold' }}>Item #{item.item_number}</div>}
+                          {Object.entries(item).filter(([k]) => k !== 'item_number').map(([key, value]) => (
+                            <div key={key} style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <code style={{ fontSize: '14px', color: '#fff', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', flex: 1, fontFamily: 'var(--mono)', wordBreak: 'break-all' }}>
+                                  {String(value || 'N/A')}
+                                </code>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ));
+                    }
+                    // If it's an object with status "processing"
+                    if (details.status && details.status !== 'completed') {
+                      return <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Order status: <strong style={{ color: '#eab308' }}>{details.status}</strong>. Delivery details will be available shortly.</div>;
+                    }
+                    // Flat object (single item) — filter out raw_response
+                    return Object.entries(details).filter(([k]) => k !== 'raw_response' && k !== 'status').map(([key, value]) => (
+                      <div key={key} style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <code style={{ fontSize: '14px', color: '#fff', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', flex: 1, fontFamily: 'var(--mono)', wordBreak: 'break-all' }}>
+                            {String(value || 'N/A')}
+                          </code>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                   
                   <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.2)', borderRadius: '8px', fontSize: '12px', color: '#eab308' }}>
                     <AlertCircle size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '4px' }} />

@@ -545,9 +545,37 @@ export const AppProvider = ({ children }) => {
       }
     };
 
+    // D2. Fetch social media orders from DB
+    const fetchSocialMediaOrdersFromDB = async () => {
+      try {
+        const { data: orders, error } = await supabase
+          .from('social_media_orders')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (orders && !error) {
+          setSocialMediaOrders(orders.map(o => ({
+            id: o.id,
+            plan_id: o.plan_id,
+            plan_name: o.plan_name,
+            quantity: o.quantity,
+            cost: Number(o.cost),
+            status: o.status,
+            account_details: o.account_details,
+            ologstore_order_id: o.ologstore_order_id,
+            created_at: o.created_at,
+            date: new Date(o.created_at).toLocaleString()
+          })));
+        }
+      } catch (e) {
+        console.error('Failed to fetch social media orders:', e);
+      }
+    };
+
     fetchProfileData();
     fetchTransactions();
     fetchVirtualWallet();
+    fetchSocialMediaOrdersFromDB();
 
     // D. Listen to realtime DB notifications
     // Listen for updates on Profiles
@@ -648,6 +676,8 @@ export const AppProvider = ({ children }) => {
     const saved = localStorage.getItem('zp_smmOrders');
     return saved ? JSON.parse(saved) : [];
   });
+
+  const [socialMediaOrders, setSocialMediaOrders] = useState([]);
 
   const [accountSubscriptions, setAccountSubscriptions] = useState(() => {
     const saved = localStorage.getItem('zp_accountSubs');
@@ -1652,6 +1682,21 @@ export const AppProvider = ({ children }) => {
         throw new Error(error ? error.message : (data ? data.error : 'Failed to purchase log'));
       }
       setWalletBalance(data.newBalance);
+      // Add the new order to socialMediaOrders state so it appears in Order History
+      if (data.order) {
+        setSocialMediaOrders(prev => [{
+          id: data.order.id,
+          plan_id: data.order.plan_id,
+          plan_name: data.order.plan_name,
+          quantity: data.order.quantity,
+          cost: Number(data.order.cost),
+          status: data.order.status,
+          account_details: data.order.account_details,
+          ologstore_order_id: data.order.ologstore_order_id,
+          created_at: data.order.created_at,
+          date: new Date(data.order.created_at).toLocaleString()
+        }, ...prev]);
+      }
       return { success: true, order: data.order };
     } catch (e) {
       console.error("Buy Social Media Log Error:", e);
@@ -1718,7 +1763,8 @@ export const AppProvider = ({ children }) => {
       adminFetchAllProfiles,
       adminUpdateProfileBalance,
       fetchSocialMediaLogs,
-      buySocialMediaLog
+      buySocialMediaLog,
+      socialMediaOrders
     }}>
       {children}
     </AppContext.Provider>

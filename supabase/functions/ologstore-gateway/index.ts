@@ -191,6 +191,7 @@ serve(async (req) => {
 
         if (response.ok) {
           orderResult = await response.json();
+          console.log("OlogStore order response:", JSON.stringify(orderResult));
         } else {
           console.error("Ologstore API Order Error:", response.status, await response.text());
           throw new Error("OlogStore order creation failed");
@@ -218,7 +219,51 @@ serve(async (req) => {
         });
       }
 
-      // 5. Insert into social_media_orders table
+      // 5. Parse the OlogStore response to extract delivery data
+      // OlogStore returns: { success, data: { orders: [{trans_id, ...}], delivery: { items: ["Account: x | Pass: y"], delivered_count, expected_count } } }
+      const ologData = orderResult?.data || {};
+      const ologOrders = ologData.orders || (ologData.order ? [ologData.order] : []);
+      const transId = (ologOrders[0]?.trans_id) || orderResult?.trans_id || null;
+      const deliveryItems = ologData.delivery?.items || [];
+
+      // Parse delivery items (strings like "Account: user@mail.com | Pass: abc123") into structured objects
+      const parseDeliveryItem = (itemStr: string): Record<string, string> => {
+        const parts: Record<string, string> = {};
+        if (!itemStr) return parts;
+        // Split by "|" and parse "Key: Value" pairs
+        const segments = itemStr.split('|');
+        segments.forEach((seg: string) => {
+          const colonIdx = seg.indexOf(':');
+          if (colonIdx > 0) {
+            const key = seg.substring(0, colonIdx).trim();
+            const val = seg.substring(colonIdx + 1).trim();
+            if (key && val) parts[key] = val;
+          }
+        });
+        // If no key-value pairs were parsed, store the raw string
+        if (Object.keys(parts).length === 0 && itemStr.trim()) {
+          parts['Details'] = itemStr.trim();
+        }
+        return parts;
+      };
+
+      // Build account_details as a structured object
+      let accountDetails: any;
+      if (deliveryItems.length === 1) {
+        // Single item: flatten to a simple key-value object
+        accountDetails = parseDeliveryItem(deliveryItems[0]);
+      } else if (deliveryItems.length > 1) {
+        // Multiple items: array of parsed objects
+        accountDetails = deliveryItems.map((item: string, idx: number) => ({
+          item_number: idx + 1,
+          ...parseDeliveryItem(item)
+        }));
+      } else {
+        // No delivery items yet (order may be processing) - store raw response for reference
+        accountDetails = { status: ologOrders[0]?.status || "processing", raw_response: ologData };
+      }
+
+      // 6. Insert into social_media_orders table
       const { data: orderRecord, error: orderInsertError } = await supabaseAdmin
         .from("social_media_orders")
         .insert({
@@ -227,9 +272,9 @@ serve(async (req) => {
           plan_name: plan_name,
           quantity: quantity,
           cost: cost,
-          status: "completed",
-          account_details: orderResult.account_details || orderResult,
-          ologstore_order_id: orderResult.order_id || "simulated"
+          status: ologOrders[0]?.status || "completed",
+          account_details: accountDetails,
+          ologstore_order_id: transId || `local_${Date.now()}`
         })
         .select()
         .single();
