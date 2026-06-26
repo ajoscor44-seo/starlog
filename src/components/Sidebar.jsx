@@ -68,7 +68,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
       )}
 
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-logo">
+        <div className="sidebar-logo sidebar-logo--hide-mobile-auth">
           <Compass size={28} className="pulse-glow-cyan" style={{ color: 'var(--color-turquoise)' }} />
           <span className="logo-text">discountzar.ng</span>
         </div>

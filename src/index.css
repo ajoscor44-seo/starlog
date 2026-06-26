@@ -1462,6 +1462,11 @@ a:hover {
     /* display stays as-is; React controls conditional rendering */
   }
 
+  /* Hide the logo inside the mobile drawer for logged-in users */
+  .sidebar-logo--hide-mobile-auth {
+    display: none;
+  }
+
   .app-header-actions {
     gap: 8px;
   }
