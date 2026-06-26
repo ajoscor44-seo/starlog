@@ -136,7 +136,7 @@ const DeveloperApi = () => {
       description: 'Check the status of a requested temporary OTP order and retrieve the SMS code once received.',
       params: [
         { name: 'action', type: 'string (required)', desc: 'Must be set to "check"' },
-        { name: 'orderId', type: 'number (required)', desc: 'The 5SIM order ID returned from the number purchase request' }
+        { name: 'orderId', type: 'number (required)', desc: 'The order ID returned from the number purchase request' }
       ],
       codes: {
         curl: `curl -X POST "${baseUrl}/sms-gateway" \\\n  -H "Authorization: Bearer ${apiKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action": "check", "orderId": 98765432}'`,
