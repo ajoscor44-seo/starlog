@@ -120,6 +120,7 @@ const Wallet = () => {
             >
               🏦 Bank Account (Auto)
             </button>
+            {/*
             <button 
               className={`tab-btn ${depositTab === 'crypto' ? 'active' : ''}`}
               onClick={() => setDepositTab('crypto')}
@@ -127,6 +128,7 @@ const Wallet = () => {
             >
               💎 USDT (Crypto)
             </button>
+            */}
           </div>
 
 

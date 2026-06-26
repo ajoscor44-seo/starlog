@@ -10,6 +10,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper to translate common Vietnamese terms to English
+const translateToEnglish = (text: string) => {
+  if (!text) return text;
+  const map: Record<string, string> = {
+    'Học Tập': 'Learning',
+    'Giải trí': 'Entertainment',
+    'Làm việc': 'Work',
+    'Tiện ích': 'Utility',
+    'Tài khoản': 'Account',
+    'Tháng': 'Month',
+    'Năm': 'Year',
+    'Ngày': 'Days',
+    'Gia hạn': 'Renewal',
+    'Nâng cấp': 'Upgrade',
+    'Chính chủ': 'Official',
+    'Bảo hành': 'Warranty',
+    'Vĩnh viễn': 'Lifetime',
+    'Mật khẩu': 'Password'
+  };
+  
+  let result = text;
+  Object.keys(map).forEach(key => {
+    const regex = new RegExp(key, "gi");
+    result = result.replace(regex, map[key]);
+  });
+  return result;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -66,11 +94,13 @@ serve(async (req) => {
             products = data.data.products.flatMap((p: any) => 
               (p.plans || []).map((plan: any) => ({
                 id: plan.id,
-                category: p.category?.name || "General",
-                name: `${p.name} - ${plan.name}`,
+                category: translateToEnglish(p.category?.name || "General"),
+                name: translateToEnglish(`${p.name} - ${plan.name}`),
+                slug: p.slug,
+                image: p.image,
                 price: Number(plan.final_price) || 0,
                 stock: plan.stock_count || 0,
-                description: p.description || ""
+                description: translateToEnglish(p.description || "")
               }))
             );
           }
@@ -80,8 +110,8 @@ serve(async (req) => {
       } catch (err) {
         console.warn("Falling back to simulated products");
         products = [
-          { id: 18, category: "Facebook", name: "Facebook Aged Account", price: 5000, stock: 120, description: "Aged FB account." },
-          { id: 19, category: "Instagram", name: "Instagram + 100 Followers", price: 2500, stock: 300, description: "Email verified." }
+          { id: 18, category: "Facebook", name: "Facebook Aged Account", price: 5000, stock: 120, description: "Aged FB account.", image: "https://upload.wikimedia.org/wikipedia/commons/b/b8/2021_Facebook_icon.svg" },
+          { id: 19, category: "Instagram", name: "Instagram + 100 Followers", price: 2500, stock: 300, description: "Email verified.", image: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" }
         ];
       }
 

@@ -43,6 +43,17 @@ const SocialMediaLogs = () => {
     if (activeCategory !== 'All' && l.category !== activeCategory) return false;
     if (searchQuery && !l.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
+  }).sort((a, b) => {
+    const getScore = (log) => {
+      let score = 0;
+      const text = `${log.name} ${log.category}`.toLowerCase();
+      if (text.includes('usa') || text.includes(' us ')) score += 10;
+      if (text.includes('aged')) score += 5;
+      if (text.includes('verified') || text.includes('official')) score += 5;
+      if (text.includes('facebook') || text.includes('instagram')) score += 2;
+      return score;
+    };
+    return getScore(b) - getScore(a);
   });
 
   const handleBuy = async (e) => {
@@ -182,6 +193,11 @@ const SocialMediaLogs = () => {
               <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '100px', height: '100px', background: 'radial-gradient(circle, rgba(171,71,252,0.15) 0%, rgba(0,0,0,0) 70%)', zIndex: 0 }}></div>
               
               <div style={{ zIndex: 1 }}>
+                {log.image && (
+                  <div style={{ width: '100%', height: '120px', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px', background: 'rgba(255,255,255,0.02)' }}>
+                    <img src={log.image} alt={log.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ fontSize: '24px', background: 'rgba(255,255,255,0.05)', width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -207,9 +223,10 @@ const SocialMediaLogs = () => {
                 <h3 style={{ fontSize: '15px', lineHeight: '1.4', margin: '0 0 8px 0', fontWeight: '600' }}>{log.name}</h3>
                 
                 {log.description && (
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {log.description}
-                  </p>
+                  <div 
+                    style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                    dangerouslySetInnerHTML={{ __html: log.description }}
+                  />
                 )}
               </div>
 

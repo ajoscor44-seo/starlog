@@ -257,7 +257,7 @@ export const AppProvider = ({ children }) => {
   // Virtual Wallet details from PocketFi / Database
   const [virtualWallet, setVirtualWallet] = useState(null);
 
-  const [walletBalance, setWalletBalance] = useState(10000);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const [currency, setCurrency] = useState(() => {
     return localStorage.getItem('zp_currency') || 'NGN';
@@ -469,11 +469,8 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (!user) {
       // Clear/Reset to defaults when logged out
-      setWalletBalance(10000);
-      setTransactions([
-        { id: 'tx-001', type: 'Deposit', amountNgn: 5000, amountUsd: 6.6, method: 'Virtual Bank Transfer', date: new Date(Date.now() - 3600000 * 24).toLocaleString(), status: 'SUCCESS' },
-        { id: 'tx-002', type: 'Purchase', amountNgn: 1500, amountUsd: 2.0, method: 'Wallet (YouTube Premium)', date: new Date(Date.now() - 3600000 * 12).toLocaleString(), status: 'SUCCESS' }
-      ]);
+      setWalletBalance(0);
+      setTransactions([]);
       setVirtualWallet(null);
       setProfile({ full_name: '', phone: '' });
       return;

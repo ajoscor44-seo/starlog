@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import {
-  CreditCard, Smartphone, Key, RefreshCw, Share2, User,
+  CreditCard, Smartphone, Key, RefreshCw, Share2, User, ShieldCheck,
   Clock, TrendingUp, Zap, ClipboardList, ArrowRight
 } from 'lucide-react';
 
@@ -33,8 +33,8 @@ const DashboardOverview = ({ setActiveTab }) => {
 
   const quickLinks = [
     { label: 'Accounts', icon: User, tab: null, url: 'https://www.discountzar.com/marketplace', ext: true },
+    { label: 'Social Logs', icon: ShieldCheck, tab: 'social' },
     { label: 'OTP Code', icon: Key, tab: 'otp' },
-    { label: 'Reuse #', icon: RefreshCw, tab: 'reuse' },
     { label: 'eSIM', icon: Smartphone, tab: 'esim' },
     { label: 'SMM', icon: Share2, tab: 'smm' },
     { label: 'Orders', icon: ClipboardList, tab: 'orders' },
