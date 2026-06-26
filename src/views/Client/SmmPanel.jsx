@@ -99,6 +99,8 @@ const PlatformIcon = ({ platform, logo, size = 18 }) => {
 const SmmPanel = () => {
   const { smmServices, smmOrders, submitSmmOrder, formatCost } = useContext(AppContext);
   const isMobile = useIsMobile();
+  const [smmPage, setSmmPage] = useState(1);
+  const SMM_PER_PAGE = 10;
 
   const [activeTab, setActiveTab] = useState('All');
   
@@ -717,38 +719,57 @@ const SmmPanel = () => {
                 </tr>
               </thead>
               <tbody>
-                {smmOrders.map(ord => (
-                  <tr key={ord.id}>
-                    <td className="smm-col-id" style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--text-muted)' }}>{ord.id}</td>
-                    <td className="smm-col-date" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{ord.date}</td>
-                    <td>
-                      <span className="badge" style={{ 
-                        fontSize: 9, 
-                        background: PLATFORM_THEMES[ord.platform]?.bg || 'rgba(0,242,254,0.08)',
-                        color: PLATFORM_THEMES[ord.platform]?.color || 'var(--color-turquoise)',
-                        border: `1px solid ${PLATFORM_THEMES[ord.platform]?.border || 'rgba(0,242,254,0.18)'}`
-                      }}>
-                        {ord.platform}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, fontWeight: 600, minWidth: 120 }}>{ord.serviceName}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{ord.quantity.toLocaleString()}</td>
-                    <td className="smm-col-dest">
-                      <a href={ord.targetUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, display: 'inline-block', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ord.targetUrl}</a>
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap', color: 'var(--color-green)', fontWeight: 700 }}>{formatCost(ord.costNgn)}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className={`badge ${ord.status === 'Completed' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: 10 }}>{ord.status}</span>
-                        {ord.status === 'In Progress' && (
-                          <div style={{ width: 28, height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 99, overflow: 'hidden' }}>
-                            <div style={{ width: '55%', height: '100%', background: 'var(--color-amber)', borderRadius: 99, animation: 'blink 1s infinite' }} />
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const totalSmmPages = Math.max(1, Math.ceil(smmOrders.length / SMM_PER_PAGE));
+                  const paginatedSmm = smmOrders.slice((smmPage - 1) * SMM_PER_PAGE, smmPage * SMM_PER_PAGE);
+                  return (
+                    <>
+                      {paginatedSmm.map(ord => (
+                        <tr key={ord.id}>
+                          <td className="smm-col-id" style={{ fontFamily: 'var(--font-heading)', fontSize: 11, color: 'var(--text-muted)' }}>{ord.id}</td>
+                          <td className="smm-col-date" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{ord.date}</td>
+                          <td>
+                            <span className="badge" style={{ 
+                              fontSize: 9, 
+                              background: PLATFORM_THEMES[ord.platform]?.bg || 'rgba(0,242,254,0.08)',
+                              color: PLATFORM_THEMES[ord.platform]?.color || 'var(--color-turquoise)',
+                              border: `1px solid ${PLATFORM_THEMES[ord.platform]?.border || 'rgba(0,242,254,0.18)'}`
+                            }}>
+                              {ord.platform}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: 12, fontWeight: 600, minWidth: 120 }}>{ord.serviceName}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{ord.quantity.toLocaleString()}</td>
+                          <td className="smm-col-dest">
+                            <a href={ord.targetUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, display: 'inline-block', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ord.targetUrl}</a>
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap', color: 'var(--color-green)', fontWeight: 700 }}>{formatCost(ord.costNgn)}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span className={`badge ${ord.status === 'Completed' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: 10 }}>{ord.status}</span>
+                              {ord.status === 'In Progress' && (
+                                <div style={{ width: 28, height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 99, overflow: 'hidden' }}>
+                                  <div style={{ width: '55%', height: '100%', background: 'var(--color-amber)', borderRadius: 99, animation: 'blink 1s infinite' }} />
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {smmOrders.length > SMM_PER_PAGE && (
+                        <tr>
+                          <td colSpan="8">
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={smmPage === 1} onClick={() => setSmmPage(p => p - 1)}>Prev</button>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {smmPage} of {totalSmmPages}</span>
+                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={smmPage === totalSmmPages} onClick={() => setSmmPage(p => p + 1)}>Next</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           </div>

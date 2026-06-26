@@ -20,6 +20,9 @@ const logoMapping = {
 
 const Subscriptions = () => {
   const { subscriptions, accountSubscriptions, buySharedSubscription, formatCost } = useContext(AppContext);
+  const [accPage, setAccPage] = useState(1);
+  const ACC_PER_PAGE = 5;
+
   const [selectedSub, setSelectedSub] = useState(null);
   const [showCreds, setShowCreds] = useState({});
   const [copiedId, setCopiedId] = useState(null);
@@ -149,48 +152,68 @@ const Subscriptions = () => {
                 </tr>
               </thead>
               <tbody>
-                {accountSubscriptions.map((acc) => (
-                  <tr key={acc.id}>
-                    <td style={{ fontWeight: '700' }}>{acc.name}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>{acc.email}</span>
-                        <button 
-                          onClick={() => copyToClipboard(acc.email, `${acc.id}-email`)} 
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: varColor(acc.id, 'email') }}
-                          title="Copy Email"
-                        >
-                          {copiedId === `${acc.id}-email` ? <Check size={14} style={{ color: 'var(--color-green)' }} /> : <Clipboard size={14} />}
-                        </button>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>{showCreds[acc.id] ? acc.pass : '••••••••••••'}</span>
-                        <button 
-                          onClick={() => togglePasswordVisibility(acc.id)} 
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                        >
-                          {showCreds[acc.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
-                        <button 
-                          onClick={() => copyToClipboard(acc.pass, `${acc.id}-pass`)} 
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: varColor(acc.id, 'pass') }}
-                          title="Copy Password"
-                        >
-                          {copiedId === `${acc.id}-pass` ? <Check size={14} style={{ color: 'var(--color-green)' }} /> : <Clipboard size={14} />}
-                        </button>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge badge-info">{acc.screen}</span>
-                    </td>
-                    <td>{acc.expiry}</td>
-                    <td>
-                      <span className="badge badge-success">{acc.status}</span>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const totalAccPages = Math.max(1, Math.ceil(accountSubscriptions.length / ACC_PER_PAGE));
+                  const paginatedAcc = accountSubscriptions.slice((accPage - 1) * ACC_PER_PAGE, accPage * ACC_PER_PAGE);
+
+                  return (
+                    <>
+                      {paginatedAcc.map((acc) => (
+                        <tr key={acc.id}>
+                          <td style={{ fontWeight: '700' }}>{acc.name}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>{acc.email}</span>
+                              <button 
+                                onClick={() => copyToClipboard(acc.email, `${acc.id}-email`)} 
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: varColor(acc.id, 'email') }}
+                                title="Copy Email"
+                              >
+                                {copiedId === `${acc.id}-email` ? <Check size={14} style={{ color: 'var(--color-green)' }} /> : <Clipboard size={14} />}
+                              </button>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>{showCreds[acc.id] ? acc.pass : '••••••••••••'}</span>
+                              <button 
+                                onClick={() => togglePasswordVisibility(acc.id)} 
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                              >
+                                {showCreds[acc.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
+                              <button 
+                                onClick={() => copyToClipboard(acc.pass, `${acc.id}-pass`)} 
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: varColor(acc.id, 'pass') }}
+                                title="Copy Password"
+                              >
+                                {copiedId === `${acc.id}-pass` ? <Check size={14} style={{ color: 'var(--color-green)' }} /> : <Clipboard size={14} />}
+                              </button>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="badge badge-info">{acc.screen}</span>
+                          </td>
+                          <td>{acc.expiry}</td>
+                          <td>
+                            <span className="badge badge-success">{acc.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {accountSubscriptions.length > ACC_PER_PAGE && (
+                        <tr>
+                          <td colSpan="6">
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={accPage === 1} onClick={() => setAccPage(p => p - 1)}>Prev</button>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {accPage} of {totalAccPages}</span>
+                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={accPage === totalAccPages} onClick={() => setAccPage(p => p + 1)}>Next</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           </div>

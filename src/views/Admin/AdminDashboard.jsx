@@ -40,6 +40,12 @@ const AdminDashboard = () => {
   // Dashboard Sub-navigation Tabs: 'overview', 'users', 'transactions', 'sms', 'pricing'
   const [adminTab, setAdminTab] = useState('overview');
 
+  // Pagination states
+  const [usersPage, setUsersPage] = useState(1);
+  const USERS_PER_PAGE = 10;
+  const [txPage, setTxPage] = useState(1);
+  const TX_PER_PAGE = 20;
+
   // Database-synced states
   const [dbProfiles, setDbProfiles] = useState([]);
   const [dbTransactions, setDbTransactions] = useState([]);
@@ -94,6 +100,13 @@ const AdminDashboard = () => {
     (u.email || '').toLowerCase().includes(userSearchQuery.toLowerCase()) ||
     u.id.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
+
+  // Reset pagination on search
+  useEffect(() => { setUsersPage(1); }, [userSearchQuery]);
+  useEffect(() => { setTxPage(1); }, [searchTx, filterTxType]); // Need to add filterTxType/searchTx safely below
+
+  const paginatedUsers = filteredUsers.slice((usersPage - 1) * USERS_PER_PAGE, usersPage * USERS_PER_PAGE);
+  const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
 
   // User Management State
   const [selectedUser, setSelectedUser] = useState(null);
@@ -453,7 +466,7 @@ const AdminDashboard = () => {
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                   No users found matching query.
                 </div>
-              ) : filteredUsers.map((u) => (
+              ) : paginatedUsers.map((u) => (
                 <div 
                   key={u.id}
                   onClick={() => setSelectedUser(u)}
@@ -477,6 +490,15 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               ))}
+              
+              {/* Pagination UI for Users */}
+              {filteredUsers.length > USERS_PER_PAGE && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+                  <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={usersPage === 1} onClick={() => setUsersPage(p => p - 1)}>Prev</button>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {usersPage} of {totalUserPages}</span>
+                  <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={usersPage === totalUserPages} onClick={() => setUsersPage(p => p + 1)}>Next</button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -619,10 +641,17 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {allTransactions
-                  .filter(tx => filterTxType === 'ALL' || tx.type === filterTxType)
-                  .filter(tx => tx.user_name.toLowerCase().includes(searchTx.toLowerCase()) || tx.id.toLowerCase().includes(searchTx.toLowerCase()))
-                  .map((tx) => (
+                {(() => {
+                  const filteredTx = allTransactions
+                    .filter(tx => filterTxType === 'ALL' || tx.type === filterTxType)
+                    .filter(tx => tx.user_name.toLowerCase().includes(searchTx.toLowerCase()) || tx.id.toLowerCase().includes(searchTx.toLowerCase()));
+                  
+                  const totalTxPages = Math.max(1, Math.ceil(filteredTx.length / TX_PER_PAGE));
+                  const paginatedTx = filteredTx.slice((txPage - 1) * TX_PER_PAGE, txPage * TX_PER_PAGE);
+                  
+                  return (
+                    <>
+                      {paginatedTx.map((tx) => (
                     <tr key={tx.id}>
                       <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{tx.id}</td>
                       <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{tx.user_name}</td>
@@ -643,11 +672,24 @@ const AdminDashboard = () => {
                       }}>
                         {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn || tx.amount)}
                       </td>
-                      <td>
-                        <span className="badge badge-success" style={{ fontSize: '9px' }}>{tx.status}</span>
-                      </td>
-                    </tr>
-                  ))}
+                          <span className="badge badge-success" style={{ fontSize: '9px' }}>{tx.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredTx.length > TX_PER_PAGE && (
+                      <tr>
+                        <td colSpan="7">
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                            <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === 1} onClick={() => setTxPage(p => p - 1)}>Prev</button>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {txPage} of {totalTxPages}</span>
+                            <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === totalTxPages} onClick={() => setTxPage(p => p + 1)}>Next</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           </div>

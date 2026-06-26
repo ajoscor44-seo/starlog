@@ -17,6 +17,8 @@ const Wallet = () => {
   } = useContext(AppContext);
 
   const isMobile = useIsMobile();
+  const [txPage, setTxPage] = useState(1);
+  const TX_PER_PAGE = 10;
 
   const [depositTab, setDepositTab] = useState('pocketfi'); // pocketfi, crypto
   const [selectedBank, setSelectedBank] = useState('paga');
@@ -372,31 +374,51 @@ const Wallet = () => {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id}>
-                    <td style={{ fontFamily: 'var(--mono)', fontSize: '13px' }}>{tx.id}</td>
-                    <td>{tx.date}</td>
-                    <td>
-                      <span className={`badge ${
-                        tx.type === 'Deposit' ? 'badge-success' : 
-                        tx.type === 'Refund' ? 'badge-info' : 'badge-danger'
-                      }`} style={{ fontSize: '9px' }}>
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td style={{ fontWeight: '500' }}>{tx.method}</td>
-                    <td style={{ 
-                      fontFamily: 'var(--font-heading)', 
-                      fontWeight: '700',
-                      color: tx.type === 'Deposit' || tx.type === 'Refund' ? 'var(--color-green)' : '#ff453a'
-                    }}>
-                      {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn)}
-                    </td>
-                    <td>
-                      <span className="badge badge-success" style={{ fontSize: '10px' }}>{tx.status}</span>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const totalTxPages = Math.max(1, Math.ceil(transactions.length / TX_PER_PAGE));
+                  const paginatedTx = transactions.slice((txPage - 1) * TX_PER_PAGE, txPage * TX_PER_PAGE);
+
+                  return (
+                    <>
+                      {paginatedTx.map((tx) => (
+                        <tr key={tx.id}>
+                          <td style={{ fontFamily: 'var(--mono)', fontSize: '13px' }}>{tx.id}</td>
+                          <td>{tx.date}</td>
+                          <td>
+                            <span className={`badge ${
+                              tx.type === 'Deposit' ? 'badge-success' : 
+                              tx.type === 'Refund' ? 'badge-info' : 'badge-danger'
+                            }`} style={{ fontSize: '9px' }}>
+                              {tx.type}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: '500' }}>{tx.method}</td>
+                          <td style={{ 
+                            fontFamily: 'var(--font-heading)', 
+                            fontWeight: '700',
+                            color: tx.type === 'Deposit' || tx.type === 'Refund' ? 'var(--color-green)' : '#ff453a'
+                          }}>
+                            {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn)}
+                          </td>
+                          <td>
+                            <span className="badge badge-success" style={{ fontSize: '10px' }}>{tx.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {transactions.length > TX_PER_PAGE && (
+                        <tr>
+                          <td colSpan="6">
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === 1} onClick={() => setTxPage(p => p - 1)}>Prev</button>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {txPage} of {totalTxPages}</span>
+                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === totalTxPages} onClick={() => setTxPage(p => p + 1)}>Next</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           </div>

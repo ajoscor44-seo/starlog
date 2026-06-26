@@ -78,8 +78,9 @@ const SMSVerification = () => {
     reuseOtpNumber,
     fetchOtpServicesForCountry
   } = useContext(AppContext);
-
   const isMobile = useIsMobile();
+  const [otpPage, setOtpPage] = useState(1);
+  const OTP_PER_PAGE = 10;
 
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
@@ -637,31 +638,51 @@ const SMSVerification = () => {
                 </tr>
               </thead>
               <tbody>
-                {activeOtps.map(log => (
-                  <tr 
-                    key={log.id} 
-                    onClick={() => setActiveSession(log)} 
-                    style={{ cursor: 'pointer', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 242, 254, 0.05)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                    title="Click to view session details"
-                  >
-                    <td>{log.timestamp}</td>
-                    <td style={{ fontWeight: 600 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {serviceLogoMap[log.serviceId] ? React.cloneElement(serviceLogoMap[log.serviceId], { style: { width: '18px', height: '18px', flexShrink: 0 } }) : null}
-                        </div>
-                        <span>{log.service}</span>
-                      </div>
-                    </td>
-                    <td>{log.flag} {log.country}</td>
-                    <td style={{ fontFamily: 'var(--mono)' }}>{log.phoneNumber}</td>
-                    <td><span className={`badge ${log.status === 'RECEIVED' ? 'badge-success' : log.status === 'WAITING' ? 'badge-info' : 'badge-danger'}`}>{log.status}</span></td>
-                    <td style={{ fontFamily: 'var(--mono)', fontWeight: 'bold', fontSize: 15, color: 'var(--color-green)' }}>{log.code || '—'}</td>
-                    <td>{formatCost(log.priceNgn)}</td>
-                  </tr>
-                ))}
+                {(() => {
+                  const totalOtpPages = Math.max(1, Math.ceil(activeOtps.length / OTP_PER_PAGE));
+                  const paginatedOtps = activeOtps.slice((otpPage - 1) * OTP_PER_PAGE, otpPage * OTP_PER_PAGE);
+                  
+                  return (
+                    <>
+                      {paginatedOtps.map(log => (
+                        <tr 
+                          key={log.id} 
+                          onClick={() => setActiveSession(log)} 
+                          style={{ cursor: 'pointer', transition: 'background 0.2s' }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 242, 254, 0.05)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                          title="Click to view session details"
+                        >
+                          <td>{log.timestamp}</td>
+                          <td style={{ fontWeight: 600 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {serviceLogoMap[log.serviceId] ? React.cloneElement(serviceLogoMap[log.serviceId], { style: { width: '18px', height: '18px', flexShrink: 0 } }) : null}
+                              </div>
+                              <span>{log.service}</span>
+                            </div>
+                          </td>
+                          <td>{log.flag} {log.country}</td>
+                          <td style={{ fontFamily: 'var(--mono)' }}>{log.phoneNumber}</td>
+                          <td><span className={`badge ${log.status === 'RECEIVED' ? 'badge-success' : log.status === 'WAITING' ? 'badge-info' : 'badge-danger'}`}>{log.status}</span></td>
+                          <td style={{ fontFamily: 'var(--mono)', fontWeight: 'bold', fontSize: 15, color: 'var(--color-green)' }}>{log.code || '—'}</td>
+                          <td>{formatCost(log.priceNgn)}</td>
+                        </tr>
+                      ))}
+                      {activeOtps.length > OTP_PER_PAGE && (
+                        <tr>
+                          <td colSpan="7">
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={otpPage === 1} onClick={() => setOtpPage(p => p - 1)}>Prev</button>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {otpPage} of {totalOtpPages}</span>
+                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={otpPage === totalOtpPages} onClick={() => setOtpPage(p => p + 1)}>Next</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           </div>
