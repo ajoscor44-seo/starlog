@@ -273,6 +273,21 @@ export const AppProvider = ({ children }) => {
     loadSystemConfig();
   }, []);
 
+  // One-time migration: wipe old global (non-user-scoped) localStorage keys
+  // so stale data from previous users no longer leaks to new logins.
+  useEffect(() => {
+    const migrated = localStorage.getItem('zp_migrated_user_scoped_v1');
+    if (!migrated) {
+      localStorage.removeItem('zp_activeOtps');
+      localStorage.removeItem('zp_rentedNumbers');
+      localStorage.removeItem('zp_activeEsims');
+      localStorage.removeItem('zp_smmOrders');
+      localStorage.removeItem('zp_accountSubs');
+      localStorage.removeItem('zp_transactions');
+      localStorage.setItem('zp_migrated_user_scoped_v1', 'true');
+    }
+  }, []);
+
   const [triggerRecalc, setTriggerRecalc] = useState(0);
 
   const updateProfitMarkup = (category, value) => {
@@ -308,7 +323,10 @@ export const AppProvider = ({ children }) => {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [dbIsAdmin, setDbIsAdmin] = useState(false);  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('zp_theme') || 'light';
+    const saved = localStorage.getItem('zp_theme');
+    if (saved) return saved;
+    // Use device preference; default to dark if no preference detected
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   });
 
   const toggleTheme = () => {
@@ -521,6 +539,13 @@ export const AppProvider = ({ children }) => {
       setTransactions([]);
       setVirtualWallet(null);
       setProfile({ full_name: '', phone: '' });
+      // Clear user-scoped local data so the next user starts fresh
+      setActiveOtps([]);
+      setRentedNumbers([]);
+      setActiveEsims([]);
+      setSmmOrders([]);
+      setAccountSubscriptions([]);
+      setSocialMediaOrders([]);
       return;
     }
 
@@ -703,25 +728,13 @@ export const AppProvider = ({ children }) => {
     await supabase.auth.signOut();
   };
 
-  const [activeOtps, setActiveOtps] = useState(() => {
-    const saved = localStorage.getItem('zp_activeOtps');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [activeOtps, setActiveOtps] = useState([]);
 
-  const [rentedNumbers, setRentedNumbers] = useState(() => {
-    const saved = localStorage.getItem('zp_rentedNumbers');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [rentedNumbers, setRentedNumbers] = useState([]);
 
-  const [activeEsims, setActiveEsims] = useState(() => {
-    const saved = localStorage.getItem('zp_activeEsims');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [activeEsims, setActiveEsims] = useState([]);
 
-  const [smmOrders, setSmmOrders] = useState(() => {
-    const saved = localStorage.getItem('zp_smmOrders');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [smmOrders, setSmmOrders] = useState([]);
 
   const [socialMediaOrders, setSocialMediaOrders] = useState([]);
 
@@ -750,24 +763,45 @@ export const AppProvider = ({ children }) => {
   }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem('zp_activeOtps', JSON.stringify(activeOtps));
-  }, [activeOtps]);
+    if (!user?.id) return;
+    // Load user-scoped data from localStorage when user logs in
+    const uid = user.id;
+    const savedOtps = localStorage.getItem(`zp_activeOtps_${uid}`);
+    if (savedOtps) setActiveOtps(JSON.parse(savedOtps));
+    const savedRented = localStorage.getItem(`zp_rentedNumbers_${uid}`);
+    if (savedRented) setRentedNumbers(JSON.parse(savedRented));
+    const savedEsims = localStorage.getItem(`zp_activeEsims_${uid}`);
+    if (savedEsims) setActiveEsims(JSON.parse(savedEsims));
+    const savedSmm = localStorage.getItem(`zp_smmOrders_${uid}`);
+    if (savedSmm) setSmmOrders(JSON.parse(savedSmm));
+    const savedSubs = localStorage.getItem(`zp_accountSubs_${uid}`);
+    if (savedSubs) setAccountSubscriptions(JSON.parse(savedSubs));
+  }, [user?.id]);
 
   useEffect(() => {
-    localStorage.setItem('zp_rentedNumbers', JSON.stringify(rentedNumbers));
-  }, [rentedNumbers]);
+    if (!user?.id) return;
+    localStorage.setItem(`zp_activeOtps_${user.id}`, JSON.stringify(activeOtps));
+  }, [activeOtps, user?.id]);
 
   useEffect(() => {
-    localStorage.setItem('zp_activeEsims', JSON.stringify(activeEsims));
-  }, [activeEsims]);
+    if (!user?.id) return;
+    localStorage.setItem(`zp_rentedNumbers_${user.id}`, JSON.stringify(rentedNumbers));
+  }, [rentedNumbers, user?.id]);
 
   useEffect(() => {
-    localStorage.setItem('zp_smmOrders', JSON.stringify(smmOrders));
-  }, [smmOrders]);
+    if (!user?.id) return;
+    localStorage.setItem(`zp_activeEsims_${user.id}`, JSON.stringify(activeEsims));
+  }, [activeEsims, user?.id]);
 
   useEffect(() => {
-    localStorage.setItem('zp_accountSubs', JSON.stringify(accountSubscriptions));
-  }, [accountSubscriptions]);
+    if (!user?.id) return;
+    localStorage.setItem(`zp_smmOrders_${user.id}`, JSON.stringify(smmOrders));
+  }, [smmOrders, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    localStorage.setItem(`zp_accountSubs_${user.id}`, JSON.stringify(accountSubscriptions));
+  }, [accountSubscriptions, user?.id]);
 
   useEffect(() => {
     localStorage.setItem('zp_catalog_subs', JSON.stringify(subscriptions));

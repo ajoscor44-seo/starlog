@@ -71,6 +71,21 @@ begin
         coalesce(new.raw_user_meta_data->>'phone', ''),
         initial_balance
     );
+
+    -- If user received a welcome bonus, log it as a Deposit transaction so it shows in Order History
+    if initial_balance > 0 then
+        insert into public.transactions (id, user_id, amount, type, method, status, created_at)
+        values (
+            'bonus-welcome-' || new.id,
+            new.id,
+            initial_balance,
+            'Deposit',
+            'Welcome Bonus — ₦100 Sign-up Credit 🎉',
+            'SUCCESS',
+            now()
+        );
+    end if;
+
     return new;
 end;
 $$ language plpgsql security definer;
