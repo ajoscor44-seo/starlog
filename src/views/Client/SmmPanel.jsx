@@ -443,7 +443,6 @@ const SmmPanel = () => {
                           flexDirection: 'column',
                           justifyContent: 'space-between',
                           border: `1px solid ${theme.border}`,
-                          background: 'rgba(0,0,0,0.15)',
                           transition: 'all 0.2s ease',
                           minHeight: '230px',
                           ...getGlowStyle(srv.logo || srv.platform),
@@ -456,7 +455,7 @@ const SmmPanel = () => {
                               width: 36,
                               height: 36,
                               borderRadius: 8,
-                              background: 'rgba(0,0,0,0.3)',
+                              background: 'var(--bg-input)',
                               border: `1px solid ${theme.border}`,
                               display: 'flex',
                               alignItems: 'center',
@@ -554,7 +553,7 @@ const SmmPanel = () => {
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <PlatformIcon platform={selectedService.logo || selectedService.platform} size={18} />
               </div>
               <div>
@@ -651,7 +650,7 @@ const SmmPanel = () => {
                 justifyContent: 'space-between', 
                 alignItems: 'center',
                 padding: '14px 16px', 
-                background: 'rgba(0,0,0,0.3)',
+                background: 'var(--bg-input)',
                 border: '1px solid var(--border-color)', 
                 borderRadius: 10
               }}>

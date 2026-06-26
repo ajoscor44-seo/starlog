@@ -35,11 +35,14 @@ serve(async (req) => {
     // 1. Signature Verification
     // Retrieve headers
     const signature = req.headers.get('http_pocketfi_signature') || 
+                      req.headers.get('x-pocketfi-signature') ||
+                      req.headers.get('pocketfi-signature') ||
                       req.headers.get('HTTP_POCKETFI_SIGNATURE') || 
                       req.headers.get('x-signature-512') ||
                       req.headers.get('signature');
 
     if (!signature) {
+      console.error("Missing PocketFi signature header. Received headers:", Object.fromEntries(req.headers.entries()));
       return new Response(JSON.stringify({ error: 'Missing PocketFi signature header' }), { status: 401 })
     }
 

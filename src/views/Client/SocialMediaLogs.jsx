@@ -324,9 +324,27 @@ const SocialMediaLogs = () => {
 
       {/* Main Content Area */}
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: '16px' }}>
-          <div className="spinner" style={{ borderTopColor: '#ab47fc' }}></div>
-          <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Loading available accounts...</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="glass-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', gap: '16px', minHeight: '260px' }}>
+              <div>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                  <div className="skeleton-pulse" style={{ width: '40px', height: '40px', borderRadius: '10px' }}></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', justifyContent: 'center' }}>
+                    <div className="skeleton-pulse" style={{ width: '60px', height: '10px', borderRadius: '4px' }}></div>
+                    <div className="skeleton-pulse" style={{ width: '80px', height: '10px', borderRadius: '4px' }}></div>
+                  </div>
+                </div>
+                <div className="skeleton-pulse" style={{ width: '100%', height: '14px', borderRadius: '4px', marginBottom: '8px' }}></div>
+                <div className="skeleton-pulse" style={{ width: '80%', height: '14px', borderRadius: '4px', marginBottom: '12px' }}></div>
+                <div className="skeleton-pulse" style={{ width: '100%', height: '40px', borderRadius: '8px' }}></div>
+              </div>
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <div className="skeleton-pulse" style={{ width: '60px', height: '24px', borderRadius: '4px' }}></div>
+                 <div className="skeleton-pulse" style={{ width: '100px', height: '32px', borderRadius: '16px' }}></div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : error ? (
         <div style={{ padding: '24px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '12px' }}>

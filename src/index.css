@@ -119,8 +119,19 @@ body {
   background: var(--text-muted);
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-turquoise);
+}
+
+@keyframes pulse-skeleton {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.6; }
+}
+
+.skeleton-pulse {
+  background: var(--bg-btn-secondary);
+  animation: pulse-skeleton 1.5s ease-in-out infinite;
 }
 
 /* Premium Typography */
