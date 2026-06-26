@@ -57,6 +57,38 @@ const generateFundingEmail = (amount, newBalance, reference) => `
 </div>
 `;
 
+const formatDetailsForEmail = (details: any): string => {
+  if (!details) return "";
+  
+  // If it's an array (multiple items)
+  if (Array.isArray(details)) {
+    return details.map((item: any, idx: number) => {
+      const itemNum = item.item_number || (idx + 1);
+      const lines = Object.entries(item)
+        .filter(([k]) => k !== "item_number" && k !== "status")
+        .map(([key, value]) => `<strong>${key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}:</strong> ${value}`)
+        .join("<br/>");
+      return `<div style="margin-bottom: 12px; padding-bottom: 12px; ${idx < details.length - 1 ? 'border-bottom: 1px solid rgba(255,255,255,0.05);' : ''}">
+        <span style="color: #ab47fc; font-weight: bold;">Item #${itemNum}</span><br/>
+        ${lines}
+      </div>`;
+    }).join("");
+  }
+  
+  // If it's a flat object (single item)
+  if (typeof details === "object") {
+    if (details.status && details.status !== "completed") {
+      return `Order status: <strong>${details.status}</strong>. Credentials will be available shortly.`;
+    }
+    return Object.entries(details)
+      .filter(([k]) => k !== "raw_response" && k !== "status")
+      .map(([key, value]) => `<strong>${key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}:</strong> ${value}`)
+      .join("<br/>");
+  }
+  
+  return String(details);
+};
+
 const generateOrderEmail = (planName, quantity, cost, orderId, additionalDetails = null) => `
 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0a18; color: #fff; padding: 30px; border-radius: 12px; border: 1px solid #2d1a45;">
   <div style="text-align: center; margin-bottom: 20px;">
@@ -84,7 +116,7 @@ const generateOrderEmail = (planName, quantity, cost, orderId, additionalDetails
   ${additionalDetails ? `
   <div style="background: rgba(171, 71, 252, 0.1); border: 1px solid rgba(171, 71, 252, 0.2); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
     <h3 style="margin: 0 0 10px 0; color: #ab47fc; font-size: 14px; text-transform: uppercase;">Order Details</h3>
-    <pre style="margin: 0; color: #e2e8f0; font-family: monospace; white-space: pre-wrap; font-size: 13px;">${JSON.stringify(additionalDetails, null, 2)}</pre>
+    <div style="margin: 0; color: #e2e8f0; font-family: sans-serif; font-size: 13px; line-height: 1.5;">${formatDetailsForEmail(additionalDetails)}</div>
   </div>
   ` : ''}
   

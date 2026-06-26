@@ -249,7 +249,7 @@ export const AppProvider = ({ children }) => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState({ full_name: '', phone: '' });
+  const [profile, setProfile] = useState({ full_name: '', phone: '', username: '', api_key: '' });
 
   // Routing and active session states
   const [activeSession, setActiveSession] = useState(null);
@@ -485,11 +485,11 @@ export const AppProvider = ({ children }) => {
     const fetchProfileData = async () => {
       let { data: dbProfile, error } = await supabase
         .from('profiles')
-        .select('wallet_balance, full_name, username, phone, is_admin')
+        .select('wallet_balance, full_name, username, phone, is_admin, api_key')
         .eq('id', user.id)
         .single();
         
-      // Fallback if is_admin or username column doesn't exist yet
+      // Fallback if columns don't exist yet
       if (error && error.message.includes('does not exist')) {
         const fallback = await supabase
           .from('profiles')
@@ -504,7 +504,8 @@ export const AppProvider = ({ children }) => {
         setProfile({
           full_name: dbProfile.full_name || '',
           username: dbProfile.username || '',
-          phone: dbProfile.phone || ''
+          phone: dbProfile.phone || '',
+          api_key: dbProfile.api_key || ''
         });
         setDbIsAdmin(dbProfile.is_admin === true);
         setIsAdmin(dbProfile.is_admin === true);
@@ -591,7 +592,9 @@ export const AppProvider = ({ children }) => {
           setWalletBalance(Number(payload.new.wallet_balance));
           setProfile({
             full_name: payload.new.full_name || '',
-            phone: payload.new.phone || ''
+            username: payload.new.username || '',
+            phone: payload.new.phone || '',
+            api_key: payload.new.api_key || ''
           });
         }
       })
@@ -1577,7 +1580,7 @@ export const AppProvider = ({ children }) => {
         .update({ full_name, phone, updated_at: new Date() })
         .eq('id', user.id);
       if (error) throw error;
-      setProfile({ full_name, phone });
+      setProfile(prev => ({ ...prev, full_name, phone }));
       return { success: true };
     } catch (err) {
       console.error("Error updating profile:", err);
@@ -1592,6 +1595,28 @@ export const AppProvider = ({ children }) => {
       return { success: true };
     } catch (err) {
       console.error("Error updating password:", err);
+      return { success: false, msg: err.message };
+    }
+  };
+
+  const regenerateApiKey = async () => {
+    if (!user) return { success: false, msg: 'User session not found' };
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let i = 0; i < 24; i++) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const newKey = `dz_live_${token}`;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ api_key: newKey, updated_at: new Date() })
+        .eq('id', user.id);
+      if (error) throw error;
+      setProfile(prev => ({ ...prev, api_key: newKey }));
+      return { success: true, api_key: newKey };
+    } catch (err) {
+      console.error("Error regenerating API key:", err);
       return { success: false, msg: err.message };
     }
   };
@@ -1736,6 +1761,7 @@ export const AppProvider = ({ children }) => {
       profile,
       updateProfile,
       updatePassword,
+      regenerateApiKey,
       loginUser,
       logoutUser,
       virtualWallet,

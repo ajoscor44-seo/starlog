@@ -15,6 +15,7 @@ import OrderHistory from './views/Client/OrderHistory';
 import SocialMediaLogs from './views/Client/SocialMediaLogs';
 import Profile from './views/Client/Profile';
 import Support from './views/Client/Support';
+import DeveloperApi from './views/Client/DeveloperApi';
 import AdminDashboard from './views/Admin/AdminDashboard';
 import AboutUs from './views/AboutUs';
 import ContactUs from './views/ContactUs';
@@ -57,6 +58,7 @@ function DashboardLayout() {
 }
 
 function AppContent() {
+  const { isAdmin } = useContext(AppContext);
   // Sync the context activeTab with the router (optional, but good for backward compatibility if needed)
   return (
     <Routes>
@@ -81,6 +83,7 @@ function AppContent() {
           <Route path="wallet" element={<Wallet />} />
           <Route path="orders" element={<OrderHistory />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="api" element={isAdmin ? <DeveloperApi /> : <Navigate to="/dashboard" replace />} />
           <Route path="support" element={<Support />} />
           <Route path="admin" element={<AdminDashboard />} />
         </Route>

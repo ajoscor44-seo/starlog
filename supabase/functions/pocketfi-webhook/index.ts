@@ -80,9 +80,23 @@ serve(async (req) => {
     const data = JSON.parse(rawBody)
     
     // Extract transaction details
-    const ref = data.transaction?.reference || 
-                data.reference || 
-                `dep-${Math.floor(Math.random() * 100000000)}`;
+    const pocketfiRef = data.transaction?.reference || 
+                        data.reference || 
+                        `dep-${Math.floor(Math.random() * 100000000)}`;
+                        
+    // Deterministic short ID generation to ensure idempotency while displaying clean short receipts
+    let ref = "";
+    if (pocketfiRef.startsWith("dep-")) {
+      ref = pocketfiRef;
+    } else {
+      let hash = 0;
+      for (let i = 0; i < pocketfiRef.length; i++) {
+        hash = (hash << 5) - hash + pocketfiRef.charCodeAt(i);
+        hash |= 0;
+      }
+      const hex = Math.abs(hash).toString(16).padEnd(8, "0").substring(0, 8);
+      ref = `tx-${hex}`;
+    }
                 
     const amount = Number(data.order?.amount || 
                           data.transaction?.amount || 

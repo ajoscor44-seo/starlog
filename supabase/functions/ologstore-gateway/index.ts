@@ -270,9 +270,11 @@ serve(async (req) => {
       }
 
       // 6. Insert into social_media_orders table
+      const orderId = crypto.randomUUID();
       const { data: orderRecord, error: orderInsertError } = await supabaseAdmin
         .from("social_media_orders")
         .insert({
+          id: orderId,
           user_id: user.id,
           plan_id: plan_id,
           plan_name: plan_name,

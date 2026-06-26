@@ -14,7 +14,8 @@ import {
   User,
   ShieldCheck,
   ClipboardList,
-  MessageSquare
+  MessageSquare,
+  Code
 } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
@@ -37,8 +38,14 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { id: 'wallet', label: 'Wallet & Fund', icon: CreditCard },
     { id: 'orders', label: 'Order History', icon: ClipboardList },
     { id: 'profile', label: 'User Profile', icon: User },
+    { id: 'api', label: 'Developer API', icon: Code },
     { id: 'support', label: 'Support Desk', icon: MessageSquare },
   ];
+
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.id === 'api' && !isAdmin) return false;
+    return true;
+  });
 
   const handleNavClick = (tabId, external = false, url = '') => {
     if (external) {
@@ -68,7 +75,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
         <ul className="sidebar-menu">
 
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const Icon = item.icon;
             const isSelected = activeTab === item.id;
             return (
