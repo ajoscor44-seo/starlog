@@ -22,8 +22,16 @@ import PrivacyPolicy from './views/PrivacyPolicy';
 import Auth from './views/Auth';
 
 function ProtectedRoute() {
-  const { isLoggedIn } = useContext(AppContext);
+  const { isLoggedIn, isAuthLoading } = useContext(AppContext);
   const location = useLocation();
+
+  if (isAuthLoading) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="spinner-loader" style={{ width: '40px', height: '40px', borderTopColor: 'var(--color-turquoise)' }}></div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;

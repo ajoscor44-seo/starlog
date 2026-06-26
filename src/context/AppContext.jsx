@@ -246,6 +246,7 @@ export const AppProvider = ({ children }) => {
   };
 
   // Authentication states
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState({ full_name: '', phone: '' });
@@ -401,7 +402,11 @@ export const AppProvider = ({ children }) => {
       if (session) {
         setIsLoggedIn(true);
         setUser(session.user);
+      } else {
+        setIsLoggedIn(false);
+        setUser(null);
       }
+      setIsAuthLoading(false);
     });
 
     // 2. Listen to auth changes
@@ -413,6 +418,7 @@ export const AppProvider = ({ children }) => {
         setIsLoggedIn(false);
         setUser(null);
       }
+      setIsAuthLoading(false);
     });
 
     return () => {
@@ -1656,6 +1662,7 @@ export const AppProvider = ({ children }) => {
 
   return (
     <AppContext.Provider value={{
+      isAuthLoading,
       isLoggedIn,
       user,
       profile,
@@ -1663,8 +1670,12 @@ export const AppProvider = ({ children }) => {
       updatePassword,
       loginUser,
       logoutUser,
+      virtualWallet,
       walletBalance,
       currency,
+      setCurrency,
+      theme,
+      toggleTheme,
       isAdmin,
       setIsAdmin,
       dbIsAdmin,
