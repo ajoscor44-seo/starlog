@@ -5,10 +5,11 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { Phone, Clock, Mail, RefreshCw, AlertCircle, AlertTriangle, ChevronRight, Check } from 'lucide-react';
 
 const RentNumbers = () => {
-  const { countries, rentedNumbers, rentNumber, formatCost, fetchOtpServicesForCountry } = useContext(AppContext);
+  const { countries, rentedNumbers, rentNumber, formatCost, fetchOtpServicesForCountry, smsPoolRentals, profitMarkup } = useContext(AppContext);
   const isMobile = useIsMobile();
 
-  const [selectedCountry, setSelectedCountry] = useState(countries[0].id);
+  const [server, setServer] = useState('server1');
+  const [selectedCountry, setSelectedCountry] = useState(countries[0]?.id);
   const [purpose, setPurpose] = useState('All Services');
   const [duration, setDuration] = useState(7);
   const [activeInbox, setActiveInbox] = useState(null);
@@ -38,7 +39,7 @@ const RentNumbers = () => {
     setErrorMsg('');
     setRentSuccess(false);
     setIsRenting(true);
-    const result = await rentNumber(selectedCountry, purpose, duration);
+    const result = await rentNumber(selectedCountry, purpose, duration, server);
     setIsRenting(false);
     if (result.success) {
       setRentSuccess(true);
@@ -49,12 +50,46 @@ const RentNumbers = () => {
   };
 
   const getPrice = () => {
-    let rateNgn = 2500;
-    if (duration === 30) rateNgn = 7000;
-    if (duration === 90) rateNgn = 18000;
-    if (purpose !== 'All Services') rateNgn = Math.round(rateNgn * 0.7);
-    return rateNgn;
+    if (server === 'server2') {
+      const c = smsPoolRentals.find(x => x.ID === selectedCountry);
+      if (!c) return 0;
+      const costUsd = Number(c.pricing[duration]) || 0;
+      const markup = profitMarkup?.otp || 50;
+      return Math.round(costUsd * 1500 * (1 + (markup / 100)));
+    } else {
+      let rateNgn = 2500;
+      if (duration === 30) rateNgn = 7000;
+      if (duration === 90) rateNgn = 18000;
+      if (purpose !== 'All Services') rateNgn = Math.round(rateNgn * 0.7);
+      return rateNgn;
+    }
   };
+
+  const getFlag = (countryName) => {
+    const found = countries.find(c => c.name.toLowerCase() === countryName.toLowerCase());
+    return found ? found.flag : '📱';
+  };
+
+  const activeCountries = server === 'server2' ? smsPoolRentals : countries;
+  const selectedCountryObj = server === 'server2' 
+    ? activeCountries.find(c => c.ID === selectedCountry)
+    : activeCountries.find(c => c.id === selectedCountry);
+
+  const durationOptions = server === 'server2' && selectedCountryObj?.pricing 
+    ? Object.keys(selectedCountryObj.pricing).map(Number) 
+    : [7, 30, 90];
+
+  useEffect(() => {
+    // Reset selection when server changes
+    if (server === 'server1') {
+      setSelectedCountry(countries[0]?.id);
+      setDuration(7);
+    } else if (server === 'server2' && smsPoolRentals.length > 0) {
+      setSelectedCountry(smsPoolRentals[0]?.ID);
+      const firstPricingKey = Object.keys(smsPoolRentals[0]?.pricing || {})[0];
+      setDuration(firstPricingKey ? Number(firstPricingKey) : 30);
+    }
+  }, [server, smsPoolRentals]);
 
   const activePurposes = dynamicPurposes.length > 0 ? dynamicPurposes : [
     'All Services', 
@@ -75,8 +110,6 @@ const RentNumbers = () => {
     'Tinder'
   ];
 
-  const selectedCountryObj = countries.find(c => c.id === selectedCountry);
-
   /* ── MOBILE ── */
   if (isMobile) {
     return (
@@ -90,26 +123,63 @@ const RentNumbers = () => {
           </p>
         </div>
 
+        {/* Server Toggle */}
+        <div className="glass-panel" style={{ padding: 6, display: 'flex', gap: 6 }}>
+          <button 
+            style={{ 
+              flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
+              background: server === 'server1' ? 'rgba(0,242,254,0.15)' : 'transparent',
+              color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)',
+              border: server === 'server1' ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent'
+            }}
+            onClick={() => setServer('server1')}
+          >
+            Server 1 (Fast)
+          </button>
+          <button 
+            style={{ 
+              flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
+              background: server === 'server2' ? 'rgba(255,185,0,0.15)' : 'transparent',
+              color: server === 'server2' ? 'var(--color-amber)' : 'var(--text-secondary)',
+              border: server === 'server2' ? '1px solid rgba(255,185,0,0.3)' : '1px solid transparent'
+            }}
+            onClick={() => setServer('server2')}
+          >
+            Server 2 (Long-term)
+          </button>
+        </div>
+
         {/* Country picker */}
         <div className="glass-panel" style={{ padding: 16 }}>
           <label className="form-label">1. Select Country</label>
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-            {countries.map(c => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedCountry(c.id)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                  padding: '10px 12px', borderRadius: 12, cursor: 'pointer', flexShrink: 0,
-                  border: `1px solid ${selectedCountry === c.id ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
-                  background: selectedCountry === c.id ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)',
-                  minWidth: 72, transition: 'all 0.15s',
-                }}
-              >
-                <span style={{ fontSize: 26 }}>{c.flag}</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: selectedCountry === c.id ? 'var(--color-turquoise)' : 'var(--text-muted)', textAlign: 'center' }}>{c.name.split(' ')[0]}</span>
-              </button>
-            ))}
+            {activeCountries.map(c => {
+              const id = server === 'server2' ? c.ID : c.id;
+              const name = c.name;
+              const flag = server === 'server2' ? getFlag(name) : c.flag;
+              return (
+                <button
+                  key={id}
+                  onClick={() => {
+                    setSelectedCountry(id);
+                    if (server === 'server2' && c.pricing) {
+                      const firstKey = Object.keys(c.pricing)[0];
+                      if (firstKey) setDuration(Number(firstKey));
+                    }
+                  }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                    padding: '10px 12px', borderRadius: 12, cursor: 'pointer', flexShrink: 0,
+                    border: `1px solid ${selectedCountry === id ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                    background: selectedCountry === id ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)',
+                    minWidth: 72, transition: 'all 0.15s',
+                  }}
+                >
+                  <span style={{ fontSize: 26 }}>{flag}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: selectedCountry === id ? 'var(--color-turquoise)' : 'var(--text-muted)', textAlign: 'center' }}>{name.split(' ')[0]}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -155,7 +225,7 @@ const RentNumbers = () => {
         <div className="glass-panel" style={{ padding: 16 }}>
           <label className="form-label">3. Duration</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-            {[7, 30, 90].map(d => (
+            {durationOptions.map(d => (
               <button
                 key={d}
                 onClick={() => setDuration(d)}
@@ -179,7 +249,7 @@ const RentNumbers = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border-color)', marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Renting in</div>
-              <div style={{ fontWeight: 700 }}>{selectedCountryObj?.flag} {selectedCountryObj?.name}</div>
+              <div style={{ fontWeight: 700 }}>{server === 'server2' ? getFlag(selectedCountryObj?.name || '') : selectedCountryObj?.flag} {selectedCountryObj?.name}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Cost</div>
@@ -231,7 +301,7 @@ const RentNumbers = () => {
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Expires {rent.expiryDate}</div>
                       </div>
                     </div>
-                    <span className="badge badge-success" style={{ fontSize: 10 }}>Active</span>
+                    <span className="badge badge-success" style={{ fontSize: 10 }}>{rent.server === 'server2' ? 'Server 2' : 'Active'}</span>
                   </div>
                   <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', marginBottom: 8 }}>{rent.phoneNumber}</div>
                   <button
@@ -295,13 +365,58 @@ const RentNumbers = () => {
         </p>
       </div>
 
+      {/* Server Toggle Desktop */}
+      <div className="glass-panel" style={{ padding: 6, display: 'flex', gap: 6, width: 'max-content' }}>
+        <button 
+          style={{ 
+            padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600, transition: 'all 0.2s',
+            background: server === 'server1' ? 'rgba(0,242,254,0.15)' : 'transparent',
+            color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)',
+            border: server === 'server1' ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent'
+          }}
+          onClick={() => setServer('server1')}
+        >
+          Server 1 (Fast)
+        </button>
+        <button 
+          style={{ 
+            padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600, transition: 'all 0.2s',
+            background: server === 'server2' ? 'rgba(255,185,0,0.15)' : 'transparent',
+            color: server === 'server2' ? 'var(--color-amber)' : 'var(--text-secondary)',
+            border: server === 'server2' ? '1px solid rgba(255,185,0,0.3)' : '1px solid transparent'
+          }}
+          onClick={() => setServer('server2')}
+        >
+          Server 2 (Long-term)
+        </button>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24 }}>
         <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <h3 style={{ fontSize: 18, margin: 0 }}>Rent New Number</h3>
           <div>
             <label className="form-label">1. Select Country Location</label>
-            <select className="form-select" value={selectedCountry} onChange={e => setSelectedCountry(e.target.value)}>
-              {countries.map(c => <option key={c.id} value={c.id}>{c.flag} {c.name} ({c.code})</option>)}
+            <select 
+              className="form-select" 
+              value={selectedCountry} 
+              onChange={e => {
+                const id = server === 'server2' ? Number(e.target.value) : e.target.value;
+                setSelectedCountry(id);
+                if (server === 'server2') {
+                  const c = activeCountries.find(x => x.ID === id);
+                  if (c && c.pricing) {
+                    const firstKey = Object.keys(c.pricing)[0];
+                    if (firstKey) setDuration(Number(firstKey));
+                  }
+                }
+              }}
+            >
+              {activeCountries.map(c => {
+                const id = server === 'server2' ? c.ID : c.id;
+                const name = c.name;
+                const flag = server === 'server2' ? getFlag(name) : c.flag;
+                return <option key={id} value={id}>{flag} {name} {c.code ? `(${c.code})` : ''}</option>;
+              })}
             </select>
           </div>
           <div>
@@ -317,7 +432,7 @@ const RentNumbers = () => {
           <div>
             <label className="form-label">3. Rental Duration Period</label>
             <div style={{ display: 'flex', gap: 12 }}>
-              {[7, 30, 90].map(d => (
+              {durationOptions.map(d => (
                 <button key={d} type="button" className={`btn ${duration === d ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, padding: '12px 0' }} onClick={() => setDuration(d)}>{d} Days</button>
               ))}
             </div>
@@ -369,7 +484,7 @@ const RentNumbers = () => {
               <div key={rent.id} className="glass-panel interactive" style={{ border: '1px solid rgba(255,185,0,0.1)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 20 }}>{rent.flag}</span><strong style={{ fontSize: 14 }}>{rent.country}</strong></div>
-                  <span className="badge badge-success" style={{ fontSize: 10 }}>Active</span>
+                  <span className="badge badge-success" style={{ fontSize: 10 }}>{rent.server === 'server2' ? 'Server 2' : 'Active'}</span>
                 </div>
                 <h4 style={{ margin: '0 0 4px', fontSize: 20, fontFamily: 'var(--font-heading)' }}>{rent.phoneNumber}</h4>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4, margin: '12px 0' }}>

@@ -249,6 +249,9 @@ export const AppProvider = ({ children }) => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+
+  // SMSPool state
+  const [smsPoolRentals, setSmsPoolRentals] = useState([]);
   const [profile, setProfile] = useState({ full_name: '', phone: '', username: '', api_key: '' });
 
   // Routing and active session states
@@ -1166,7 +1169,60 @@ export const AppProvider = ({ children }) => {
   };
 
 
-  const rentNumber = async (countryId, serviceName, durationDays) => {
+  const rentNumber = async (countryId, serviceName, durationDays, server = 'server1') => {
+    if (server === 'server2') {
+      // SMS Pool logic
+      const rentalInfo = smsPoolRentals.find(r => r.ID === countryId);
+      if (!rentalInfo) return { success: false, msg: 'Rental not found' };
+
+      const costUsd = rentalInfo.pricing[durationDays];
+      if (!costUsd) return { success: false, msg: 'Duration not available' };
+
+      const NGN_RATE = 1500; // Exchange rate + markup
+      const costNgn = Math.round(costUsd * NGN_RATE * (1 + (profitMarkup.otp / 100)));
+
+      const purchaseRes = await executePurchase(costNgn, 'Purchase', `Number Rental (${durationDays} Days - ${rentalInfo.name})`);
+      if (!purchaseRes.success) return purchaseRes;
+
+      try {
+        const { data, error } = await supabase.functions.invoke('smspool-gateway', {
+          body: { action: 'order', id: countryId, days: durationDays }
+        });
+        
+        if (error || !data || !data.status || data.data.success === 0) {
+          throw new Error(error ? error.message : (data?.data?.message || 'Failed to rent number from Server 2'));
+        }
+
+        const orderData = data.data; // sms pool response
+        const newRental = {
+          id: `rent-sp-${orderData.rental_code || Math.floor(100000 + Math.random() * 900000)}`,
+          rental_code: orderData.rental_code, // from SMS Pool
+          phoneNumber: orderData.phonenumber || orderData.number, 
+          country: rentalInfo.name,
+          flag: '📱', // Need a flag mapper, fallback to emoji
+          service: serviceName,
+          durationDays,
+          expiryDate: new Date(Date.now() + 3600000 * 24 * durationDays).toLocaleDateString(),
+          priceNgn: costNgn,
+          messages: [],
+          status: 'ACTIVE',
+          server: 'server2'
+        };
+
+        setRentedNumbers(prev => [newRental, ...prev]);
+        return { success: true, rental: newRental };
+
+      } catch (e) {
+        console.error("SMSPool API Rent Error:", e);
+        const ref = `ref-rent-fail-${Math.floor(100000 + Math.random() * 900000)}`;
+        await supabase.rpc('process_deposit', {
+          p_tx_id: ref, p_user_id: user.id, p_amount: costNgn, p_method: `Rental Failed Refund`
+        });
+        return { success: false, msg: e.message };
+      }
+    }
+
+    // Existing Simulated Server 1 Logic
     const country = countries.find(c => c.id === countryId);
     if (!country) return { success: false, msg: 'Country not found' };
 
@@ -1195,7 +1251,8 @@ export const AppProvider = ({ children }) => {
       expiryDate: new Date(Date.now() + 3600000 * 24 * durationDays).toLocaleDateString(),
       priceNgn: rateNgn,
       messages: [],
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      server: 'server1'
     };
 
     setRentedNumbers(prev => [newRental, ...prev]);
@@ -1420,6 +1477,27 @@ export const AppProvider = ({ children }) => {
     setWalletBalance(Number(amount));
   };
 
+  const fetchSmsPoolRentals = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('smspool-gateway', {
+        body: { action: 'retrieve_all', type: 1 }
+      });
+      if (!error && data?.status && data?.data?.success !== 0) {
+        setSmsPoolRentals(data.data.data || []);
+      } else {
+        console.error("Failed to fetch SMS Pool rentals", data);
+      }
+    } catch (e) {
+      console.error("fetchSmsPoolRentals Error:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchSmsPoolRentals();
+    }
+  }, [user]);
+
   // Handle active OTP countdown expirations and poll 5SIM for SMS
   useEffect(() => {
     if (!user) return;
@@ -1483,7 +1561,36 @@ export const AppProvider = ({ children }) => {
           }
         }
       });
-    }, 6000); // Check/poll every 6 seconds
+
+      // Poll SMSPool rentals for messages
+      const activeSmsPoolRentals = rentedNumbers.filter(r => r.status === 'ACTIVE' && r.server === 'server2' && r.rental_code);
+      activeSmsPoolRentals.forEach(async (rental) => {
+        try {
+          const { data, error } = await supabase.functions.invoke('smspool-gateway', {
+            body: { action: 'retrieve_messages', rental_code: rental.rental_code }
+          });
+          if (!error && data?.status && data?.data) {
+            // SMSPool retrieve_messages usually returns an array of messages
+            // Adjust depending on actual API response format (e.g. data.data.messages or data.data)
+            const msgs = Array.isArray(data.data) ? data.data : (data.data.messages || []);
+            
+            if (msgs.length > rental.messages.length) {
+              const formattedMsgs = msgs.map((m, i) => ({
+                id: `msg-${rental.rental_code}-${i}`,
+                text: typeof m === 'string' ? m : (m.message || m.sms || JSON.stringify(m)),
+                timestamp: m.date || new Date().toLocaleTimeString()
+              }));
+              
+              setRentedNumbers(current => 
+                current.map(r => r.id === rental.id ? { ...r, messages: formattedMsgs } : r)
+              );
+            }
+          }
+        } catch (e) {
+          console.error("Error polling SMSPool messages:", e);
+        }
+      });
+    }, 15000); // Check/poll every 6 seconds
 
     return () => clearInterval(timer);
   }, [activeOtps, user]);
@@ -1806,6 +1913,7 @@ export const AppProvider = ({ children }) => {
       setActiveSession,
       reuseOtpNumber,
       fetchOtpServicesForCountry,
+      smsPoolRentals,
       profitMarkup,
       updateProfitMarkup,
       adminFetchAllTransactions,
