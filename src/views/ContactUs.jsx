@@ -142,7 +142,7 @@ const ContactUs = () => {
                   <Mail size={20} style={{ color: 'var(--color-turquoise)', flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>General Support</div>
-                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>support@dsicuntzar.com</div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>Support@discountzar.com</div>
                   </div>
                 </div>
 
@@ -150,7 +150,7 @@ const ContactUs = () => {
                   <Phone size={20} style={{ color: 'var(--color-turquoise)', flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>WhatsApp Helpline</div>
-                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>+234 812 345 6789</div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>+234 707 972 2993</div>
                   </div>
                 </div>
 

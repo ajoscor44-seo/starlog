@@ -21,7 +21,7 @@ const Support = () => {
   const [openFaq, setOpenFaq] = useState({});
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText('support@dsicuntzar.com');
+    navigator.clipboard.writeText('Support@discountzar.com');
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2000);
   };
@@ -271,10 +271,10 @@ const Support = () => {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email Support</div>
                   <a 
-                    href="mailto:support@dsicuntzar.com" 
+                    href="mailto:Support@discountzar.com" 
                     style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}
                   >
-                    support@dsicuntzar.com
+                    Support@discountzar.com
                   </a>
                   <button 
                     onClick={handleCopyEmail}
@@ -301,7 +301,7 @@ const Support = () => {
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>WhatsApp Helpline</div>
                   <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px' }}>
-                    +234 812 345 6789
+                    +234 707 972 2993
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Available 09:00 - 18:00 WAT
