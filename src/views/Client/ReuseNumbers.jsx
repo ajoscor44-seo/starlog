@@ -4,7 +4,7 @@ import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { 
   RefreshCw, Key, Search, Phone, CheckCircle, AlertCircle, 
-  HelpCircle, X, Calendar, Copy, Check, Shield, Info
+  HelpCircle, X, Calendar, Copy, Check, Shield, Info, ChevronRight
 } from 'lucide-react';
 
 const ReuseNumbers = () => {
