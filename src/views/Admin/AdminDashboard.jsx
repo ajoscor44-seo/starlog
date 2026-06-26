@@ -672,8 +672,9 @@ const AdminDashboard = () => {
                       }}>
                         {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn || tx.amount)}
                       </td>
-                          <span className="badge badge-success" style={{ fontSize: '9px' }}>{tx.status}</span>
-                        </td>
+                      <td>
+                        <span className="badge badge-success" style={{ fontSize: '9px' }}>{tx.status}</span>
+                      </td>
                       </tr>
                     ))}
                     {filteredTx.length > TX_PER_PAGE && (
