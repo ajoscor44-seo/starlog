@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../supabase';
 import { Key, Copy, Check, Clock, AlertTriangle, AlertCircle, RefreshCw, XCircle, Search } from 'lucide-react';
 
 const serviceLogoMap = {
