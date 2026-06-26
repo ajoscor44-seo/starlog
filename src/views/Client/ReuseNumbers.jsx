@@ -1,6 +1,6 @@
 import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { 
@@ -318,161 +318,162 @@ const ReuseNumbers = () => {
 
       </div>
 
-      {selectedHistoryItem && (() => {
-        const matchingService = otpServices.find(s => s.name.toLowerCase() === selectedHistoryItem.service.toLowerCase());
-        const servicePrice = matchingService ? matchingService.priceNgn : 500;
-        
-        return createPortal(
-          <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
-            <div 
-              className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} 
-              style={{ 
-                width: '100%', 
-                maxWidth: '460px', 
-                padding: isMobile ? '24px 16px 40px 16px' : '28px', 
-                borderRadius: isMobile ? '24px 24px 0 0' : '20px', 
-                margin: isMobile ? 0 : 'auto', 
-                maxHeight: isMobile ? '85vh' : '90vh', 
-                overflowY: 'auto' 
-              }}
-            >
-              
-              <button 
-                className="modal-close" 
-                onClick={() => setSelectedHistoryItem(null)}
-                style={{ background: 'rgba(255,255,255,0.03)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer' }}
+      {selectedHistoryItem && createPortal(
+        (() => {
+          const matchingService = otpServices.find(s => s.name.toLowerCase() === selectedHistoryItem.service.toLowerCase());
+          const servicePrice = matchingService ? matchingService.priceNgn : 500;
+          
+          return (
+            <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
+              <div 
+                className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} 
+                style={{ 
+                  width: '100%', 
+                  maxWidth: '460px', 
+                  padding: isMobile ? '24px 16px 40px 16px' : '28px', 
+                  borderRadius: isMobile ? '24px 24px 0 0' : '20px', 
+                  margin: isMobile ? 0 : 'auto', 
+                  maxHeight: isMobile ? '85vh' : '90vh', 
+                  overflowY: 'auto' 
+                }}
               >
-                <X size={16} />
-              </button>
-
-              {/* Modal Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(0, 242, 254, 0.08)', border: '1px solid rgba(0, 242, 254, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Phone size={18} style={{ color: 'var(--color-turquoise)' }} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontFamily: 'var(--font-heading)', fontWeight: '800' }}>Number Telemetry History</h3>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Carrier Node Info</span>
-                </div>
-              </div>
-
-              {/* Number Details Grid */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                 
-                {/* Phone Number row (large, copyable) */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone Number</span>
-                    <strong style={{ fontSize: '20px', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-                      {selectedHistoryItem.flag} {selectedHistoryItem.phoneNumber}
-                    </strong>
+                <button 
+                  className="modal-close" 
+                  onClick={() => setSelectedHistoryItem(null)}
+                  style={{ background: 'rgba(255,255,255,0.03)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer' }}
+                >
+                  <X size={16} />
+                </button>
+
+                {/* Modal Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(0, 242, 254, 0.08)', border: '1px solid rgba(0, 242, 254, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Phone size={18} style={{ color: 'var(--color-turquoise)' }} />
                   </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontFamily: 'var(--font-heading)', fontWeight: '800' }}>Number Telemetry History</h3>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Carrier Node Info</span>
+                  </div>
+                </div>
+
+                {/* Number Details Grid */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                  
+                  {/* Phone Number row (large, copyable) */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone Number</span>
+                      <strong style={{ fontSize: '20px', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
+                        {selectedHistoryItem.flag} {selectedHistoryItem.phoneNumber}
+                      </strong>
+                    </div>
+                    <button 
+                      onClick={() => handleCopyNumber(selectedHistoryItem.phoneNumber)}
+                      style={{ 
+                        background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', 
+                        color: 'var(--color-turquoise)', fontSize: '11px', padding: '6px 12px',
+                        display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontWeight: '600'
+                      }}
+                    >
+                      {copiedNumber ? <Check size={12} /> : <Copy size={12} />}
+                      {copiedNumber ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+
+                  <div style={{ height: '1px', background: 'var(--border-color)' }} />
+
+                  {/* Service and Country details */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Platform Service</span>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        {matchingService?.emoji || '📱'} {selectedHistoryItem.service}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Origin Country</span>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        {selectedHistoryItem.country}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ height: '1px', background: 'var(--border-color)' }} />
+
+                  {/* Purchase Time */}
+                  <div>
+                    <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Original Purchase Date</span>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                      <Calendar size={13} />
+                      {selectedHistoryItem.timestamp}
+                    </span>
+                  </div>
+
+                </div>
+
+                {/* API Guidelines & Warning */}
+                <div style={{ background: 'rgba(0, 242, 254, 0.02)', border: '1px solid rgba(0, 242, 254, 0.15)', borderRadius: '10px', padding: '12px', display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                  <Info size={16} style={{ color: 'var(--color-turquoise)', flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                    <strong>Rebuy Protocol:</strong> Tapping Re-buy sends a <code>GET /v1/user/reuse</code> query. If the SIM is still active on our dynamic pools, a new 15-minute SMS verification session is generated. If offline, the transaction is rejected and auto-refunded.
+                  </div>
+                </div>
+
+                {/* Feedback Area */}
+                {feedback.msg && (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    padding: '10px 12px', 
+                    background: feedback.success ? 'rgba(0, 255, 135, 0.08)' : 'rgba(255, 59, 48, 0.08)',
+                    border: feedback.success ? '1px solid rgba(0, 255, 135, 0.15)' : '1px solid rgba(255, 59, 48, 0.15)',
+                    borderRadius: '8px', 
+                    color: feedback.success ? 'var(--color-green)' : '#ff453a',
+                    fontSize: '12px',
+                    marginBottom: '20px'
+                  }}>
+                    {feedback.success ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
+                    <span>{feedback.msg}</span>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                   <button 
-                    onClick={() => handleCopyNumber(selectedHistoryItem.phoneNumber)}
-                    style={{ 
-                      background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', 
-                      color: 'var(--color-turquoise)', fontSize: '11px', padding: '6px 12px',
-                      display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontWeight: '600'
-                    }}
+                    className="btn btn-secondary" 
+                    onClick={() => setSelectedHistoryItem(null)}
+                    disabled={isRebuying}
                   >
-                    {copiedNumber ? <Check size={12} /> : <Copy size={12} />}
-                    {copiedNumber ? 'Copied' : 'Copy'}
+                    Cancel
+                  </button>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => handleModalRebuy(selectedHistoryItem)}
+                    disabled={isRebuying}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  >
+                    {isRebuying ? (
+                      <>
+                        <span className="spinner-loader" style={{ width: '12px', height: '12px', borderTopColor: '#fff' }} />
+                        <span>Requesting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={14} />
+                        <span>Re-buy for {formatCost(servicePrice)}</span>
+                      </>
+                    )}
                   </button>
                 </div>
 
-                <div style={{ height: '1px', background: 'var(--border-color)' }} />
-
-                {/* Service and Country details */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Platform Service</span>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      {matchingService?.emoji || '📱'} {selectedHistoryItem.service}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Origin Country</span>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      {selectedHistoryItem.country}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ height: '1px', background: 'var(--border-color)' }} />
-
-                {/* Purchase Time */}
-                <div>
-                  <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Original Purchase Date</span>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                    <Calendar size={13} />
-                    {selectedHistoryItem.timestamp}
-                  </span>
-                </div>
-
               </div>
-
-              {/* API Guidelines & Warning */}
-              <div style={{ background: 'rgba(0, 242, 254, 0.02)', border: '1px solid rgba(0, 242, 254, 0.15)', borderRadius: '10px', padding: '12px', display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                <Info size={16} style={{ color: 'var(--color-turquoise)', flexShrink: 0, marginTop: '2px' }} />
-                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                  <strong>Rebuy Protocol:</strong> Tapping Re-buy sends a <code>GET /v1/user/reuse</code> query. If the SIM is still active on our dynamic pools, a new 15-minute SMS verification session is generated. If offline, the transaction is rejected and auto-refunded.
-                </div>
-              </div>
-
-              {/* Feedback Area */}
-              {feedback.msg && (
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: '10px 12px', 
-                  background: feedback.success ? 'rgba(0, 255, 135, 0.08)' : 'rgba(255, 59, 48, 0.08)',
-                  border: feedback.success ? '1px solid rgba(0, 255, 135, 0.15)' : '1px solid rgba(255, 59, 48, 0.15)',
-                  borderRadius: '8px', 
-                  color: feedback.success ? 'var(--color-green)' : '#ff453a',
-                  fontSize: '12px',
-                  marginBottom: '20px'
-                }}>
-                  {feedback.success ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
-                  <span>{feedback.msg}</span>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={() => setSelectedHistoryItem(null)}
-                  disabled={isRebuying}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => handleModalRebuy(selectedHistoryItem)}
-                  disabled={isRebuying}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                >
-                  {isRebuying ? (
-                    <>
-                      <span className="spinner-loader" style={{ width: '12px', height: '12px', borderTopColor: '#fff' }} />
-                      <span>Requesting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw size={14} />
-                      <span>Re-buy for {formatCost(servicePrice)}</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
             </div>
-          </div>,
-          document.body
-        );
-      })()}
-
+          );
+        })(),
+        document.body
+      )}
 
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate, useMatch } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { Smartphone, Download, Wifi, AlertCircle, Info, Check, Copy, X } from 'lucide-react';
@@ -327,7 +328,7 @@ const ESim = () => {
         )}
       </div>
 
-      {selectedPkg && (
+      {selectedPkg && createPortal(
         <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
           <div 
             className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} 
@@ -367,10 +368,11 @@ const ESim = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {activeEsimDetails && (
+      {activeEsimDetails && createPortal(
         <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
           <div 
             className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} 
@@ -405,7 +407,8 @@ const ESim = () => {
             </div>
             <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setActiveEsimDetails(null)}>Done</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

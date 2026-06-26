@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../../context/AppContext';
+import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { User, Eye, EyeOff, Check, Clipboard, AlertCircle } from 'lucide-react';
 
@@ -223,7 +224,7 @@ const Subscriptions = () => {
       </div>
 
       {/* Buy Modal */}
-      {selectedSub && (
+      {selectedSub && createPortal(
         <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
           <div className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} style={{ borderRadius: isMobile ? '24px 24px 0 0' : '20px', padding: isMobile ? '24px 16px 40px 16px' : '28px', margin: isMobile ? 0 : 'auto', width: '100%', maxWidth: '500px', maxHeight: isMobile ? '85vh' : '90vh', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>Confirm Purchase</h3>
@@ -257,7 +258,8 @@ const Subscriptions = () => {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>
