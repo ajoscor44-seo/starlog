@@ -96,6 +96,7 @@ create policy "Users can view their own transactions." on public.transactions
   for select using (auth.uid() = user_id);
 
 -- Create a function to process user purchases securely and atomically via RPC
+drop function if exists public.process_purchase(uuid, numeric, text, text);
 create or replace function public.process_purchase(
   p_user_id uuid,
   p_amount numeric,
@@ -148,6 +149,7 @@ end;
 $$;
 
 -- Create a function to process webhook deposits securely and atomically via RPC
+drop function if exists public.process_deposit(text, uuid, numeric, text);
 create or replace function public.process_deposit(
   p_tx_id text,
   p_user_id uuid,
