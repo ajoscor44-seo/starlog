@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { Phone, Clock, Mail, RefreshCw, AlertCircle, AlertTriangle, ChevronRight, Check } from 'lucide-react';
@@ -247,7 +248,7 @@ const RentNumbers = () => {
         )}
 
         {/* Inbox modal */}
-        {activeInbox && (
+        {activeInbox && createPortal(
           <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
             <div className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} style={{ width: '100%', maxWidth: 500, padding: isMobile ? '24px 16px 40px 16px' : '28px', borderRadius: isMobile ? '24px 24px 0 0' : '20px', margin: isMobile ? 0 : 'auto', maxHeight: isMobile ? '85vh' : '90vh', overflowY: 'auto' }}>
               <button className="modal-close" onClick={() => setActiveInbox(null)}>
@@ -275,8 +276,10 @@ const RentNumbers = () => {
                 <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setActiveInbox(null)}>Close</button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
+
 
       </div>
     );
@@ -382,7 +385,7 @@ const RentNumbers = () => {
         )}
       </div>
 
-      {activeInbox && (
+      {activeInbox && createPortal(
         <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
           <div className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} style={{ width: '100%', maxWidth: 600, padding: isMobile ? '24px 16px 40px 16px' : '28px', borderRadius: isMobile ? '24px 24px 0 0' : '20px', margin: isMobile ? 0 : 'auto', maxHeight: isMobile ? '85vh' : '90vh', overflowY: 'auto' }}>
             <button className="modal-close" onClick={() => setActiveInbox(null)}><ChevronRight style={{ transform: 'rotate(90deg)' }} /></button>
@@ -407,7 +410,8 @@ const RentNumbers = () => {
               <button className="btn btn-primary" onClick={() => setActiveInbox(null)}>Close</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
