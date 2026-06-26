@@ -22,6 +22,7 @@ import ContactUs from './views/ContactUs';
 import TermsOfService from './views/TermsOfService';
 import PrivacyPolicy from './views/PrivacyPolicy';
 import Auth from './views/Auth';
+import { Analytics } from '@vercel/analytics/react';
 
 function ProtectedRoute() {
   const { isLoggedIn, isAuthLoading } = useContext(AppContext);
@@ -100,6 +101,7 @@ function App() {
     <BrowserRouter>
       <AppProvider>
         <AppContent />
+        <Analytics />
       </AppProvider>
     </BrowserRouter>
   );
