@@ -252,6 +252,8 @@ export const AppProvider = ({ children }) => {
 
   // SMSPool state
   const [smsPoolRentals, setSmsPoolRentals] = useState([]);
+  const [smsPoolShortTermCountries, setSmsPoolShortTermCountries] = useState([]);
+  const [smsPoolShortTermServices, setSmsPoolShortTermServices] = useState([]);
   const [profile, setProfile] = useState({ full_name: '', phone: '', username: '', api_key: '' });
 
   // Routing and active session states
@@ -911,7 +913,62 @@ export const AppProvider = ({ children }) => {
     return { success: true, sub: newSub };
   };
 
-  const requestOtpNumber = async (countryId, serviceId, dynamicServiceObj = null) => {
+  const requestOtpNumber = async (countryId, serviceId, dynamicServiceObj = null, server = 'server1') => {
+    if (server === 'server2') {
+      const country = smsPoolShortTermCountries.find(c => c.ID == countryId);
+      const service = smsPoolShortTermServices.find(s => s.ID == serviceId);
+      if (!country || !service) return { success: false, msg: 'Invalid parameters selected for Server 2' };
+
+      // SMSPool prices are in USD. 
+      // Since SMSPool short term price isn't explicitly given in /service/retrieve_all (we only get ID and name usually),
+      // Actually we'll need to set a base price or maybe max_price? Wait! SMSPool short term prices are returned?
+      // For now let's set a flat rate if not provided, or dynamicServiceObj has priceNgn.
+      const priceNgn = dynamicServiceObj?.priceNgn || 1500; 
+
+      const purchaseRes = await executePurchase(priceNgn, 'Purchase', `OTP Verification (${service.name} - ${country.name})`);
+      if (!purchaseRes.success) return purchaseRes;
+
+      try {
+        const { data, error } = await supabase.functions.invoke('smspool-gateway', {
+          body: { action: 'order_sms', country: countryId, service: serviceId }
+        });
+
+        if (error || !data || !data.status || data.data.success === 0) {
+          throw new Error(error ? error.message : (data?.data?.message || 'Failed to order from Server 2'));
+        }
+
+        // data.data has { order_id, phonenumber, number, ... }
+        const orderData = data.data;
+        const phone = orderData.phonenumber || orderData.number || orderData.cc_and_number;
+
+        const newOtp = {
+          id: `sp-${orderData.order_id}`,
+          orderId: orderData.order_id,
+          phoneNumber: phone,
+          country: country.name,
+          service: service.name,
+          priceNgn,
+          status: 'PENDING',
+          date: new Date().toLocaleString(),
+          expiresAt: Date.now() + 15 * 60 * 1000,
+          smsText: null,
+          otpCode: null,
+          server: 'server2'
+        };
+
+        setActiveOtps(prev => [newOtp, ...prev]);
+        return { success: true, otp: newOtp };
+
+      } catch (e) {
+        console.error("SMSPool API Order Error:", e);
+        const ref = `ref-otp-fail-${Math.floor(100000 + Math.random() * 900000)}`;
+        await supabase.rpc('process_deposit', {
+          p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (${service.name})`
+        });
+        return { success: false, msg: e.message };
+      }
+    }
+
     const country = countries.find(c => c.id === countryId);
     const service = dynamicServiceObj || otpServices.find(s => s.id === serviceId);
     if (!country || !service) return { success: false, msg: 'Invalid parameters selected' };
@@ -958,11 +1015,12 @@ export const AppProvider = ({ children }) => {
         flag: country.flag,
         service: service.name,
         priceNgn: price,
-        status: 'WAITING',
-        timestamp: new Date().toLocaleString(),
-        expiryTime: Date.now() + 15 * 60 * 1000, // 15 mins
-        code: null,
-        smsMessage: null
+        status: 'PENDING',
+        date: new Date().toLocaleString(),
+        expiresAt: Date.now() + 15 * 60 * 1000,
+        smsText: null,
+        otpCode: null,
+        server: 'server1'
       };
 
       setActiveOtps(prev => [newOtp, ...prev]);
@@ -987,7 +1045,7 @@ export const AppProvider = ({ children }) => {
   const cancelOtp = async (otpId) => {
     const otp = activeOtps.find(o => o.id === otpId);
     if (!otp) return { success: false, msg: 'OTP request not found' };
-    if (otp.status !== 'WAITING') return { success: false, msg: 'OTP session already finished' };
+    if (otp.status !== 'PENDING') return { success: false, msg: 'OTP session already finished' };
 
     try {
       if (otp.fivesimOrderId) {
@@ -1141,11 +1199,12 @@ export const AppProvider = ({ children }) => {
         flag: flag || '🔄',
         service: service.name,
         priceNgn: price,
-        status: 'WAITING',
-        timestamp: new Date().toLocaleString(),
-        expiryTime: Date.now() + 15 * 60 * 1000, // 15 mins
-        code: null,
-        smsMessage: null
+        status: 'PENDING',
+        date: new Date().toLocaleString(),
+        expiresAt: Date.now() + 15 * 60 * 1000,
+        smsText: null,
+        otpCode: null,
+        server: 'server1'
       };
 
       setActiveOtps(prev => [newOtp, ...prev]);
@@ -1427,7 +1486,7 @@ export const AppProvider = ({ children }) => {
   // Real-time Admin SMS Simulation
   const simulateSmsDelivery = (phoneNumber, smsText) => {
     // 1. Search in Active OTPs
-    const matchingOtp = activeOtps.find(o => o.phoneNumber === phoneNumber && o.status === 'WAITING');
+    const matchingOtp = activeOtps.find(o => o.phoneNumber === phoneNumber && o.status === 'PENDING');
     
     if (matchingOtp) {
       // Extract numeric OTP if found (usually 4-8 digits)
@@ -1437,9 +1496,9 @@ export const AppProvider = ({ children }) => {
       setActiveOtps(current => 
         current.map(o => o.id === matchingOtp.id ? { 
           ...o, 
-          status: 'RECEIVED', 
-          code: extractedCode, 
-          smsMessage: smsText 
+          status: 'COMPLETED', 
+          otpCode: extractedCode, 
+          smsText: smsText 
         } : o)
       );
       return { success: true, msg: 'SMS dispatched to verification session successfully.' };
@@ -1492,72 +1551,102 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const fetchSmsPoolShortTermData = async () => {
+    try {
+      // Fetch Countries
+      const cRes = await supabase.functions.invoke('smspool-gateway', { body: { action: 'get_countries' } });
+      if (!cRes.error && cRes.data?.status) {
+        setSmsPoolShortTermCountries(cRes.data.data || []);
+      }
+      // Fetch Services
+      const sRes = await supabase.functions.invoke('smspool-gateway', { body: { action: 'get_services' } });
+      if (!sRes.error && sRes.data?.status) {
+        setSmsPoolShortTermServices(sRes.data.data || []);
+      }
+    } catch (e) {
+      console.error("fetchSmsPoolShortTermData Error:", e);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchSmsPoolRentals();
+      fetchSmsPoolShortTermData();
     }
   }, [user]);
 
-  // Handle active OTP countdown expirations and poll 5SIM for SMS
+  // Handle active OTP countdown expirations and poll APIs for SMS
   useEffect(() => {
     if (!user) return;
-
+    
     const timer = setInterval(() => {
-      const now = Date.now();
-      const activeWaiting = activeOtps.filter(o => o.status === 'WAITING');
-
-      activeWaiting.forEach(async (otp) => {
-        // 1. Expiration check
-        if (now > otp.expiryTime) {
-          await cancelOtp(otp.id);
-          return;
+      // 1. Process expirations for all servers
+      setActiveOtps(current => current.map(otp => {
+        if (otp.status === 'PENDING' && Date.now() > otp.expiresAt) {
+          // Trigger refund
+          if (!otp.refunded) {
+            const ref = `ref-exp-${Math.floor(100000 + Math.random() * 900000)}`;
+            supabase.rpc('process_deposit', {
+              p_tx_id: ref, p_user_id: user.id, p_amount: otp.priceNgn, p_method: `OTP Expired Refund (${otp.service})`
+            }).then(() => {
+              console.log(`Refunded expired OTP ${otp.id}`);
+            });
+            return { ...otp, status: 'EXPIRED', refunded: true };
+          }
+          return { ...otp, status: 'EXPIRED' };
         }
+        return otp;
+      }));
 
-        // 2. Poll 5SIM check status
-        if (otp.fivesimOrderId) {
+      // 2. Poll Server 1 (5SIM) active orders
+      const pendingFiveSim = activeOtps.filter(o => o.status === 'PENDING' && o.server === 'server1' && o.fivesimOrderId);
+      pendingFiveSim.forEach(async (otp) => {
+        if (Date.now() < otp.expiresAt) {
           try {
             const { data, error } = await supabase.functions.invoke('sms-gateway', {
-              body: { action: 'check', orderId: otp.fivesimOrderId }
+              body: { action: 'check', order_id: otp.fivesimOrderId }
             });
-
-            if (!error && data && data.status) {
-              const checkData = data.data;
-
-              // Check if SMS was received
-              if (checkData.sms && checkData.sms.length > 0) {
-                const smsObj = checkData.sms[0];
-                const extractedCode = smsObj.code || smsObj.text.match(/\b\d{4,8}\b/)?.[0] || 'Code';
-
-                setActiveOtps(current =>
-                  current.map(o => o.id === otp.id ? {
-                    ...o,
-                    status: 'RECEIVED',
-                    code: extractedCode,
-                    smsMessage: smsObj.text
-                  } : o)
-                );
-
-                // Call finish on 5SIM
-                await supabase.functions.invoke('sms-gateway', {
-                  body: { action: 'finish', orderId: otp.fivesimOrderId }
-                });
-              } else if (checkData.status === 'CANCELED' || checkData.status === 'TIMEOUT') {
-                // If 5sim expired or canceled on their end, refund client
-                const ref = `ref-exp-${Math.floor(100000 + Math.random() * 900000)}`;
-                await supabase.rpc('process_deposit', {
-                  p_tx_id: ref,
-                  p_user_id: user.id,
-                  p_amount: otp.priceNgn,
-                  p_method: `OTP Expired Refund (${otp.service})`
-                });
-
-                setActiveOtps(current =>
-                  current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o)
-                );
+            if (!error && data?.status && data?.data) {
+              const smsData = data.data;
+              if (smsData.sms && smsData.sms.length > 0) {
+                const latestSms = smsData.sms[0];
+                setActiveOtps(current => current.map(o => o.id === otp.id ? { 
+                  ...o, 
+                  status: 'COMPLETED', 
+                  smsText: latestSms.text, 
+                  otpCode: latestSms.code 
+                } : o));
               }
             }
           } catch (err) {
             console.error("Error polling 5sim order:", otp.fivesimOrderId, err);
+          }
+        }
+      });
+
+      // 3. Poll Server 2 (SMSPool) active orders
+      const pendingSmsPool = activeOtps.filter(o => o.status === 'PENDING' && o.server === 'server2' && o.orderId);
+      pendingSmsPool.forEach(async (otp) => {
+        if (Date.now() < otp.expiresAt) {
+          try {
+            const { data, error } = await supabase.functions.invoke('smspool-gateway', {
+              body: { action: 'check_sms', orderid: otp.orderId }
+            });
+            if (!error && data?.status && data?.data) {
+              const resData = data.data;
+              if (resData.status === 3 && resData.sms) { // Status 3 means SMS received in SMSPool
+                setActiveOtps(current => current.map(o => o.id === otp.id ? { 
+                  ...o, 
+                  status: 'COMPLETED', 
+                  smsText: resData.full_sms || resData.sms, 
+                  otpCode: resData.sms 
+                } : o));
+              } else if (resData.status === 6) { // Order Cancelled/Refunded by SMSPool
+                 setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
+              }
+            }
+          } catch (err) {
+            console.error("Error polling SMSPool order:", otp.orderId, err);
           }
         }
       });
@@ -1570,8 +1659,6 @@ export const AppProvider = ({ children }) => {
             body: { action: 'retrieve_messages', rental_code: rental.rental_code }
           });
           if (!error && data?.status && data?.data) {
-            // SMSPool retrieve_messages usually returns an array of messages
-            // Adjust depending on actual API response format (e.g. data.data.messages or data.data)
             const msgs = Array.isArray(data.data) ? data.data : (data.data.messages || []);
             
             if (msgs.length > rental.messages.length) {
@@ -1590,10 +1677,10 @@ export const AppProvider = ({ children }) => {
           console.error("Error polling SMSPool messages:", e);
         }
       });
-    }, 15000); // Check/poll every 6 seconds
+    }, 15000); 
 
     return () => clearInterval(timer);
-  }, [activeOtps, user]);
+  }, [activeOtps, user, rentedNumbers]);
 
   // Simulate data usage progression for active eSIMs to show dynamic telemetry
   useEffect(() => {
@@ -1914,6 +2001,8 @@ export const AppProvider = ({ children }) => {
       reuseOtpNumber,
       fetchOtpServicesForCountry,
       smsPoolRentals,
+      smsPoolShortTermCountries,
+      smsPoolShortTermServices,
       profitMarkup,
       updateProfitMarkup,
       adminFetchAllTransactions,

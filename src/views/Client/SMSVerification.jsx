@@ -76,12 +76,15 @@ const SMSVerification = () => {
     activeSession,
     setActiveSession,
     reuseOtpNumber,
-    fetchOtpServicesForCountry
+    fetchOtpServicesForCountry,
+    smsPoolShortTermCountries,
+    smsPoolShortTermServices
   } = useContext(AppContext);
   const isMobile = useIsMobile();
   const [otpPage, setOtpPage] = useState(1);
   const OTP_PER_PAGE = 10;
 
+  const [server, setServer] = useState('server1');
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [searchCountry, setSearchCountry] = useState('');
@@ -124,18 +127,36 @@ const SMSVerification = () => {
     loadServices();
   }, [selectedCountry]);
 
-  const filteredCountries = countries.filter(c =>
-    c.name.toLowerCase().includes(searchCountry.toLowerCase())
+  useEffect(() => {
+    // Automatically select first country when switching servers
+    if (server === 'server1') {
+      setSelectedCountry(countries[0]?.id);
+    } else {
+      setSelectedCountry(smsPoolShortTermCountries[0]?.ID);
+    }
+  }, [server, countries, smsPoolShortTermCountries]);
+
+  const activeCountriesList = server === 'server1' ? countries : smsPoolShortTermCountries;
+
+  const filteredCountries = activeCountriesList.filter(c =>
+    (c.name || '').toLowerCase().includes(searchCountry.toLowerCase())
   );
 
-  const activeServicesList = dynamicServices.length > 0 ? dynamicServices : otpServices;
+  const activeServicesList = server === 'server1' 
+    ? (dynamicServices.length > 0 ? dynamicServices : otpServices) 
+    : smsPoolShortTermServices;
 
   const filteredServices = activeServicesList.filter(s =>
-    s.name.toLowerCase().includes(searchService.toLowerCase())
+    (s.name || '').toLowerCase().includes(searchService.toLowerCase())
   );
 
-  const selectedCountryObj = countries.find(c => c.id === selectedCountry);
-  const selectedServiceObj = activeServicesList.find(s => s.id === selectedService) || activeServicesList[0];
+  const selectedCountryObj = server === 'server1' 
+    ? activeCountriesList.find(c => c.id === selectedCountry) 
+    : activeCountriesList.find(c => c.ID === selectedCountry);
+    
+  const selectedServiceObj = server === 'server1' 
+    ? (activeServicesList.find(s => s.id === selectedService) || activeServicesList[0])
+    : (activeServicesList.find(s => s.ID === selectedService) || activeServicesList[0]);
 
   const handleRequestNumber = async () => {
     if (!selectedCountry || !selectedService) {
@@ -144,10 +165,10 @@ const SMSVerification = () => {
     }
     setErrorMsg('');
     setIsRequesting(true);
-    const result = await requestOtpNumber(selectedCountry, selectedService, selectedServiceObj);
+    const result = await requestOtpNumber(selectedCountry, selectedService, selectedServiceObj, server);
     setIsRequesting(false);
     if (result.success) setActiveSession(result.otp);
-    else setErrorMsg(result.error || 'Failed to request number');
+    else setErrorMsg(result.error || result.msg || 'Failed to request number');
   };
 
   const handleCopy = (text, key) => {
@@ -204,16 +225,16 @@ const SMSVerification = () => {
             <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{activeSession.service}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: activeSession.status === 'WAITING' ? 'var(--color-turquoise)' : 'var(--color-green)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: activeSession.status === 'PENDING' ? 'var(--color-turquoise)' : 'var(--color-green)' }}>
           <Clock size={14} />
           <span style={{ fontWeight: 700, fontFamily: 'var(--font-heading)', fontSize: 14 }}>
-            {activeSession.status === 'WAITING' ? getRemainingTimeText(activeSession.expiryTime) : activeSession.status}
+            {activeSession.status === 'PENDING' ? getRemainingTimeText(activeSession.expiresAt) : activeSession.status}
           </span>
         </div>
       </div>
 
       {/* Radar */}
-      {activeSession.status === 'WAITING' && (
+      {activeSession.status === 'PENDING' && (
         <div style={{ position: 'relative', width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', border: '3px solid rgba(0,242,254,0.15)', animation: 'pulseCyan 1.5s infinite' }} />
           <div style={{ position: 'absolute', width: '60%', height: '60%', margin: '20%', borderRadius: '50%', background: 'rgba(0,242,254,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -238,21 +259,21 @@ const SMSVerification = () => {
 
       {/* Code Box */}
       <div style={{ width: '100%', maxWidth: 450, padding: 16, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {activeSession.status === 'WAITING' ? (
+        {activeSession.status === 'PENDING' ? (
           <div style={{ color: 'var(--text-secondary)', fontSize: 13 }} className="blink-loader">Waiting for SMS code…</div>
-        ) : activeSession.status === 'RECEIVED' ? (
+        ) : activeSession.status === 'COMPLETED' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 11, color: 'var(--color-green)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>SMS Code Received ✓</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
               <span style={{ fontSize: isMobile ? 32 : 42, fontWeight: 900, color: 'var(--color-green)', letterSpacing: 2, fontFamily: 'var(--font-heading)' }}>
-                {activeSession.code}
+                {activeSession.otpCode}
               </span>
-              <button className="btn btn-secondary" style={{ padding: 8 }} onClick={() => handleCopy(activeSession.code, 'code')}>
+              <button className="btn btn-secondary" style={{ padding: 8 }} onClick={() => handleCopy(activeSession.otpCode, 'code')}>
                 {copiedText === 'code' ? <Check size={16} style={{ color: 'var(--color-green)' }} /> : <Copy size={16} />}
               </button>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
-              "{activeSession.smsMessage}"
+              "{activeSession.smsText}"
             </div>
           </div>
         ) : (
@@ -299,7 +320,7 @@ const SMSVerification = () => {
           </button>
         )}
         <button className="btn btn-secondary" style={{ flex: isMobile ? 1 : 'none' }} onClick={() => setActiveSession(null)} disabled={isCancelling || isRebuying}>
-          {activeSession.status === 'WAITING' ? 'Order Another' : 'Back to Order Panel'}
+          {activeSession.status === 'PENDING' ? 'Order Another' : 'Back to Order Panel'}
         </button>
       </div>
     </div>
@@ -343,6 +364,21 @@ const SMSVerification = () => {
                   {s < 2 && <div style={{ height: 1, flex: 1, background: 'var(--border-color)' }} />}
                 </React.Fragment>
               ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 4, marginBottom: 4 }}>
+              <button 
+                onClick={() => setServer('server1')}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server1' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 13, fontWeight: 600, transition: '0.2s' }}
+              >
+                Server 1 (Fast)
+              </button>
+              <button 
+                onClick={() => setServer('server2')}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server2' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server2' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 13, fontWeight: 600, transition: '0.2s' }}
+              >
+                Server 2 (High Success)
+              </button>
             </div>
 
             {/* Step 1: Country */}
@@ -516,10 +552,10 @@ const SMSVerification = () => {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span className={`badge ${log.status === 'RECEIVED' ? 'badge-success' : log.status === 'WAITING' ? 'badge-info' : 'badge-danger'}`} style={{ fontSize: 9 }}>
+                    <span className={`badge ${log.status === 'COMPLETED' ? 'badge-success' : log.status === 'PENDING' ? 'badge-info' : 'badge-danger'}`} style={{ fontSize: 9 }}>
                       {log.status}
                     </span>
-                    {log.code && <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-green)', marginTop: 2 }}>{log.code}</div>}
+                    {log.otpCode && <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-green)', marginTop: 2 }}>{log.otpCode}</div>}
                   </div>
                 </div>
               ))}
@@ -547,7 +583,13 @@ const SMSVerification = () => {
         ) : (
           <>
             <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <h3 style={{ fontSize: 18, margin: 0 }}>Configure SMS OTP</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: 18, margin: 0 }}>Configure SMS OTP</h3>
+                <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.2)', padding: 4, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                  <button onClick={() => setServer('server1')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server1' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server1' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 1</button>
+                  <button onClick={() => setServer('server2')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server2' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server2' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 2</button>
+                </div>
+              </div>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <label className="form-label" style={{ margin: 0 }}>1. Choose Country</label>
@@ -653,19 +695,20 @@ const SMSVerification = () => {
                           onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
                           title="Click to view session details"
                         >
-                          <td>{log.timestamp}</td>
+                          <td>{log.date}</td>
                           <td style={{ fontWeight: 600 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <div style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {serviceLogoMap[log.serviceId] ? React.cloneElement(serviceLogoMap[log.serviceId], { style: { width: '18px', height: '18px', flexShrink: 0 } }) : null}
                               </div>
                               <span>{log.service}</span>
+                              {log.server === 'server2' && <span className="badge" style={{ fontSize: 9, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)' }}>S2</span>}
                             </div>
                           </td>
                           <td>{log.flag} {log.country}</td>
                           <td style={{ fontFamily: 'var(--mono)' }}>{log.phoneNumber}</td>
-                          <td><span className={`badge ${log.status === 'RECEIVED' ? 'badge-success' : log.status === 'WAITING' ? 'badge-info' : 'badge-danger'}`}>{log.status}</span></td>
-                          <td style={{ fontFamily: 'var(--mono)', fontWeight: 'bold', fontSize: 15, color: 'var(--color-green)' }}>{log.code || '—'}</td>
+                          <td><span className={`badge ${log.status === 'COMPLETED' ? 'badge-success' : log.status === 'PENDING' ? 'badge-info' : 'badge-danger'}`}>{log.status}</span></td>
+                          <td style={{ fontFamily: 'var(--mono)', fontWeight: 'bold', fontSize: 15, color: 'var(--color-green)' }}>{log.otpCode || '—'}</td>
                           <td>{formatCost(log.priceNgn)}</td>
                         </tr>
                       ))}

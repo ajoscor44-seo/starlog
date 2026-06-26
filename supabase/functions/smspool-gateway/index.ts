@@ -46,6 +46,21 @@ serve(async (req) => {
       const { type } = requestBody
       url = 'https://api.smspool.net/rental/retrieve_all'
       formData.append('type', type || '1')
+    } else if (action === 'get_countries') {
+      url = `https://api.smspool.net/country/retrieve_all?key=${apiKey}`
+    } else if (action === 'get_services') {
+      url = `https://api.smspool.net/service/retrieve_all?key=${apiKey}`
+    } else if (action === 'order_sms') {
+      const { country, service, quantity, pricing_option } = requestBody
+      url = 'https://api.smspool.net/purchase/sms'
+      formData.append('country', country)
+      formData.append('service', service)
+      if (quantity) formData.append('quantity', quantity)
+      if (pricing_option !== undefined) formData.append('pricing_option', pricing_option)
+    } else if (action === 'check_sms') {
+      const { orderid } = requestBody
+      url = 'https://api.smspool.net/sms/check'
+      formData.append('orderid', orderid)
     } else if (action === 'stock') {
       const { id, days } = requestBody
       url = 'https://api.smspool.net/rental/stock'
@@ -72,10 +87,13 @@ serve(async (req) => {
     }
 
     // Call SMSPool API
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData
-    })
+    const isGet = ['get_countries', 'get_services'].includes(action);
+    const fetchOptions: RequestInit = {
+      method: isGet ? 'GET' : 'POST',
+    }
+    if (!isGet) fetchOptions.body = formData;
+
+    const response = await fetch(url, fetchOptions)
 
     const text = await response.text()
     
