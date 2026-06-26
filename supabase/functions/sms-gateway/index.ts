@@ -85,8 +85,45 @@ serve(async (req) => {
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
       const { data, error } = await supabaseAdmin
         .from('profiles')
-        .select('id, full_name, username, email, phone, wallet_balance, updated_at')
-        .order('updated_at', { ascending: false })
+        .select('id, full_name, username, email, phone, wallet_balance, updated_at, created_at')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+
+      return new Response(JSON.stringify({ status: true, data }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    if (action === 'admin-get-config') {
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+      const { data, error } = await supabaseAdmin
+        .from('system_config')
+        .select('*')
+      if (error) throw error
+
+      return new Response(JSON.stringify({ status: true, data }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    if (action === 'admin-update-config') {
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+      const { id, value } = requestBody
+
+      if (!id || value === undefined) {
+        throw new Error('Missing id or value for config update')
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('system_config')
+        .upsert({ id, value, updated_at: new Date().toISOString() })
+        .select()
+        .single()
       if (error) throw error
 
       return new Response(JSON.stringify({ status: true, data }), {
@@ -96,15 +133,24 @@ serve(async (req) => {
     }
 
     if (action === 'admin-update-profile') {
-      const { targetUserId, newBalance } = requestBody
-      if (!targetUserId || newBalance === undefined) {
-        throw new Error('Missing targetUserId or newBalance')
+      const { targetUserId, newBalance, username, phone, fullName, isAdmin } = requestBody
+      if (!targetUserId) {
+        throw new Error('Missing targetUserId')
       }
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+      const updateData: any = {}
+      if (newBalance !== undefined) updateData.wallet_balance = newBalance
+      if (username !== undefined) updateData.username = username
+      if (phone !== undefined) updateData.phone = phone
+      if (fullName !== undefined) updateData.full_name = fullName
+      if (isAdmin !== undefined) updateData.is_admin = isAdmin
+      updateData.updated_at = new Date().toISOString()
+
       const { data, error } = await supabaseAdmin
         .from('profiles')
-        .update({ wallet_balance: newBalance })
+        .update(updateData)
         .eq('id', targetUserId)
         .select()
       if (error) throw error

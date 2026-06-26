@@ -5,9 +5,17 @@ create table if not exists public.profiles (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   followup_email_sent boolean default false not null,
   full_name text,
+  username text,
   phone text,
+  is_admin boolean default false not null,
+  api_key text,
   wallet_balance numeric(10,2) default 0.00 not null
 );
+
+-- Ensure columns exist if table was already created
+alter table public.profiles add column if not exists username text;
+alter table public.profiles add column if not exists is_admin boolean default false not null;
+alter table public.profiles add column if not exists api_key text;
 
 -- Enable Row Level Security (RLS) on profiles
 alter table public.profiles enable row level security;
@@ -20,6 +28,27 @@ create policy "Profiles are viewable by owner." on public.profiles
 drop policy if exists "Users can update their own profile." on public.profiles;
 create policy "Users can update their own profile." on public.profiles
   for update using (auth.uid() = id);
+
+-- Create a table for system configurations (rates, markup)
+create table if not exists public.system_config (
+  id text primary key,
+  value numeric not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS and restrict config updates to admins only
+alter table public.system_config enable row level security;
+
+drop policy if exists "Config is viewable by everyone." on public.system_config;
+create policy "Config is viewable by everyone." on public.system_config
+  for select using (true);
+
+-- Insert default configs if they don't exist
+insert into public.system_config (id, value)
+values 
+  ('exchange_rate', 1350.00),
+  ('profit_markup', 1.00)
+on conflict (id) do nothing;
 
 -- Create a trigger function to automatically create a profile when a new user signs up
 create or replace function public.handle_new_user()

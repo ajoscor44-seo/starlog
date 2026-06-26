@@ -235,6 +235,44 @@ export const AppProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : { subs: 30, otp: 50, esim: 40, smm: 50 };
   });
 
+  const [exchangeRate, setExchangeRate] = useState(() => {
+    const saved = localStorage.getItem('zp_exchange_rate');
+    return saved ? Number(saved) : 1350;
+  });
+
+  // Fetch config from DB
+  const loadSystemConfig = async () => {
+    try {
+      const { data, error } = await supabase.from('system_config').select('*');
+      if (!error && data) {
+        const rateRow = data.find(c => c.id === 'exchange_rate');
+        if (rateRow) {
+          setExchangeRate(Number(rateRow.value));
+          localStorage.setItem('zp_exchange_rate', Number(rateRow.value));
+        }
+        const markupRow = data.find(c => c.id === 'profit_markup');
+        if (markupRow && markupRow.value) {
+           // For now we still use the local category based markup if possible, or override.
+           // If we just have one global markup, we could use it. The DB has 'profit_markup' 1.00.
+           // Let's keep the object structure if we update it.
+           try {
+              const parsed = typeof markupRow.value === 'string' ? JSON.parse(markupRow.value) : markupRow.value;
+              if (typeof parsed === 'object') {
+                setProfitMarkup(parsed);
+                localStorage.setItem('zp_profit_markup', JSON.stringify(parsed));
+              }
+           } catch(e) {}
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load system config", err);
+    }
+  };
+
+  useEffect(() => {
+    loadSystemConfig();
+  }, []);
+
   const [triggerRecalc, setTriggerRecalc] = useState(0);
 
   const updateProfitMarkup = (category, value) => {
@@ -325,7 +363,7 @@ export const AppProvider = ({ children }) => {
         return {
           ...sub,
           priceNgn,
-          priceUsd: priceNgn / 1350
+          priceUsd: priceNgn / exchangeRate
         };
       });
       localStorage.setItem('zp_catalog_subs', JSON.stringify(updated));
@@ -339,7 +377,7 @@ export const AppProvider = ({ children }) => {
         return {
           ...otp,
           priceNgn,
-          priceUsd: priceNgn / 1350
+          priceUsd: priceNgn / exchangeRate
         };
       });
       localStorage.setItem('zp_catalog_otp', JSON.stringify(updated));
@@ -353,7 +391,7 @@ export const AppProvider = ({ children }) => {
         return {
           ...pkg,
           priceNgn,
-          priceUsd: priceNgn / 1350
+          priceUsd: priceNgn / exchangeRate
         };
       });
       localStorage.setItem('zp_catalog_esim', JSON.stringify(updated));
@@ -369,7 +407,7 @@ export const AppProvider = ({ children }) => {
           return {
             ...smm,
             pricePerThousandNgn: priceNgn,
-            pricePerThousandUsd: priceNgn / 1350
+            pricePerThousandUsd: priceNgn / exchangeRate
           };
         }
         const wholesaleCosts = {
@@ -387,7 +425,7 @@ export const AppProvider = ({ children }) => {
         return {
           ...smm,
           pricePerThousandNgn: priceNgn,
-          pricePerThousandUsd: priceNgn / 1350
+          pricePerThousandUsd: priceNgn / exchangeRate
         };
       });
       localStorage.setItem('zp_catalog_smm', JSON.stringify(updated));
@@ -452,7 +490,7 @@ export const AppProvider = ({ children }) => {
                   return {
                     ...item,
                     pricePerThousandNgn: userPricePerThousand,
-                    pricePerThousandUsd: userPricePerThousand / 1350,
+                    pricePerThousandUsd: userPricePerThousand / exchangeRate,
                     min: Number(apiSrv.min || item.min || 100),
                     max: Number(apiSrv.max || item.max || 100000)
                   };
@@ -529,7 +567,7 @@ export const AppProvider = ({ children }) => {
           id: tx.id,
           type: tx.type,
           amountNgn: Number(tx.amount),
-          amountUsd: Number(tx.amount) / 1350,
+          amountUsd: Number(tx.amount) / exchangeRate,
           method: tx.method,
           date: new Date(tx.created_at).toLocaleString(),
           status: tx.status
@@ -621,7 +659,7 @@ export const AppProvider = ({ children }) => {
               id: tx.id,
               type: tx.type,
               amountNgn: Number(tx.amount),
-              amountUsd: Number(tx.amount) / 1350,
+              amountUsd: Number(tx.amount) / exchangeRate,
               method: tx.method,
               date: new Date(tx.created_at).toLocaleString(),
               status: tx.status
@@ -754,7 +792,7 @@ export const AppProvider = ({ children }) => {
       return `₦${value.toLocaleString()}`;
     } else {
       // Approximate conversion rate N1000 = $1.3
-      const converted = (value / 1350).toFixed(2);
+      const converted = (value / exchangeRate).toFixed(2);
       return `$${converted}`;
     }
   };
@@ -786,8 +824,8 @@ export const AppProvider = ({ children }) => {
 
   const depositWallet = async (amount, method) => {
     const isNgn = currency === 'NGN';
-    const amountNgn = isNgn ? Number(amount) : Number(amount) * 1350;
-    const amountUsd = isNgn ? Number(amount) / 1350 : Number(amount);
+    const amountNgn = isNgn ? Number(amount) : Number(amount) * exchangeRate;
+    const amountUsd = isNgn ? Number(amount) / exchangeRate : Number(amount);
 
     if (user) {
       const ref = `tx-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -1141,7 +1179,7 @@ export const AppProvider = ({ children }) => {
             name: displayName,
             emoji: emojis[key] || '📱',
             priceNgn,
-            priceUsd: priceNgn / 1350,
+            priceUsd: priceNgn / exchangeRate,
             qty: val.Qty
           };
         })
@@ -1850,27 +1888,36 @@ export const AppProvider = ({ children }) => {
       const { data, error } = await supabase.functions.invoke('sms-gateway', {
         body: { action: 'admin-get-profiles' }
       });
-      if (error || !data || !data.status) {
-        throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch profiles'));
-      }
+      if (error) throw error;
       return { success: true, data: data.data };
-    } catch (e) {
-      console.error("Admin Fetch Profiles Error:", e);
-      return { success: false, msg: e.message };
+    } catch (err) {
+      return { success: false, msg: err.message };
     }
   };
 
-  const adminUpdateProfileBalance = async (targetUserId, newBalance) => {
+  const adminUpdateSystemConfig = async (id, value) => {
     try {
       const { data, error } = await supabase.functions.invoke('sms-gateway', {
-        body: { action: 'admin-update-profile', targetUserId, newBalance }
+        body: { action: 'admin-update-config', id, value }
+      });
+      if (error) throw error;
+      return { success: true, data: data.data };
+    } catch (err) {
+      return { success: false, msg: err.message };
+    }
+  };
+
+  const adminUpdateProfile = async (targetUserId, fields) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'admin-update-profile', targetUserId, ...fields }
       });
       if (error || !data || !data.status) {
-        throw new Error(error ? error.message : (data ? data.error : 'Failed to update profile balance'));
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to update profile'));
       }
       return { success: true, data: data.data };
     } catch (e) {
-      console.error("Admin Update Profile Balance Error:", e);
+      console.error("Admin Update Profile Error:", e);
       return { success: false, msg: e.message };
     }
   };
@@ -2019,9 +2066,12 @@ export const AppProvider = ({ children }) => {
       smsPoolShortTermServices,
       profitMarkup,
       updateProfitMarkup,
+      exchangeRate,
+      setExchangeRate,
       adminFetchAllTransactions,
       adminFetchAllProfiles,
-      adminUpdateProfileBalance,
+      adminUpdateSystemConfig,
+      adminUpdateProfile,
       fetchSocialMediaLogs,
       buySocialMediaLog,
       checkSocialMediaLogStatus,

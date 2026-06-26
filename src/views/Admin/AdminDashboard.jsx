@@ -30,9 +30,12 @@ const AdminDashboard = () => {
     formatCost,
     profitMarkup,
     updateProfitMarkup,
+    exchangeRate,
+    setExchangeRate,
     adminFetchAllTransactions,
     adminFetchAllProfiles,
-    adminUpdateProfileBalance
+    adminUpdateSystemConfig,
+    adminUpdateProfile
   } = useContext(AppContext);
 
   const isMobile = useIsMobile();
@@ -74,13 +77,14 @@ const AdminDashboard = () => {
   }, [adminTab]);
 
   // Combine real database-linked profiles
-  const allUsers = dbProfiles.length > 0
-    ? dbProfiles.map(p => ({
+  const allUsers = (dbProfiles || []).length > 0
+    ? (dbProfiles || []).map(p => ({
         id: p.id,
         full_name: p.id === user?.id ? `${p.username || p.full_name || 'Admin'} (You / Admin)` : p.username || p.full_name || 'Unnamed Client',
         phone: p.phone || 'N/A',
         email: p.email || 'N/A',
         wallet_balance: Number(p.wallet_balance),
+        created_at: p.created_at || new Date().toISOString(),
         isReal: true
       }))
     : (profile && profile.full_name ? [{
@@ -89,6 +93,7 @@ const AdminDashboard = () => {
         phone: profile.phone || 'N/A',
         email: user?.email || 'N/A',
         wallet_balance: walletBalance,
+        created_at: new Date().toISOString(),
         isReal: true
       }] : []);
 
@@ -103,7 +108,6 @@ const AdminDashboard = () => {
 
   // Reset pagination on search
   useEffect(() => { setUsersPage(1); }, [userSearchQuery]);
-  useEffect(() => { setTxPage(1); }, [searchTx, filterTxType]); // Need to add filterTxType/searchTx safely below
 
   const paginatedUsers = filteredUsers.slice((usersPage - 1) * USERS_PER_PAGE, usersPage * USERS_PER_PAGE);
   const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
@@ -115,6 +119,12 @@ const AdminDashboard = () => {
   const [adjustResult, setAdjustResult] = useState('');
   const [simDepositAmount, setSimDepositAmount] = useState(5000);
   const [simDepositSuccess, setSimDepositSuccess] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editFullName, setEditFullName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editIsAdmin, setEditIsAdmin] = useState(false);
+  const [editProfileResult, setEditProfileResult] = useState('');
 
   // SMS Simulator Form State
   const activeOtpTargets = activeOtps.filter(o => o.status === 'WAITING');
@@ -137,8 +147,10 @@ const AdminDashboard = () => {
   const [searchTx, setSearchTx] = useState('');
   const [filterTxType, setFilterTxType] = useState('ALL');
 
+  useEffect(() => { setTxPage(1); }, [searchTx, filterTxType]);
+
   const allTransactions = [
-    ...dbTransactions.map(t => ({
+    ...(dbTransactions || []).map(t => ({
       ...t,
       isReal: true
     }))
@@ -165,7 +177,7 @@ const AdminDashboard = () => {
         }
       }
     }
-  }, [allUsers, walletBalance, mockUsers, dbProfiles]);
+  }, [allUsers, walletBalance, dbProfiles]);
 
   const handleSimulateSms = (e) => {
     e.preventDefault();
@@ -219,7 +231,7 @@ const AdminDashboard = () => {
 
     if (selectedUser.isReal) {
       // Sync real user balance to Database & AppContext
-      const res = await adminUpdateProfileBalance(selectedUser.id, targetNewBalance);
+      const res = await adminUpdateProfile(selectedUser.id, { newBalance: targetNewBalance });
       if (!res.success) {
         setAdjustResult(`Database update failed: ${res.msg}`);
         return;
@@ -230,9 +242,7 @@ const AdminDashboard = () => {
       setAdjustResult(`Database wallet updated: ${formatCost(targetNewBalance)}`);
       await fetchAdminData();
     } else {
-      // Update local mock user list state
-      setMockUsers(curr => curr.map(u => u.id === selectedUser.id ? { ...u, wallet_balance: targetNewBalance } : u));
-      setAdjustResult(`Mock client wallet adjusted: ${formatCost(targetNewBalance)}`);
+      setAdjustResult(`Mock client wallet adjustment is not supported.`);
     }
     setAdjustAmount('');
   };
@@ -257,38 +267,60 @@ const AdminDashboard = () => {
         await fetchAdminData();
       }
     } else {
-      // Simulate locally for mock account
-      const ref = `sim-tx-${Math.floor(100000 + Math.random() * 900000)}`;
-      setMockUsers(curr => curr.map(u => u.id === selectedUser.id ? { ...u, wallet_balance: u.wallet_balance + simDepositAmount } : u));
-      
-      const newTx = {
-        id: ref,
-        user_name: selectedUser.full_name,
-        amountNgn: simDepositAmount,
-        type: 'Deposit',
-        method: 'PocketFi Webhook (Simulated)',
-        date: new Date().toLocaleString(),
-        status: 'SUCCESS'
-      };
-      setSimulatedTxLogs(prev => [newTx, ...prev]);
-      setSimDepositSuccess(true);
+      setAdjustResult(`Mock client webhook deposit is not supported.`);
+    }
+  };
+
+  const handleOpenEditModal = (u) => {
+    setSelectedUser(u);
+    const dbProf = (dbProfiles || []).find(p => p.id === u.id) || {};
+    setEditFullName(u.full_name.replace(' (You / Admin)', ''));
+    setEditUsername(dbProf.username || '');
+    setEditPhone(u.phone === 'N/A' ? '' : u.phone);
+    setEditIsAdmin(dbProf.is_admin === true);
+    setEditProfileResult('');
+    setAdjustResult('');
+    setSimDepositSuccess(false);
+    setIsUserModalOpen(true);
+  };
+
+  const handleSaveProfileDetails = async (e) => {
+    e.preventDefault();
+    setEditProfileResult('');
+    if (!selectedUser) return;
+
+    if (selectedUser.isReal) {
+      const res = await adminUpdateProfile(selectedUser.id, {
+        fullName: editFullName,
+        username: editUsername,
+        phone: editPhone,
+        isAdmin: editIsAdmin
+      });
+      if (res.success) {
+        setEditProfileResult('Profile updated successfully!');
+        await fetchAdminData();
+      } else {
+        setEditProfileResult(`Update failed: ${res.msg}`);
+      }
+    } else {
+      setEditProfileResult('Editing mock profiles is not supported.');
     }
   };
 
   // Stats Computations
   const totalClientCash = allUsers.reduce((sum, u) => sum + u.wallet_balance, 0);
-  const totalLedgerTransactions = dbTransactions.length;
+  const totalLedgerTransactions = (dbTransactions || []).length;
   
   // Detailed Database Stats
-  const liveUserCount = dbProfiles.length;
-  const livePurchaseCount = dbTransactions.filter(t => t.type === 'Purchase').length;
-  const liveDepositCount = dbTransactions.filter(t => t.type === 'Deposit').length;
-  const totalDepositedReal = dbTransactions
+  const liveUserCount = (dbProfiles || []).length;
+  const livePurchaseCount = (dbTransactions || []).filter(t => t.type === 'Purchase').length;
+  const liveDepositCount = (dbTransactions || []).filter(t => t.type === 'Deposit').length;
+  const totalDepositedReal = (dbTransactions || [])
     .filter(t => t.type === 'Deposit')
     .reduce((sum, t) => sum + Number(t.amountNgn || 0), 0);
 
   // Compute estimated platform profit from live database transactions
-  const estimatedProfit = dbTransactions.reduce((acc, tx) => {
+  const estimatedProfit = (dbTransactions || []).reduce((acc, tx) => {
     if (tx.type !== 'Purchase') return acc;
     const methodLower = (tx.method || '').toLowerCase();
     const amt = Number(tx.amountNgn || tx.amount || 0);
@@ -332,11 +364,14 @@ const AdminDashboard = () => {
         <button className={`tab-btn ${adminTab === 'transactions' ? 'active' : ''}`} onClick={() => setAdminTab('transactions')}>
           <List size={16} style={{ marginRight: '6px' }} /> Transaction Logs
         </button>
-        <button className={`tab-btn ${adminTab === 'sms' ? 'active' : ''}`} onClick={() => setAdminTab('sms')}>
-          <MessageSquare size={16} style={{ marginRight: '6px' }} /> SMS Carrier
+        <button className={`tab-btn ${adminTab === 'rates' ? 'active' : ''}`} onClick={() => setAdminTab('rates')}>
+          <Settings size={16} style={{ marginRight: '6px' }} /> Rates & Config
         </button>
-        <button className={`tab-btn ${adminTab === 'pricing' ? 'active' : ''}`} onClick={() => setAdminTab('pricing')}>
-          <Settings size={16} style={{ marginRight: '6px' }} /> Pricing Catalogs
+        <button className={`tab-btn ${adminTab === 'sms' ? 'active' : ''}`} onClick={() => setAdminTab('sms')}>
+          <MessageSquare size={16} style={{ marginRight: '6px' }} /> SMS Tools
+        </button>
+        <button className={`tab-btn ${adminTab === 'profile' ? 'active' : ''}`} onClick={() => setAdminTab('profile')}>
+          <ShieldCheck size={16} style={{ marginRight: '6px' }} /> Profile
         </button>
       </div>
 
@@ -428,101 +463,253 @@ const AdminDashboard = () => {
 
       {/* Tab Panel: USERS */}
       {adminTab === 'users' && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr', gap: '24px' }}>
-          {/* User selector list */}
-          <div className="glass-panel">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '20px', flexDirection: isMobile ? 'column' : 'row' }}>
-              <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={18} style={{ color: 'var(--color-turquoise)' }} /> Registered Clients
-              </h3>
-              
-              <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto', alignItems: 'center' }}>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
-                  style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px', height: '34px' }} 
-                  onClick={fetchAdminData}
-                  disabled={isLoadingDb}
-                >
-                  <RefreshCw size={14} className={isLoadingDb ? 'spin-slow' : ''} />
-                  {isMobile ? '' : 'Refresh'}
-                </button>
-                <div style={{ position: 'relative', width: isMobile ? '100%' : '180px' }}>
-                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="Search client..." 
-                    style={{ paddingLeft: '28px', fontSize: '13px', height: '34px' }} 
-                    value={userSearchQuery} 
-                    onChange={(e) => setUserSearchQuery(e.target.value)} 
-                  />
-                </div>
+        <div className="glass-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '20px', flexDirection: isMobile ? 'column' : 'row' }}>
+            <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={18} style={{ color: 'var(--color-turquoise)' }} /> Registered Clients
+            </h3>
+            
+            <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto', alignItems: 'center' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px', height: '34px' }} 
+                onClick={fetchAdminData}
+                disabled={isLoadingDb}
+              >
+                <RefreshCw size={14} className={isLoadingDb ? 'spin-slow' : ''} />
+                {isMobile ? '' : 'Refresh'}
+              </button>
+              <div style={{ position: 'relative', width: isMobile ? '100%' : '180px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="Search client..." 
+                  style={{ paddingLeft: '28px', fontSize: '13px', height: '34px' }} 
+                  value={userSearchQuery} 
+                  onChange={(e) => setUserSearchQuery(e.target.value)} 
+                />
               </div>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {filteredUsers.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  No users found matching query.
-                </div>
-              ) : paginatedUsers.map((u) => (
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '16px' }}>
+            {filteredUsers.length === 0 ? (
+              <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                No users found matching query.
+              </div>
+            ) : paginatedUsers.map((u) => {
+              const dbProf = (dbProfiles || []).find(p => p.id === u.id) || {};
+              const isAdminUser = dbProf.is_admin === true;
+              return (
                 <div 
                   key={u.id}
-                  onClick={() => setSelectedUser(u)}
-                  className={`glass-panel interactive ${selectedUser?.id === u.id ? 'active' : ''}`}
+                  onClick={() => handleOpenEditModal(u)}
+                  className="glass-panel interactive"
                   style={{ 
-                    padding: '14px', 
+                    padding: '16px', 
                     cursor: 'pointer',
                     display: 'flex',
+                    flexDirection: 'column',
                     justifyContent: 'space-between',
-                    alignItems: 'center',
-                    border: selectedUser?.id === u.id ? '1px solid var(--color-turquoise)' : '1px solid var(--border-color)',
-                    background: selectedUser?.id === u.id ? 'rgba(0, 242, 254, 0.04)' : 'rgba(255, 255, 255, 0.01)'
+                    gap: '12px',
+                    border: '1px solid var(--border-color)',
+                    background: 'rgba(255, 255, 255, 0.01)'
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-primary)' }}>{u.full_name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Email: {u.email} • Phone: {u.phone} • ID: {u.id.substring(0, 8)}...</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {u.full_name}
+                        {isAdminUser && (
+                          <span style={{ fontSize: '10px', background: 'rgba(255, 0, 127, 0.1)', color: 'var(--color-pink)', border: '1px solid rgba(255, 0, 127, 0.2)', padding: '2px 6px', borderRadius: '4px' }}>
+                            Admin
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        Email: {u.email}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Phone: {u.phone}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: '800', fontSize: '18px', color: 'var(--color-turquoise)' }}>{formatCost(u.wallet_balance)}</div>
+                      {u.isReal && <div style={{ fontSize: '10px', color: 'var(--color-green)', marginTop: '4px' }}>Real Profile</div>}
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: '800', fontSize: '16px', color: 'var(--color-turquoise)' }}>{formatCost(u.wallet_balance)}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    <span>Joined: {new Date(u.created_at).toLocaleDateString()}</span>
+                    <span style={{ color: 'var(--color-turquoise)', fontWeight: '600' }}>Manage Account &rarr;</span>
                   </div>
                 </div>
-              ))}
-              
-              {/* Pagination UI for Users */}
-              {filteredUsers.length > USERS_PER_PAGE && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
-                  <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={usersPage === 1} onClick={() => setUsersPage(p => p - 1)}>Prev</button>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {usersPage} of {totalUserPages}</span>
-                  <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={usersPage === totalUserPages} onClick={() => setUsersPage(p => p + 1)}>Next</button>
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
+          
+          {/* Pagination UI for Users */}
+          {filteredUsers.length > USERS_PER_PAGE && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={usersPage === 1} onClick={() => setUsersPage(p => p - 1)}>Prev</button>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {usersPage} of {totalUserPages}</span>
+              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={usersPage === totalUserPages} onClick={() => setUsersPage(p => p + 1)}>Next</button>
+            </div>
+          )}
+        </div>
+      )}
 
-          {/* User management tools */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Modal Popup for Managing User */}
+      {isUserModalOpen && selectedUser && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }} onClick={() => setIsUserModalOpen(false)}>
+          <div className="glass-panel animate-zoom-in" style={{
+            width: '100%',
+            maxWidth: '550px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '24px',
+            background: 'var(--bg-modal)',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            borderRadius: '16px',
+            position: 'relative'
+          }} onClick={(e) => e.stopPropagation()}>
             
-            {/* Wallet editor */}
-            {selectedUser && (
-              <div className="glass-panel">
-                <h3 style={{ fontSize: '16px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Wallet size={16} style={{ color: 'var(--color-pink)' }} />
-                  Adjust Balance: {selectedUser.full_name.split(' ')[0]}
-                </h3>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={20} style={{ color: 'var(--color-turquoise)' }} />
+                Manage Account
+              </h3>
+              <button 
+                onClick={() => setIsUserModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '20px',
+                  lineHeight: 1,
+                  padding: '4px'
+                }}
+              >
+                &times;
+              </button>
+            </div>
 
-                <form onSubmit={handleUserBalanceAdjust} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Modal Body */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Account Quick Status */}
+              <div style={{ padding: '16px', background: 'var(--bg-recent-tx)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Current Balance</div>
+                  <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--color-turquoise)', marginTop: '4px' }}>{formatCost(selectedUser.wallet_balance)}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Joined Date</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '4px' }}>{new Date(selectedUser.created_at).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              {/* Form 1: Edit Profile Details */}
+              <div>
+                <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Profile Info</h4>
+                <form onSubmit={handleSaveProfileDetails} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label className="form-label">Full Name</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={editFullName} 
+                        onChange={(e) => setEditFullName(e.target.value)} 
+                        required 
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Username</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={editUsername} 
+                        onChange={(e) => setEditUsername(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label">Phone Number</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={editPhone} 
+                      onChange={(e) => setEditPhone(e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Email Address (Read-only)</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={selectedUser.email} 
+                      disabled 
+                      style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                    <input 
+                      id="is-admin-checkbox"
+                      type="checkbox" 
+                      checked={editIsAdmin} 
+                      onChange={(e) => setEditIsAdmin(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: 'var(--color-turquoise)' }}
+                    />
+                    <label htmlFor="is-admin-checkbox" style={{ fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                      Grant System Administrator Privileges
+                    </label>
+                  </div>
+                  
+                  {editProfileResult && (
+                    <div style={{ fontSize: '12px', color: editProfileResult.includes('success') ? 'var(--color-green)' : '#ff453a', fontWeight: '600' }}>
+                      {editProfileResult}
+                    </div>
+                  )}
+
+                  <button type="submit" className="btn btn-primary" style={{ padding: '10px', fontSize: '13px' }}>
+                    Save Profile Changes
+                  </button>
+                </form>
+              </div>
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: 0 }} />
+
+              {/* Form 2: Adjust Balance */}
+              <div>
+                <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Adjust Wallet Balance</h4>
+                <form onSubmit={handleUserBalanceAdjust} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div>
                     <label className="form-label">Adjustment Type</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      {[['set', 'Set Absolute'], ['add', 'Add Credit'], ['deduct', 'Deduct Credit']].map(([type, label]) => (
+                      {[['set', 'Set'], ['add', 'Add'], ['deduct', 'Deduct']].map(([type, label]) => (
                         <button
                           key={type}
                           type="button"
                           className={`btn ${adjustType === type ? 'btn-primary' : 'btn-secondary'}`}
-                          style={{ flex: 1, padding: '8px 4px', fontSize: '12px' }}
+                          style={{ flex: 1, padding: '6px 4px', fontSize: '12px' }}
                           onClick={() => setAdjustType(type)}
                         >
                           {label}
@@ -530,7 +717,6 @@ const AdminDashboard = () => {
                       ))}
                     </div>
                   </div>
-
                   <div>
                     <label className="form-label" htmlFor="adjust-val">Amount (₦)</label>
                     <input 
@@ -540,32 +726,29 @@ const AdminDashboard = () => {
                       placeholder="e.g. 5000"
                       value={adjustAmount}
                       onChange={(e) => setAdjustAmount(e.target.value)}
+                      required
                     />
                   </div>
 
                   {adjustResult && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px', background: 'rgba(0,242,254,0.08)', border: '1px solid rgba(0,242,254,0.15)', borderRadius: '8px', color: 'var(--color-turquoise)', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px', background: 'rgba(0,242,254,0.08)', border: '1px solid rgba(0,242,254,0.15)', borderRadius: '8px', color: 'var(--color-turquoise)', fontSize: '12px' }}>
                       <CheckCircle size={14} />
                       <span>{adjustResult}</span>
                     </div>
                   )}
 
-                  <button type="submit" className="btn btn-primary" style={{ background: 'var(--color-pink)', border: 'none' }}>
+                  <button type="submit" className="btn btn-primary" style={{ background: 'var(--color-pink)', border: 'none', padding: '10px', fontSize: '13px' }}>
                     Save Wallet Change
                   </button>
                 </form>
               </div>
-            )}
 
-            {/* Bank Deposit Webhook simulator */}
-            {selectedUser && (
-              <div className="glass-panel">
-                <h3 style={{ fontSize: '16px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <TrendingUp size={16} style={{ color: 'var(--color-green)' }} />
-                  PocketFi Webhook Simulator
-                </h3>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: 0 }} />
 
-                <form onSubmit={handleSimulateWebhookDeposit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Form 3: Webhook Deposit Simulator */}
+              <div>
+                <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PocketFi Webhook Simulator</h4>
+                <form onSubmit={handleSimulateWebhookDeposit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div>
                     <label className="form-label" htmlFor="webhook-sim-val">Simulated Transfer Amount (₦)</label>
                     <input 
@@ -574,23 +757,24 @@ const AdminDashboard = () => {
                       className="form-input" 
                       value={simDepositAmount}
                       onChange={(e) => setSimDepositAmount(Number(e.target.value))}
+                      required
                     />
                   </div>
 
                   {simDepositSuccess && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px', background: 'rgba(59, 183, 94, 0.1)', border: '1px solid rgba(59, 183, 94, 0.25)', borderRadius: '8px', color: 'var(--color-green)', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px', background: 'rgba(59, 183, 94, 0.1)', border: '1px solid rgba(59, 183, 94, 0.25)', borderRadius: '8px', color: 'var(--color-green)', fontSize: '12px' }}>
                       <CheckCircle size={14} />
                       <span>Simulated webhook successfully processed!</span>
                     </div>
                   )}
 
-                  <button type="submit" className="btn btn-accent" onClick={() => setSimDepositSuccess(false)}>
+                  <button type="submit" className="btn btn-accent" style={{ padding: '10px', fontSize: '13px' }} onClick={() => setSimDepositSuccess(false)}>
                     Trigger Webhook Deposit
                   </button>
                 </form>
               </div>
-            )}
 
+            </div>
           </div>
         </div>
       )}
@@ -776,10 +960,10 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Tab Panel: PRICING CATALOGS */}
-      {adminTab === 'pricing' && (
+      {/* Tab Panel: RATES & CONFIG */}
+      {adminTab === 'rates' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Sliders for Profit markup percentage */}
+          {/* Global Exchange Rate */}
           <div className="glass-panel" style={{ 
             background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.03) 0%, rgba(255, 0, 127, 0.03) 100%)', 
             border: '1px solid rgba(0, 242, 254, 0.15)',
@@ -787,8 +971,56 @@ const AdminDashboard = () => {
             borderRadius: '12px'
           }}>
             <h3 style={{ fontSize: '16px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <TrendingUp size={18} style={{ color: 'var(--color-turquoise)' }} /> Category-specific Profit Markup (%)
+              <RefreshCw size={18} style={{ color: 'var(--color-green)' }} /> Global Dollar to Naira Exchange Rate
             </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ flex: 1, maxWidth: '300px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Current System Rate (1 USD = NGN)</span>
+                <input 
+                  type="number" 
+                  className="form-input" 
+                  value={exchangeRate}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val > 0) setExchangeRate(val);
+                  }}
+                />
+              </div>
+              <button 
+                className="btn btn-primary" 
+                style={{ marginTop: '22px' }}
+                onClick={async () => {
+                  const res = await adminUpdateSystemConfig('exchange_rate', exchangeRate);
+                  if (res.success) {
+                    alert('Exchange rate updated across the system.');
+                  } else {
+                    alert('Failed to update exchange rate: ' + res.msg);
+                  }
+                }}
+              >
+                Save Rate
+              </button>
+            </div>
+          </div>
+
+          {/* Sliders for Profit markup percentage */}
+          <div className="glass-panel" style={{ 
+            background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.03) 0%, rgba(255, 0, 127, 0.03) 100%)', 
+            border: '1px solid rgba(0, 242, 254, 0.15)',
+            padding: '20px',
+            borderRadius: '12px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontSize: '16px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <TrendingUp size={18} style={{ color: 'var(--color-turquoise)' }} /> Category-specific Profit Markup (%)
+              </h3>
+              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={async () => {
+                const res = await adminUpdateSystemConfig('profit_markup', JSON.stringify(profitMarkup));
+                if (res.success) alert('Profit markup updated globally');
+              }}>
+                Save Global Config
+              </button>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '20px' }}>
               {[
                 ['subs', 'Shared Subscriptions', 'subs'],
@@ -979,6 +1211,58 @@ const AdminDashboard = () => {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Panel: ADMIN PROFILE */}
+      {adminTab === 'profile' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="glass-panel" style={{ background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.05) 0%, rgba(255, 0, 127, 0.05) 100%)' }}>
+            <h3 style={{ fontSize: '18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={20} style={{ color: 'var(--color-turquoise)' }} /> Administrator Profile
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '30px' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Full Name</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{profile?.full_name || 'Admin'}</div>
+                </div>
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Email Address</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{user?.email || 'N/A'}</div>
+                </div>
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Registered Phone Number</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{profile?.phone || 'N/A'}</div>
+                </div>
+              </div>
+
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Admin Access Level</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-green)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckCircle size={16} /> Super Administrator
+                  </div>
+                </div>
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Personal Wallet Balance</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-turquoise)', marginTop: '4px' }}>
+                    {formatCost(walletBalance)}
+                  </div>
+                </div>
+                <div style={{ padding: '16px', background: 'rgba(255, 0, 127, 0.05)', borderRadius: '12px', border: '1px solid rgba(255, 0, 127, 0.2)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertCircle size={16} style={{ color: 'var(--color-pink)' }} /> System Support Contact
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                    Email: Support@discountzar.com<br/>
+                    WhatsApp: +234 707 972 2993
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
