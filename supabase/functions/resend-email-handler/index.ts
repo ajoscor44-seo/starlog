@@ -142,16 +142,6 @@ serve(async (req) => {
         emailSubject = "Wallet Funded Successfully - DiscountZar";
         emailHtml = generateFundingEmail(record.amount, 0, record.id);
       }
-
-    } else if (table === "transactions" && record.type === "Purchase") {
-      // Generic Order Notification from transactions table
-      const profile = await fetchUserProfile(record.user_id);
-      if (profile && profile.email) {
-        recipientEmail = profile.email;
-        emailSubject = "Your DiscountZar Order Receipt";
-        emailHtml = generateOrderEmail(record.description || "Digital Service", 1, record.amount, record.id, null);
-      }
-      
     } else if (["social_media_orders"].includes(table)) {
       // Order Notification Email
       const profile = await fetchUserProfile(record.user_id);

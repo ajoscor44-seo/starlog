@@ -14,6 +14,7 @@ import Wallet from './views/Client/Wallet';
 import OrderHistory from './views/Client/OrderHistory';
 import SocialMediaLogs from './views/Client/SocialMediaLogs';
 import Profile from './views/Client/Profile';
+import Support from './views/Client/Support';
 import AdminDashboard from './views/Admin/AdminDashboard';
 import AboutUs from './views/AboutUs';
 import ContactUs from './views/ContactUs';
@@ -80,6 +81,7 @@ function AppContent() {
           <Route path="wallet" element={<Wallet />} />
           <Route path="orders" element={<OrderHistory />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="support" element={<Support />} />
           <Route path="admin" element={<AdminDashboard />} />
         </Route>
       </Route>

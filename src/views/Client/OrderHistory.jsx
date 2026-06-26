@@ -105,7 +105,8 @@ const OrderHistory = () => {
     smmOrders = [],
     socialMediaOrders = [],
     formatCost = (v) => `₦${Number(v).toLocaleString()}`,
-    reuseOtpNumber
+    reuseOtpNumber,
+    checkSocialMediaLogStatus
   } = useContext(AppContext) || {};
 
   const navigate = useNavigate();
@@ -119,8 +120,32 @@ const OrderHistory = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [page, setPage] = useState(1);
   const [isRebuying, setIsRebuying] = useState(false);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const PER_PAGE = isMobile ? 5 : 8;
+
+  const handleRefreshSocialLogStatus = async (transId) => {
+    setIsRefreshingStatus(true);
+    setErrorMsg('');
+    const res = await checkSocialMediaLogStatus(transId);
+    setIsRefreshingStatus(false);
+    if (res.success) {
+      // Update selectedOrder details locally in state to reflect the refreshed details immediately
+      setSelectedOrder(prev => {
+        if (!prev || prev.raw.ologstore_order_id !== transId) return prev;
+        return {
+          ...prev,
+          raw: {
+            ...prev.raw,
+            status: res.order.status,
+            account_details: res.order.account_details
+          }
+        };
+      });
+    } else {
+      setErrorMsg(res.msg || 'Failed to refresh order status');
+    }
+  };
 
   /* Build unified order list from all sources */
   const allOrders = useMemo(() => {
@@ -539,19 +564,20 @@ const OrderHistory = () => {
 
       {/* ── Order Detail Modal ── */}
       {selectedOrder && createPortal(
-        <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }} onClick={() => setSelectedOrder(null)}>
           <div 
-            className="modal-content animate-slide-in" 
+            className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`}
             onClick={e => e.stopPropagation()} 
             style={{ 
               width: '100%',
               maxWidth: '480px', 
               border: `1px solid ${typeColor(selectedOrder.type)}`, 
               boxShadow: `0 20px 50px rgba(0,0,0,0.6), 0 0 30px ${typeBg(selectedOrder.type)}`,
-              padding: isMobile ? '20px 16px' : '24px',
+              padding: isMobile ? '24px 16px 40px 16px' : '24px',
               maxHeight: isMobile ? '85vh' : '90vh',
               overflowY: 'auto',
-              borderRadius: isMobile ? '20px 20px 0 0' : '20px'
+              borderRadius: isMobile ? '24px 24px 0 0' : '20px',
+              margin: isMobile ? '0' : 'auto'
             }}
           >
             {/* Modal Header */}
@@ -806,9 +832,63 @@ const OrderHistory = () => {
                         ));
                       }
                       if (details.status && details.status !== 'completed') {
-                        return <div style={{ padding: '8px', fontSize: '13px', color: '#eab308' }}>Order status: {details.status}. Delivery pending.</div>;
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: '8px', marginTop: '8px' }}>
+                            <div style={{ fontSize: '13px', color: '#eab308', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Clock size={14} />
+                              <span>Order status: {details.status}. Delivery pending.</span>
+                            </div>
+                            <button
+                              onClick={() => handleRefreshSocialLogStatus(selectedOrder.raw.ologstore_order_id)}
+                              disabled={isRefreshingStatus}
+                              className="btn btn-secondary btn-sm"
+                              style={{ width: '100%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px' }}
+                            >
+                              {isRefreshingStatus ? (
+                                <>
+                                  <span className="spinner-loader" style={{ width: 12, height: 12 }}></span>
+                                  <span>Refreshing status...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw size={12} style={{ animation: 'spin 2s linear infinite' }} />
+                                  <span>Check Delivery Status</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
                       }
-                      return renderKV(details);
+                      const kvElements = renderKV(details);
+                      if (kvElements.length === 0) {
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: '8px', marginTop: '8px' }}>
+                            <div style={{ fontSize: '13px', color: '#eab308', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Clock size={14} />
+                              <span>No credentials delivered yet. Click below to refresh.</span>
+                            </div>
+                            <button
+                              onClick={() => handleRefreshSocialLogStatus(selectedOrder.raw.ologstore_order_id)}
+                              disabled={isRefreshingStatus}
+                              className="btn btn-secondary btn-sm"
+                              style={{ width: '100%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px' }}
+                            >
+                              {isRefreshingStatus ? (
+                                <>
+                                  <span className="spinner-loader" style={{ width: 12, height: 12 }}></span>
+                                  <span>Checking status...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw size={12} style={{ animation: 'spin 2s linear infinite' }} />
+                                  <span>Check Delivery Status</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      }
+                      return kvElements;
                     })()}
                   </>
                 )}

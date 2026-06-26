@@ -13,7 +13,8 @@ import {
   LogOut,
   User,
   ShieldCheck,
-  ClipboardList
+  ClipboardList,
+  MessageSquare
 } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
@@ -36,6 +37,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { id: 'wallet', label: 'Wallet & Fund', icon: CreditCard },
     { id: 'orders', label: 'Order History', icon: ClipboardList },
     { id: 'profile', label: 'User Profile', icon: User },
+    { id: 'support', label: 'Support Desk', icon: MessageSquare },
   ];
 
   const handleNavClick = (tabId, external = false, url = '') => {

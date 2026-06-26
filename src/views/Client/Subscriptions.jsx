@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../../context/AppContext';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { User, Eye, EyeOff, Check, Clipboard, AlertCircle } from 'lucide-react';
 
 import netflixLogo from '../../assets/netflix.jpeg';
@@ -20,6 +21,7 @@ const logoMapping = {
 
 const Subscriptions = () => {
   const { subscriptions, accountSubscriptions, buySharedSubscription, formatCost } = useContext(AppContext);
+  const isMobile = useIsMobile();
   const [accPage, setAccPage] = useState(1);
   const ACC_PER_PAGE = 5;
 
@@ -222,8 +224,8 @@ const Subscriptions = () => {
 
       {/* Buy Modal */}
       {selectedSub && (
-        <div className="modal-overlay">
-          <div className="modal-content animate-slide-in">
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
+          <div className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} style={{ borderRadius: isMobile ? '24px 24px 0 0' : '20px', padding: isMobile ? '24px 16px 40px 16px' : '28px', margin: isMobile ? 0 : 'auto', width: '100%', maxWidth: '500px', maxHeight: isMobile ? '85vh' : '90vh', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>Confirm Purchase</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
               You are about to purchase shared slot access for <strong>{selectedSub.name}</strong>.

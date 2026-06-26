@@ -4,7 +4,7 @@ create table if not exists public.profiles (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   full_name text,
   phone text,
-  wallet_balance numeric(10,2) default 10000.00 not null
+  wallet_balance numeric(10,2) default 0.00 not null
 );
 
 -- Enable Row Level Security (RLS) on profiles
@@ -22,15 +22,25 @@ create policy "Users can update their own profile." on public.profiles
 -- Create a trigger function to automatically create a profile when a new user signs up
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+    user_count integer;
+    initial_balance numeric(15, 2) := 0.00;
 begin
-  insert into public.profiles (id, full_name, phone, wallet_balance)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', ''),
-    coalesce(new.raw_user_meta_data->>'phone', ''),
-    10000.00
-  );
-  return new;
+    -- Count existing profiles to check if we are within the first 29 users
+    select count(*) into user_count from public.profiles;
+    
+    if user_count < 29 then
+        initial_balance := 100.00; -- ₦100 welcome bonus for the first 29 users
+    end if;
+
+    insert into public.profiles (id, full_name, phone, wallet_balance)
+    values (
+        new.id,
+        coalesce(new.raw_user_meta_data->>'full_name', ''),
+        coalesce(new.raw_user_meta_data->>'phone', ''),
+        initial_balance
+    );
+    return new;
 end;
 $$ language plpgsql security definer;
 

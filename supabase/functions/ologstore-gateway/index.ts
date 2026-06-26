@@ -38,6 +38,27 @@ const translateToEnglish = (text: string) => {
   return result;
 };
 
+// Helper to parse delivery items (strings like "Account: user@mail.com | Pass: abc123") into structured objects
+const parseDeliveryItem = (itemStr: string): Record<string, string> => {
+  const parts: Record<string, string> = {};
+  if (!itemStr) return parts;
+  // Split by "|" and parse "Key: Value" pairs
+  const segments = itemStr.split('|');
+  segments.forEach((seg: string) => {
+    const colonIdx = seg.indexOf(':');
+    if (colonIdx > 0) {
+      const key = seg.substring(0, colonIdx).trim();
+      const val = seg.substring(colonIdx + 1).trim();
+      if (key && val) parts[key] = val;
+    }
+  });
+  // If no key-value pairs were parsed, store the raw string
+  if (Object.keys(parts).length === 0 && itemStr.trim()) {
+    parts['Details'] = itemStr.trim();
+  }
+  return parts;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -224,30 +245,15 @@ serve(async (req) => {
       const ologData = orderResult?.data || {};
       const ologOrders = ologData.orders || (ologData.order ? [ologData.order] : []);
       const transId = (ologOrders[0]?.trans_id) || orderResult?.trans_id || null;
-      const deliveryItems = ologData.delivery?.items || [];
-
-      // Parse delivery items (strings like "Account: user@mail.com | Pass: abc123") into structured objects
-      const parseDeliveryItem = (itemStr: string): Record<string, string> => {
-        const parts: Record<string, string> = {};
-        if (!itemStr) return parts;
-        // Split by "|" and parse "Key: Value" pairs
-        const segments = itemStr.split('|');
-        segments.forEach((seg: string) => {
-          const colonIdx = seg.indexOf(':');
-          if (colonIdx > 0) {
-            const key = seg.substring(0, colonIdx).trim();
-            const val = seg.substring(colonIdx + 1).trim();
-            if (key && val) parts[key] = val;
-          }
-        });
-        // If no key-value pairs were parsed, store the raw string
-        if (Object.keys(parts).length === 0 && itemStr.trim()) {
-          parts['Details'] = itemStr.trim();
-        }
-        return parts;
-      };
+      const deliveryItems = 
+        ologOrders[0]?.delivery?.items || 
+        ologData.delivery?.items || 
+        orderResult?.delivery?.items || 
+        orderResult?.data?.delivery?.items || 
+        [];
 
       // Build account_details as a structured object
+      const finalStatus = ologData?.status || ologOrders[0]?.status || orderResult?.status || "completed";
       let accountDetails: any;
       if (deliveryItems.length === 1) {
         // Single item: flatten to a simple key-value object
@@ -260,7 +266,7 @@ serve(async (req) => {
         }));
       } else {
         // No delivery items yet (order may be processing) - store raw response for reference
-        accountDetails = { status: ologOrders[0]?.status || "processing", raw_response: ologData };
+        accountDetails = { status: finalStatus, raw_response: ologData };
       }
 
       // 6. Insert into social_media_orders table
@@ -272,7 +278,7 @@ serve(async (req) => {
           plan_name: plan_name,
           quantity: quantity,
           cost: cost,
-          status: ologOrders[0]?.status || "completed",
+          status: finalStatus,
           account_details: accountDetails,
           ologstore_order_id: transId || `local_${Date.now()}`
         })
@@ -288,6 +294,84 @@ serve(async (req) => {
         message: "Order placed successfully!", 
         order: orderRecord,
         newBalance
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    } else if (action === "status") {
+      const { trans_id } = payload;
+      if (!trans_id) {
+        return new Response(JSON.stringify({ success: false, error: "Missing trans_id" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Query OlogStore status API
+      const response = await fetch(`${OLOGSTORE_BASE_URL}/orders/status?trans_id=${trans_id}`, {
+        method: "GET",
+        headers: {
+          "X-API-Key": OLOGSTORE_API_KEY,
+          "X-API-Secret": OLOGSTORE_API_SECRET,
+        },
+      });
+
+      if (!response.ok) {
+        console.error("OlogStore status error:", response.status, await response.text());
+        return new Response(JSON.stringify({ success: false, error: "Failed to fetch status from OlogStore" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const statusResult = await response.json();
+      console.log("OlogStore status query response:", JSON.stringify(statusResult));
+
+      const ologData = statusResult?.data || {};
+      const ologOrders = ologData.orders || (ologData.order ? [ologData.order] : []);
+      const status = ologData?.status || ologOrders[0]?.status || statusResult?.status || "completed";
+      const deliveryItems = 
+        statusResult?.delivery?.items || 
+        ologOrders[0]?.delivery?.items || 
+        ologData.delivery?.items || 
+        statusResult?.data?.delivery?.items || 
+        [];
+
+      // Parse delivery items
+      let accountDetails: any;
+      if (deliveryItems.length === 1) {
+        accountDetails = parseDeliveryItem(deliveryItems[0]);
+      } else if (deliveryItems.length > 1) {
+        accountDetails = deliveryItems.map((item: string, idx: number) => ({
+          item_number: idx + 1,
+          ...parseDeliveryItem(item)
+        }));
+      } else {
+        accountDetails = { status: status, raw_response: ologData };
+      }
+
+      // Update in the database
+      const { data: updatedOrder, error: updateError } = await supabaseAdmin
+        .from("social_media_orders")
+        .update({
+          status: status,
+          account_details: accountDetails
+        })
+        .eq("ologstore_order_id", trans_id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Failed to update order status in DB:", updateError);
+        return new Response(JSON.stringify({ success: false, error: "Failed to update order in database" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        order: updatedOrder
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

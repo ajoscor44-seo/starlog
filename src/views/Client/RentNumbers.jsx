@@ -248,8 +248,8 @@ const RentNumbers = () => {
 
         {/* Inbox modal */}
         {activeInbox && (
-          <div className="modal-overlay">
-            <div className="modal-content animate-slide-in" style={{ maxWidth: 500 }}>
+          <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
+            <div className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} style={{ width: '100%', maxWidth: 500, padding: isMobile ? '24px 16px 40px 16px' : '28px', borderRadius: isMobile ? '24px 24px 0 0' : '20px', margin: isMobile ? 0 : 'auto', maxHeight: isMobile ? '85vh' : '90vh', overflowY: 'auto' }}>
               <button className="modal-close" onClick={() => setActiveInbox(null)}>
                 <ChevronRight style={{ transform: 'rotate(90deg)' }} />
               </button>
@@ -383,8 +383,8 @@ const RentNumbers = () => {
       </div>
 
       {activeInbox && (
-        <div className="modal-overlay">
-          <div className="modal-content animate-slide-in" style={{ maxWidth: 600 }}>
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
+          <div className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} style={{ width: '100%', maxWidth: 600, padding: isMobile ? '24px 16px 40px 16px' : '28px', borderRadius: isMobile ? '24px 24px 0 0' : '20px', margin: isMobile ? 0 : 'auto', maxHeight: isMobile ? '85vh' : '90vh', overflowY: 'auto' }}>
             <button className="modal-close" onClick={() => setActiveInbox(null)}><ChevronRight style={{ transform: 'rotate(90deg)' }} /></button>
             <h3 style={{ marginBottom: 4 }}>Inbox: {activeInbox.phoneNumber}</h3>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20, display: 'flex', justifyContent: 'space-between' }}>

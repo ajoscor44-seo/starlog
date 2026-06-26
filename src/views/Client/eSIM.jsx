@@ -328,14 +328,17 @@ const ESim = () => {
       </div>
 
       {selectedPkg && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
           <div 
-            className="modal-content animate-slide-in" 
+            className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} 
             style={{ 
               width: '100%', 
               maxWidth: '400px', 
-              borderRadius: isMobile ? '20px 20px 0 0' : '12px',
-              padding: isMobile ? '20px 16px' : '24px'
+              borderRadius: isMobile ? '24px 24px 0 0' : '12px',
+              padding: isMobile ? '24px 16px 40px 16px' : '24px',
+              margin: isMobile ? 0 : 'auto',
+              maxHeight: isMobile ? '85vh' : '90vh',
+              overflowY: 'auto'
             }}
           >
             <h3 style={{ marginBottom: 8 }}>Confirm eSIM Setup</h3>
@@ -368,15 +371,18 @@ const ESim = () => {
       )}
 
       {activeEsimDetails && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
           <div 
-            className="modal-content animate-slide-in" 
+            className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} 
             style={{ 
               width: '100%', 
               maxWidth: '450px', 
-              padding: isMobile ? '20px 16px' : '24px', 
-              borderRadius: isMobile ? '20px 20px 0 0' : '12px', 
-              textAlign: 'center' 
+              padding: isMobile ? '24px 16px 40px 16px' : '24px', 
+              borderRadius: isMobile ? '24px 24px 0 0' : '12px', 
+              textAlign: 'center',
+              margin: isMobile ? 0 : 'auto',
+              maxHeight: isMobile ? '85vh' : '90vh',
+              overflowY: 'auto'
             }}
           >
             <h3 style={{ marginBottom: 4 }}>eSIM Setup Guide</h3>

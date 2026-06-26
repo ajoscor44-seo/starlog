@@ -1704,6 +1704,29 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const checkSocialMediaLogStatus = async (trans_id) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
+        body: { action: 'status', payload: { trans_id } }
+      });
+      if (error || !data || !data.success) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to check order status'));
+      }
+      // Update local state
+      if (data.order) {
+        setSocialMediaOrders(prev => prev.map(o => o.ologstore_order_id === trans_id ? {
+          ...o,
+          status: data.order.status,
+          account_details: data.order.account_details
+        } : o));
+      }
+      return { success: true, order: data.order };
+    } catch (e) {
+      console.error("Check Social Media Log Status Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
 
   return (
     <AppContext.Provider value={{
@@ -1764,6 +1787,7 @@ export const AppProvider = ({ children }) => {
       adminUpdateProfileBalance,
       fetchSocialMediaLogs,
       buySocialMediaLog,
+      checkSocialMediaLogStatus,
       socialMediaOrders
     }}>
       {children}

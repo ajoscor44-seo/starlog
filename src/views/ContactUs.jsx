@@ -142,7 +142,7 @@ const ContactUs = () => {
                   <Mail size={20} style={{ color: 'var(--color-turquoise)', flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>General Support</div>
-                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>support@discountzar.ng</div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>support@dsicuntzar.com</div>
                   </div>
                 </div>
 

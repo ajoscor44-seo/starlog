@@ -208,7 +208,7 @@ const Wallet = () => {
                       <div>
                         <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Account Number</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                          <span style={{ fontSize: isMobile ? '24px' : '28px', fontFamily: 'var(--mono)', fontWeight: '700', color: '#fff', letterSpacing: '2px' }}>
+                          <span style={{ fontSize: isMobile ? '20px' : '26px', fontFamily: 'var(--mono)', fontWeight: '700', color: '#fff', letterSpacing: isMobile ? '1px' : '2px', wordBreak: 'break-all' }}>
                             {virtualWallet.account_number}
                           </span>
                           <button 
@@ -224,10 +224,10 @@ const Wallet = () => {
 
                       <div>
                         <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Account Name</span>
-                        <div style={{ fontSize: '15px', fontWeight: '600', color: '#fff', marginTop: '2px' }}>
-                          {(virtualWallet.account_name || '').toLowerCase().includes('pocketfi')
-                            ? virtualWallet.account_name
-                            : `${virtualWallet.account_name || ''} - ZAR (Pocketfi)`}
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#fff', marginTop: '2px', wordBreak: 'break-all' }}>
+                          {(virtualWallet.account_name || '')
+                            .replace(/\s*-\s*ZAR\s*\(Pocketfi\)/gi, '')
+                            .replace(/\s*\(Pocketfi\)/gi, '')}
                         </div>
                       </div>
                     </div>
@@ -427,8 +427,8 @@ const Wallet = () => {
 
       {/* Crypto Checkout Popup Overlay */}
       {showCryptoModal && createPortal(
-        <div className="modal-overlay" style={{ zIndex: 1100 }}>
-          <div className="modal-content animate-slide-in" style={{ width: '100%', maxWidth: '440px', padding: isMobile ? '20px 16px' : '24px', borderRadius: isMobile ? '20px 20px 0 0' : '12px' }}>
+        <div className="modal-overlay" style={{ zIndex: 1100, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : '20px' }}>
+          <div className={`modal-content ${isMobile ? 'animate-slide-up-mobile' : 'animate-slide-in'}`} style={{ width: '100%', maxWidth: '440px', padding: isMobile ? '24px 16px 40px 16px' : '24px', borderRadius: isMobile ? '24px 24px 0 0' : '12px', margin: isMobile ? 0 : 'auto', maxHeight: isMobile ? '85vh' : '90vh', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '8px', fontFamily: 'var(--font-heading)' }}>
               {selectedCryptoChannel === 'binance' ? 'Binance USDT Deposit' : 'Bybit USDT Deposit'}
             </h3>
