@@ -234,53 +234,6 @@ const Wallet = () => {
                     <span>Send any bank transfer (minimum ₦2,250) to this account to top-up. Funds are instantly detected via PocketFi and credited to your wallet balance.</span>
                   </div>
 
-                  {/* Dev Local Webhook Simulation Panel */}
-                  <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '20px', marginTop: '10px' }}>
-                    <h4 style={{ fontSize: '13px', color: 'var(--color-turquoise)', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 12px' }}>
-                      <span style={{ display: 'inline-block', width: '8px', height: '8px', background: 'var(--color-turquoise)', borderRadius: '50%' }}></span>
-                      Dev Sandbox Webhook Simulator
-                    </h4>
-                    
-                    {simulationSuccess && (
-                      <div style={{ padding: '10px', background: 'rgba(59, 183, 94, 0.1)', border: '1px solid rgba(59, 183, 94, 0.25)', borderRadius: '6px', color: 'var(--color-green)', fontSize: '12px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Check size={16} />
-                        <span>Simulated PocketFi webhook received! Account balance updated in database.</span>
-                      </div>
-                    )}
-
-                    <form onSubmit={handleSimulateDeposit} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px' }}>
-                      <div style={{ flex: 1, width: '100%' }}>
-                        <input 
-                          type="number" 
-                          className="form-input" 
-                          min="2250"
-                          value={simulationAmount}
-                          onChange={(e) => setSimulationAmount(Number(e.target.value))}
-                          placeholder="Simulate Amount (₦)"
-                          style={{ padding: '10px', width: '100%' }}
-                        />
-                      </div>
-                      <button 
-                        type="submit" 
-                        className="btn btn-accent" 
-                        disabled={simulationLoading}
-                        style={{ 
-                          padding: isMobile ? '12px' : '0 16px', 
-                          fontSize: '13px', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          gap: '6px',
-                          width: isMobile ? '100%' : 'auto'
-                        }}
-                      >
-                        {simulationLoading ? "Processing..." : "Simulate Transfer"}
-                      </button>
-                    </form>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '6px' }}>
-                      Clicking simulate mimics the incoming bank transfer webhook call directly to your Supabase backend ledger.
-                    </span>
-                  </div>
                 </div>
               )}
             </div>
@@ -534,7 +487,7 @@ const Wallet = () => {
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setShowCryptoModal(false)}>Cancel</button>
-              <button type="button" className="btn btn-primary" onClick={confirmCryptoPayment}>Confirm simulated transfer</button>
+              <button type="button" className="btn btn-primary" onClick={confirmCryptoPayment}>I have sent the funds</button>
             </div>
 
           </div>

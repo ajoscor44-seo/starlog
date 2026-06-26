@@ -67,15 +67,8 @@ const AdminDashboard = () => {
     fetchAdminData();
   }, [adminTab]);
 
-  // Simulated sandbox customer accounts
-  const [mockUsers, setMockUsers] = useState([
-    { id: 'usr-001', full_name: 'Adeola Davies', phone: '08129034821', wallet_balance: 5200 },
-    { id: 'usr-002', full_name: 'Kenzo Smith (VIP Reseller)', phone: '07038102391', wallet_balance: 45000 },
-    { id: 'usr-003', full_name: 'Clara Oswald', phone: '09012838123', wallet_balance: 1500 }
-  ]);
-
-  // Combine real database-linked profiles and mock users
-  const realDbUsers = dbProfiles.length > 0
+  // Combine real database-linked profiles
+  const allUsers = dbProfiles.length > 0
     ? dbProfiles.map(p => ({
         id: p.id,
         full_name: p.id === user?.id ? `${p.username || p.full_name || 'Admin'} (You / Admin)` : p.username || p.full_name || 'Unnamed Client',
@@ -94,11 +87,6 @@ const AdminDashboard = () => {
       }] : []);
 
   const [userSearchQuery, setUserSearchQuery] = useState('');
-
-  const allUsers = [
-    ...realDbUsers,
-    ...mockUsers
-  ];
 
   const filteredUsers = allUsers.filter(u => 
     (u.full_name || '').toLowerCase().includes(userSearchQuery.toLowerCase()) || 
@@ -136,19 +124,11 @@ const AdminDashboard = () => {
   const [searchTx, setSearchTx] = useState('');
   const [filterTxType, setFilterTxType] = useState('ALL');
 
-  // Combined real + simulated transaction logs
-  const [simulatedTxLogs, setSimulatedTxLogs] = useState([
-    { id: 'tx-sim99', user_name: 'Adeola Davies', amountNgn: 3000, type: 'Deposit', method: 'Virtual Bank Transfer', date: new Date(Date.now() - 3600000 * 24).toLocaleString(), status: 'SUCCESS' },
-    { id: 'tx-sim98', user_name: 'Kenzo Smith (VIP Reseller)', amountNgn: 15000, type: 'Deposit', method: 'USDT Bybit Transfer', date: new Date(Date.now() - 3600000 * 12).toLocaleString(), status: 'SUCCESS' },
-    { id: 'tx-sim97', user_name: 'Clara Oswald', amountNgn: 1200, type: 'Purchase', method: 'Wallet (Telegram OTP)', date: new Date(Date.now() - 3600000 * 4).toLocaleString(), status: 'SUCCESS' }
-  ]);
-
   const allTransactions = [
     ...dbTransactions.map(t => ({
       ...t,
       isReal: true
-    })),
-    ...simulatedTxLogs
+    }))
   ];
 
   // Auto-select first number if target list changes
@@ -284,7 +264,7 @@ const AdminDashboard = () => {
 
   // Stats Computations
   const totalClientCash = allUsers.reduce((sum, u) => sum + u.wallet_balance, 0);
-  const totalLedgerTransactions = simulatedTxLogs.length + dbTransactions.length;
+  const totalLedgerTransactions = dbTransactions.length;
   
   // Detailed Database Stats
   const liveUserCount = dbProfiles.length;
@@ -440,7 +420,7 @@ const AdminDashboard = () => {
           <div className="glass-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '20px', flexDirection: isMobile ? 'column' : 'row' }}>
               <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={18} style={{ color: 'var(--color-turquoise)' }} /> Registered Clients & Mock Accounts
+                <Users size={18} style={{ color: 'var(--color-turquoise)' }} /> Registered Clients
               </h3>
               
               <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto', alignItems: 'center' }}>
@@ -494,9 +474,6 @@ const AdminDashboard = () => {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: '800', fontSize: '16px', color: 'var(--color-turquoise)' }}>{formatCost(u.wallet_balance)}</div>
-                    <span className="badge" style={{ fontSize: '9px', background: u.isReal ? 'rgba(59, 183, 94, 0.15)' : 'rgba(255, 255, 255, 0.1)', color: u.isReal ? 'var(--color-green)' : 'var(--text-secondary)' }}>
-                      {u.isReal ? 'Live Database' : 'Local Sandbox'}
-                    </span>
                   </div>
                 </div>
               ))}

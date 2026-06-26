@@ -92,7 +92,7 @@ const LandingPage = ({ setActiveTab }) => {
           Explore Our Suite of Digital Tools
         </h2>
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 40px', lineHeight: '1.6' }}>
-          Instant setup, transparent pricing, and comprehensive APIs. Toggle Admin Mode from the top header to simulate verification loops.
+          Instant setup, transparent pricing, and comprehensive APIs.
         </p>
 
         <div className="features-grid">
@@ -134,8 +134,7 @@ const LandingPage = ({ setActiveTab }) => {
           })}
         </div>
 
-        {/* Live Demo Motion Simulator */}
-        <LiveDemoSimulator />
+
       </section>
 
       {/* How It Works Section */}

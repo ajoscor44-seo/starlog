@@ -25,6 +25,7 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
     { id: 'reuse', label: 'Reuse Number', icon: RefreshCw },
     { id: 'esim', label: 'eSIM Travel', icon: Smartphone },
     { id: 'smm', label: 'SMM Panel', icon: Share2 },
+    { id: 'social', label: 'Social Media Logs', icon: ShieldCheck },
     { id: 'wallet', label: 'Wallet & Fund', icon: CreditCard },
     { id: 'orders', label: 'Order History', icon: ClipboardList },
     { id: 'profile', label: 'User Profile', icon: User },

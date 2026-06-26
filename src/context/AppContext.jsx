@@ -1599,6 +1599,37 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const fetchSocialMediaLogs = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
+        body: { action: 'products' }
+      });
+      if (error || !data || !data.success) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch logs'));
+      }
+      return { success: true, data: data.products };
+    } catch (e) {
+      console.error("Fetch Social Media Logs Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const buySocialMediaLog = async (plan_id, plan_name, quantity, cost) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
+        body: { action: 'buy', payload: { plan_id, plan_name, quantity, cost } }
+      });
+      if (error || !data || !data.success) {
+        throw new Error(error ? error.message : (data ? data.error : 'Failed to purchase log'));
+      }
+      setWalletBalance(data.newBalance);
+      return { success: true, order: data.order };
+    } catch (e) {
+      console.error("Buy Social Media Log Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
 
   return (
     <AppContext.Provider value={{
@@ -1653,7 +1684,9 @@ export const AppProvider = ({ children }) => {
       updateProfitMarkup,
       adminFetchAllTransactions,
       adminFetchAllProfiles,
-      adminUpdateProfileBalance
+      adminUpdateProfileBalance,
+      fetchSocialMediaLogs,
+      buySocialMediaLog
     }}>
       {children}
     </AppContext.Provider>

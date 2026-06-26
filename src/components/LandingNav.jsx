@@ -36,7 +36,7 @@ const LandingNav = ({ setActiveTab, currentActive }) => {
           >
             eSIM Travel
             {!dbIsAdmin && (
-              <span style={{ fontSize: '8px', background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px', textTransform: 'uppercase' }}>Coming Soon</span>
+              <span style={{ fontSize: '8px', background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Coming Soon</span>
             )}
           </span>
           <span 

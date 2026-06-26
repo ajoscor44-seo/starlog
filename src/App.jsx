@@ -11,6 +11,7 @@ import ESim from './views/Client/eSIM';
 import SmmPanel from './views/Client/SmmPanel';
 import Wallet from './views/Client/Wallet';
 import OrderHistory from './views/Client/OrderHistory';
+import SocialMediaLogs from './views/Client/SocialMediaLogs';
 import Profile from './views/Client/Profile';
 import AdminDashboard from './views/Admin/AdminDashboard';
 import AboutUs from './views/AboutUs';
@@ -37,6 +38,8 @@ function AppContent() {
         return <ESim />;
       case 'smm':
         return <SmmPanel />;
+      case 'social':
+        return <SocialMediaLogs />;
       case 'wallet':
         return <Wallet />;
       case 'orders':
@@ -50,7 +53,7 @@ function AppContent() {
     }
   };
 
-  const consoleTabs = ['overview', 'subs', 'otp', 'reuse', 'esim', 'smm', 'wallet', 'orders', 'profile', 'admin'];
+  const consoleTabs = ['overview', 'subs', 'otp', 'reuse', 'esim', 'smm', 'social', 'wallet', 'orders', 'profile', 'admin'];
 
   if (activeTab === 'landing') {
     return <LandingPage setActiveTab={setActiveTab} />;
