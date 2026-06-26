@@ -10,6 +10,8 @@ const LandingNav = () => {
 
   const handleNavClick = (tab) => {
     if (tab === 'landing') navigate('/');
+    else if (tab === 'auth') navigate('/login');
+    else if (tab === 'overview') navigate('/dashboard');
     else navigate(`/dashboard/${tab}`);
     setMenuOpen(false);
   };
