@@ -7,8 +7,11 @@
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT,
+    username TEXT UNIQUE,
+    email TEXT,
     phone TEXT,
     wallet_balance NUMERIC(15, 2) NOT NULL DEFAULT 0.00,
+    is_admin BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -71,12 +74,15 @@ END $$;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, full_name, phone, wallet_balance)
+    INSERT INTO public.profiles (id, full_name, username, email, phone, wallet_balance, is_admin)
     VALUES (
         new.id,
         COALESCE(new.raw_user_meta_data->>'full_name', 'Unnamed Client'),
+        COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
+        new.email,
         COALESCE(new.raw_user_meta_data->>'phone', ''),
-        10000.00 -- Initial signup sandbox bonus of ₦10,000
+        10000.00, -- Initial signup sandbox bonus of ₦10,000
+        FALSE
     );
     RETURN new;
 END;

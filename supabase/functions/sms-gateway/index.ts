@@ -70,7 +70,7 @@ serve(async (req) => {
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
       const { data, error } = await supabaseAdmin
         .from('profiles')
-        .select('id, full_name, phone, wallet_balance, updated_at')
+        .select('id, full_name, username, email, phone, wallet_balance, updated_at')
         .order('updated_at', { ascending: false })
       if (error) throw error
 

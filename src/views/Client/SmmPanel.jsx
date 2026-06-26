@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { Share2, Link, Layers, AlertCircle, Sparkles, Send, Info, Zap, X } from 'lucide-react';
+import { Share2, Link, Layers, AlertCircle, Sparkles, Send, Info, Zap, X, Users, Heart, Play, Eye, TrendingUp, ChevronDown, ChevronUp, Check } from 'lucide-react';
 
 // Platform color themes
 const PLATFORM_THEMES = {
@@ -124,6 +124,66 @@ const SmmPanel = () => {
            (activeTab === 'X / Twitter' && (s.platform.toLowerCase().includes('twitter') || s.platform.toLowerCase().includes('x ')));
   });
 
+  // Grouping services by category
+  const servicesByCategory = filteredServices.reduce((acc, srv) => {
+    const cat = srv.category || 'General';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(srv);
+    return acc;
+  }, {});
+
+  // State to track which categories are expanded
+  const [expandedCategories, setExpandedCategories] = useState({});
+
+  // Automatically expand all categories when activeTab or SMM services change
+  useEffect(() => {
+    const initialExpanded = {};
+    Object.keys(servicesByCategory).forEach(cat => {
+      initialExpanded[cat] = true;
+    });
+    setExpandedCategories(initialExpanded);
+  }, [activeTab, smmServices]);
+
+  const toggleCategory = (cat) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [cat]: !prev[cat]
+    }));
+  };
+
+  const handleExpandAll = () => {
+    const expanded = {};
+    Object.keys(servicesByCategory).forEach(cat => {
+      expanded[cat] = true;
+    });
+    setExpandedCategories(expanded);
+  };
+
+  const handleCollapseAll = () => {
+    const collapsed = {};
+    Object.keys(servicesByCategory).forEach(cat => {
+      collapsed[cat] = false;
+    });
+    setExpandedCategories(collapsed);
+  };
+
+  const getCategoryIcon = (category) => {
+    const cat = category.toLowerCase();
+    if (cat.includes('follower') || cat.includes('fan') || cat.includes('subscriber') || cat.includes('member')) {
+      return <Users size={16} style={{ color: 'var(--color-turquoise)' }} />;
+    }
+    if (cat.includes('like') || cat.includes('heart') || cat.includes('love')) {
+      return <Heart size={16} style={{ color: 'var(--color-pink)' }} />;
+    }
+    if (cat.includes('view') || cat.includes('play') || cat.includes('stream')) {
+      return <Play size={16} style={{ color: 'var(--color-green)' }} />;
+    }
+    if (cat.includes('traffic') || cat.includes('seo') || cat.includes('visitor')) {
+      return <TrendingUp size={16} style={{ color: 'var(--color-amber)' }} />;
+    }
+    return <Zap size={16} style={{ color: 'var(--color-turquoise)' }} />;
+  };
+
   // Automatically sync/set quantity when selecting a service in the modal
   useEffect(() => {
     if (selectedService) {
@@ -197,19 +257,19 @@ const SmmPanel = () => {
       </div>
 
       {/* ── TABS FILTERS ── */}
-      <div style={{ 
-        display: 'flex', 
-        gap: 8, 
-        overflowX: 'auto', 
-        paddingBottom: 8,
-        width: '100%',
-        maxWidth: '100%',
-        flexWrap: 'nowrap',
-        WebkitOverflowScrolling: 'touch',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
-      }}>
-        <style>{`.smm-tab-strip::-webkit-scrollbar { display: none; }`}</style>
+      <div 
+        className="hide-scrollbar smm-tab-strip"
+        style={{ 
+          display: 'flex', 
+          gap: 8, 
+          overflowX: 'auto', 
+          paddingBottom: 8,
+          width: '100%',
+          maxWidth: '100%',
+          flexWrap: 'nowrap',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
         {tabs.map(tab => {
           const active = activeTab === tab;
           const platKey = tab === 'X / Twitter' ? 'Twitter' : tab === 'Others' ? 'Google' : tab;
@@ -245,99 +305,235 @@ const SmmPanel = () => {
         })}
       </div>
 
-      {/* ── SERVICE LIST (compact rows) ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* ── Expand/Collapse Controls ── */}
+      {filteredServices.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginBottom: -8 }}>
+          <button 
+            type="button"
+            onClick={handleExpandAll}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-turquoise)',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              padding: '4px 8px'
+            }}
+          >
+            Expand All
+          </button>
+          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>|</span>
+          <button 
+            type="button"
+            onClick={handleCollapseAll}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              padding: '4px 8px'
+            }}
+          >
+            Collapse All
+          </button>
+        </div>
+      )}
+
+      {/* ── SERVICE LIST (collapsible categories) ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {filteredServices.length === 0 && (
           <div className="glass-panel" style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 14 }}>
             No services available for this platform yet.
           </div>
         )}
-        {filteredServices.map(srv => {
-          const theme = PLATFORM_THEMES[srv.logo || srv.platform] || PLATFORM_THEMES.Instagram;
-
+        
+        {Object.entries(servicesByCategory).map(([category, services]) => {
+          const isExpanded = !!expandedCategories[category];
+          
           return (
-            <div
-              key={srv.id}
-              className="glass-panel interactive"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: isMobile ? 10 : 16,
-                padding: isMobile ? '12px 14px' : '14px 20px',
-                border: `1px solid ${theme.border}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
+            <div 
+              key={category} 
+              className="glass-panel" 
+              style={{ 
+                padding: 0, 
+                overflow: 'hidden', 
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                background: 'var(--bg-card)',
+                boxShadow: 'var(--shadow-glow)'
               }}
-              onClick={() => setSelectedService(srv)}
             >
-              {/* Platform Icon */}
-              <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: 'rgba(0,0,0,0.35)',
-                border: `1px solid ${theme.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <PlatformIcon platform={srv.logo || srv.platform} size={20} />
-              </div>
-
-              {/* Name + badge */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: isMobile ? 13 : 14, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {srv.name.replace(/\(Standard\)|\(High Quality\)|\(Instant\)|\(Stable\)|\(Fast\)|\(Active\)|\(Active Followers\)|\(Active Profiles\)/, '').trim()}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                  <span style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    padding: '1px 7px',
-                    borderRadius: 99,
-                    background: theme.bg,
-                    color: theme.color,
-                    border: `1px solid ${theme.border}`,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
+              {/* Accordion Header */}
+              <div
+                onClick={() => toggleCategory(category)}
+                style={{
+                  padding: '16px 20px',
+                  background: isExpanded ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
+                  borderBottom: isExpanded ? '1px solid var(--border-color)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'background 0.2s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}>
-                    {srv.category || srv.platform}
-                  </span>
-                  {!isMobile && (
+                    {getCategoryIcon(category)}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {category}
+                    </h4>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      Min: {(srv.min || 100).toLocaleString()} &middot; Max: {(srv.max || 100000).toLocaleString()}
+                      {services.length} {services.length === 1 ? 'Service' : 'Services'} Available
                     </span>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {isExpanded ? (
+                    <ChevronUp size={18} style={{ color: 'var(--text-secondary)' }} />
+                  ) : (
+                    <ChevronDown size={18} style={{ color: 'var(--text-secondary)' }} />
                   )}
                 </div>
               </div>
 
-              {/* Price */}
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--color-green)', whiteSpace: 'nowrap' }}>
-                  {formatCost(srv.pricePerThousandNgn)}
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>/ 1K units</div>
-              </div>
+              {/* Accordion Content (Service Cards Grid) */}
+              {isExpanded && (
+                <div 
+                  style={{ 
+                    padding: isMobile ? '12px' : '20px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(290px, 100%), 1fr))',
+                    gap: isMobile ? 12 : 16,
+                  }}
+                  className="animate-slide-down"
+                >
+                  {services.map(srv => {
+                    const theme = PLATFORM_THEMES[srv.logo || srv.platform] || PLATFORM_THEMES.Instagram;
 
-              {/* Action Button */}
-              <button
-                className="btn btn-primary"
-                style={{
-                  padding: isMobile ? '7px 12px' : '8px 18px',
-                  fontSize: isMobile ? 12 : 13,
-                  flexShrink: 0,
-                  background: theme.color === '#ffffff' ? '#ffffff' : theme.bg,
-                  border: `1px solid ${theme.border}`,
-                  color: theme.color === '#ffffff' ? '#000' : theme.color,
-                  boxShadow: 'none',
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                }}
-                onClick={e => { e.stopPropagation(); setSelectedService(srv); }}
-              >
-                {isMobile ? 'Boost' : 'Order Boost'}
-              </button>
+                    return (
+                      <div
+                        key={srv.id}
+                        className="glass-panel interactive"
+                        style={{
+                          padding: '16px',
+                          borderRadius: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          border: `1px solid ${theme.border}`,
+                          background: 'rgba(0,0,0,0.15)',
+                          transition: 'all 0.2s ease',
+                          minHeight: '230px',
+                          ...getGlowStyle(srv.logo || srv.platform),
+                        }}
+                      >
+                        <div>
+                          {/* Header section of card */}
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
+                            <div style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 8,
+                              background: 'rgba(0,0,0,0.3)',
+                              border: `1px solid ${theme.border}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
+                            }}>
+                              <PlatformIcon platform={srv.logo || srv.platform} size={18} />
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <h5 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={srv.name}>
+                                {srv.name.replace(/\(Standard\)|\(High Quality\)|\(Instant\)|\(Stable\)|\(Fast\)|\(Active\)|\(Active Followers\)|\(Active Profiles\)/, '').trim()}
+                              </h5>
+                              <span style={{
+                                fontSize: 9,
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                background: theme.bg,
+                                color: theme.color,
+                                border: `1px solid ${theme.border}`,
+                                textTransform: 'uppercase',
+                                marginTop: 4,
+                                display: 'inline-block'
+                              }}>
+                                {srv.platform}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          <p style={{ 
+                            fontSize: 11, 
+                            color: 'var(--text-secondary)', 
+                            lineHeight: 1.4, 
+                            margin: '0 0 12px 0',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            height: '46px'
+                          }}>
+                            {srv.description}
+                          </p>
+
+                          {/* Limits & Details */}
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <span>Min: <strong>{(srv.min || 100).toLocaleString()}</strong></span>
+                            <span>&middot;</span>
+                            <span>Max: <strong>{(srv.max || 100000).toLocaleString()}</strong></span>
+                          </div>
+                        </div>
+
+                        {/* Bottom action and price */}
+                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: 14, fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--color-green)' }}>
+                              {formatCost(srv.pricePerThousandNgn)}
+                            </span>
+                            <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>per 1K units</span>
+                          </div>
+                          <button
+                            className="btn btn-primary"
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: 12,
+                              background: theme.color === '#ffffff' ? '#ffffff' : theme.bg,
+                              border: `1px solid ${theme.border}`,
+                              color: theme.color === '#ffffff' ? '#000' : theme.color,
+                              boxShadow: 'none',
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
+                            }}
+                            onClick={(e) => { e.stopPropagation(); setSelectedService(srv); }}
+                          >
+                            Boost
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

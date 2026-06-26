@@ -4,7 +4,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { CreditCard, ShieldAlert, ShieldCheck, Sun, Moon, Menu } from 'lucide-react';
 
 const Header = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
-  const { walletBalance, currency, toggleCurrency, formatCost, isAdmin, setIsAdmin, theme, toggleTheme, user } = useContext(AppContext);
+  const { walletBalance, currency, toggleCurrency, formatCost, isAdmin, setIsAdmin, dbIsAdmin, theme, toggleTheme, user } = useContext(AppContext);
   const isMobile = useIsMobile();
 
   const getTitle = () => {
@@ -45,7 +45,7 @@ const Header = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
             {getTitle()}
           </h2>
           {!isMobile && (
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Welcome back, {user ? user.email : 'Developer'}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Welcome back, {profile?.username || profile?.full_name?.split(' ')[0] || user?.email || 'Developer'}</span>
           )}
         </div>
       </div>
@@ -98,36 +98,38 @@ const Header = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
         </button>
 
         {/* Admin Switcher */}
-        <button 
-          className={`btn ${isAdmin ? 'btn-danger' : 'btn-secondary'}`}
-          onClick={() => {
-            setIsAdmin(!isAdmin);
-            if (!isAdmin) {
-              setActiveTab('admin');
-            } else {
-              if (activeTab === 'admin') setActiveTab('overview');
-            }
-          }}
-          style={{ 
-            width: isMobile ? '32px' : '36px', 
-            height: isMobile ? '32px' : '36px', 
-            padding: 0, 
-            borderRadius: '50%', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            border: isAdmin ? '1px solid var(--color-pink)' : '1px solid var(--border-color)',
-            background: isAdmin ? 'rgba(255, 0, 127, 0.05)' : 'rgba(255, 255, 255, 0.03)',
-            flexShrink: 0
-          }}
-          title={isAdmin ? "Admin Mode On" : "Developer Panel"}
-        >
-          {isAdmin ? (
-            <ShieldCheck size={isMobile ? 14 : 16} style={{ color: 'var(--color-pink)' }} />
-          ) : (
-            <ShieldAlert size={isMobile ? 14 : 16} style={{ color: 'var(--text-secondary)' }} />
-          )}
-        </button>
+        {dbIsAdmin && (
+          <button 
+            className={`btn ${isAdmin ? 'btn-danger' : 'btn-secondary'}`}
+            onClick={() => {
+              setIsAdmin(!isAdmin);
+              if (!isAdmin) {
+                setActiveTab('admin');
+              } else {
+                if (activeTab === 'admin') setActiveTab('overview');
+              }
+            }}
+            style={{ 
+              width: isMobile ? '32px' : '36px', 
+              height: isMobile ? '32px' : '36px', 
+              padding: 0, 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              border: isAdmin ? '1px solid var(--color-pink)' : '1px solid var(--border-color)',
+              background: isAdmin ? 'rgba(255, 0, 127, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+              flexShrink: 0
+            }}
+            title={isAdmin ? "Admin Mode On" : "Developer Panel"}
+          >
+            {isAdmin ? (
+              <ShieldCheck size={isMobile ? 14 : 16} style={{ color: 'var(--color-pink)' }} />
+            ) : (
+              <ShieldAlert size={isMobile ? 14 : 16} style={{ color: 'var(--text-secondary)' }} />
+            )}
+          </button>
+        )}
 
         {/* Wallet Balance Display */}
         <div 

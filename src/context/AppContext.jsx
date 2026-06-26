@@ -263,9 +263,8 @@ export const AppProvider = ({ children }) => {
     return localStorage.getItem('zp_currency') || 'NGN';
   });
 
-  const [isAdmin, setIsAdmin] = useState(true);
-
-  const [theme, setTheme] = useState(() => {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [dbIsAdmin, setDbIsAdmin] = useState(false);  const [theme, setTheme] = useState(() => {
     return localStorage.getItem('zp_theme') || 'light';
   });
 
@@ -482,17 +481,31 @@ export const AppProvider = ({ children }) => {
 
     // A. Fetch initial profile data (balance, full_name, phone)
     const fetchProfileData = async () => {
-      const { data: dbProfile } = await supabase
+      let { data: dbProfile, error } = await supabase
         .from('profiles')
-        .select('wallet_balance, full_name, phone')
+        .select('wallet_balance, full_name, username, phone, is_admin')
         .eq('id', user.id)
         .single();
+        
+      // Fallback if is_admin or username column doesn't exist yet
+      if (error && error.message.includes('does not exist')) {
+        const fallback = await supabase
+          .from('profiles')
+          .select('wallet_balance, full_name, phone')
+          .eq('id', user.id)
+          .single();
+        dbProfile = fallback.data;
+      }
+
       if (dbProfile) {
         setWalletBalance(Number(dbProfile.wallet_balance));
         setProfile({
           full_name: dbProfile.full_name || '',
+          username: dbProfile.username || '',
           phone: dbProfile.phone || ''
         });
+        setDbIsAdmin(dbProfile.is_admin === true);
+        setIsAdmin(dbProfile.is_admin === true);
       }
     };
 
@@ -1600,6 +1613,7 @@ export const AppProvider = ({ children }) => {
       currency,
       isAdmin,
       setIsAdmin,
+      dbIsAdmin,
       subscriptions,
       countries,
       otpServices,

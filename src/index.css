@@ -178,6 +178,7 @@ a:hover {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  padding-top: 80px;
 }
 
 /* Glassmorphism Panels */
@@ -780,6 +781,7 @@ a:hover {
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -1003,12 +1005,12 @@ a:hover {
   justify-content: space-between;
   padding: 0 40px;
   border-bottom: 1px solid var(--border-color);
-  backdrop-filter: blur(var(--blur-amount));
-  background: var(--bg-sidebar);
-  position: sticky;
+  background: var(--bg-main);
+  position: fixed;
   top: 0;
-  z-index: 100;
-  position: relative; /* ensure mobile menu dropdown positions correctly */
+  left: 0;
+  right: 0;
+  z-index: 1000;
 }
 
 .landing-nav-left {
@@ -1197,16 +1199,14 @@ a:hover {
   top: 100%;
   left: 0;
   right: 0;
-  background: var(--bg-sidebar);
-  backdrop-filter: blur(var(--blur-amount));
-  -webkit-backdrop-filter: blur(var(--blur-amount));
+  background: var(--bg-main);
   border-bottom: 1px solid var(--border-color);
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  z-index: 99;
+  z-index: 1001;
   transform-origin: top;
   animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -1251,6 +1251,9 @@ a:hover {
 
 /* Responsiveness Media Queries */
 @media (max-width: 768px) {
+  .landing-container {
+    padding-top: 70px;
+  }
   .landing-nav {
     height: 70px;
     padding: 0 20px;
@@ -1714,12 +1717,12 @@ a:hover {
 
   /* Modals full-width */
   .modal-overlay {
-    padding: 12px;
-    align-items: flex-end;
+    padding: 20px 12px 12px 12px;
+    align-items: flex-start;
   }
   .modal-content {
     max-width: 100%;
-    border-radius: 20px 20px 0 0;
+    border-radius: 16px;
     padding: 20px 16px;
   }
   

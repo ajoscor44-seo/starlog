@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
-  const { isAdmin, setIsAdmin, user, logoutUser } = useContext(AppContext);
+  const { isAdmin, setIsAdmin, dbIsAdmin, user, logoutUser } = useContext(AppContext);
 
   const menuItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
@@ -96,6 +96,21 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
                         marginLeft: '4px'
                       }}>
                         discount zar
+                      </span>
+                    )}
+                    {item.id === 'esim' && !dbIsAdmin && (
+                      <span style={{ 
+                        fontSize: '8px', 
+                        background: 'rgba(255, 255, 255, 0.1)', 
+                        color: 'var(--text-secondary)', 
+                        padding: '2px 4px', 
+                        borderRadius: '4px', 
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                        flexShrink: 0,
+                        marginLeft: '4px'
+                      }}>
+                        Coming Soon
                       </span>
                     )}
                   </span>

@@ -3,7 +3,7 @@ import { AppContext } from '../context/AppContext';
 import { Compass, Menu, X, Sun, Moon, LogOut } from 'lucide-react';
 
 const LandingNav = ({ setActiveTab, currentActive }) => {
-  const { isLoggedIn, logoutUser, user, theme, toggleTheme } = useContext(AppContext);
+  const { isLoggedIn, logoutUser, user, theme, toggleTheme, dbIsAdmin } = useContext(AppContext);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleNavClick = (tab) => {
@@ -32,9 +32,12 @@ const LandingNav = ({ setActiveTab, currentActive }) => {
           </span>
           <span 
             onClick={() => handleNavClick('esim')} 
-            style={{ color: 'var(--text-secondary)', fontWeight: '600', fontSize: '14px', cursor: 'pointer' }}
+            style={{ color: 'var(--text-secondary)', fontWeight: '600', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
           >
             eSIM Travel
+            {!dbIsAdmin && (
+              <span style={{ fontSize: '8px', background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px', textTransform: 'uppercase' }}>Coming Soon</span>
+            )}
           </span>
           <span 
             onClick={() => handleNavClick('smm')} 
@@ -106,26 +109,14 @@ const LandingNav = ({ setActiveTab, currentActive }) => {
           <div className="landing-mobile-menu-links">
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Services</div>
             <span onClick={() => handleNavClick('otp')} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>💬 SMS OTP Verification</span>
-            <span onClick={() => handleNavClick('esim')} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>📶 eSIM Travel Profiles</span>
+            <span onClick={() => handleNavClick('esim')} style={{ color: 'var(--text-primary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📶 eSIM Travel Profiles
+              {!dbIsAdmin && (
+                <span style={{ fontSize: '9px', background: 'var(--border-color)', color: 'var(--text-secondary)', padding: '2px 4px', borderRadius: '4px', textTransform: 'uppercase' }}>Coming Soon</span>
+              )}
+            </span>
             <span onClick={() => handleNavClick('smm')} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>📈 SMM Panel Reseller</span>
             <span onClick={() => window.open('https://www.discountzar.com/marketplace', '_blank')} style={{ color: 'var(--color-pink)', fontWeight: '700' }}>⭐ Premium Accounts Shop ↗</span>
-            
-            <div style={{ height: '1px', background: 'var(--border-color)', margin: '8px 0' }} />
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Company</div>
-            <span 
-              onClick={() => handleNavClick('about')}
-              style={{ color: currentActive === 'about' ? 'var(--color-turquoise)' : 'var(--text-secondary)' }}
-            >
-              About Us
-            </span>
-            <span 
-              onClick={() => handleNavClick('contact')}
-              style={{ color: currentActive === 'contact' ? 'var(--color-turquoise)' : 'var(--text-secondary)' }}
-            >
-              Contact Us
-            </span>
-            <span onClick={() => handleNavClick('terms')}>Terms of Service</span>
-            <span onClick={() => handleNavClick('privacy')}>Privacy Policy</span>
           </div>
 
           <div className="landing-mobile-menu-actions">

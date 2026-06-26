@@ -78,15 +78,17 @@ const AdminDashboard = () => {
   const realDbUsers = dbProfiles.length > 0
     ? dbProfiles.map(p => ({
         id: p.id,
-        full_name: p.id === user?.id ? `${p.full_name || 'Admin'} (You / Admin)` : p.full_name || 'Unnamed Client',
+        full_name: p.id === user?.id ? `${p.username || p.full_name || 'Admin'} (You / Admin)` : p.username || p.full_name || 'Unnamed Client',
         phone: p.phone || 'N/A',
+        email: p.email || 'N/A',
         wallet_balance: Number(p.wallet_balance),
         isReal: true
       }))
     : (profile && profile.full_name ? [{
         id: user?.id || 'real-admin',
-        full_name: `${profile.full_name} (You / Admin)`,
+        full_name: `${profile.username || profile.full_name} (You / Admin)`,
         phone: profile.phone || 'N/A',
+        email: user?.email || 'N/A',
         wallet_balance: walletBalance,
         isReal: true
       }] : []);
@@ -101,6 +103,7 @@ const AdminDashboard = () => {
   const filteredUsers = allUsers.filter(u => 
     (u.full_name || '').toLowerCase().includes(userSearchQuery.toLowerCase()) || 
     (u.phone || '').includes(userSearchQuery) ||
+    (u.email || '').toLowerCase().includes(userSearchQuery.toLowerCase()) ||
     u.id.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
 
@@ -487,7 +490,7 @@ const AdminDashboard = () => {
                 >
                   <div>
                     <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-primary)' }}>{u.full_name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Phone: {u.phone} • ID: {u.id.substring(0, 8)}...</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Email: {u.email} • Phone: {u.phone} • ID: {u.id.substring(0, 8)}...</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: '800', fontSize: '16px', color: 'var(--color-turquoise)' }}>{formatCost(u.wallet_balance)}</div>

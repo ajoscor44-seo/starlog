@@ -6,8 +6,22 @@ import { Smartphone, Download, Wifi, AlertCircle, Info, Check, Copy, X } from 'l
 const regionEmoji = { 'All': '🌍', 'North America': '🌎', 'Europe': '🇪🇺', 'Asia': '🌏', 'Africa': '🌍', 'Global': '🛰️' };
 
 const ESim = () => {
-  const { esimPackages, activeEsims, buyEsim, formatCost } = useContext(AppContext);
+  const { esimPackages, activeEsims, buyEsim, formatCost, dbIsAdmin } = useContext(AppContext);
   const isMobile = useIsMobile();
+
+  if (!dbIsAdmin) {
+    return (
+      <div className="animate-slide-in" style={{ padding: '40px 20px', textAlign: 'center' }}>
+        <div className="glass-panel" style={{ display: 'inline-block', padding: '40px 30px', maxWidth: '400px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚀</div>
+          <h2 style={{ fontSize: '24px', marginBottom: '12px' }}>Coming Soon</h2>
+          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+            Our Global eSIM functionality is currently being finalized. Check back soon for seamless global connectivity without physical SIM cards!
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const [selectedRegion, setSelectedRegion] = useState('All');
   const [selectedPkg, setSelectedPkg] = useState(null);

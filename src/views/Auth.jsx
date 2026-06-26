@@ -9,6 +9,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -32,6 +33,10 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
     if (!isLogin) {
       if (!name.trim()) {
         setErrorMsg('Please enter your full name.');
+        return;
+      }
+      if (!username.trim() || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
+        setErrorMsg('Please enter a valid username (alphanumeric and underscores only, min 3 chars).');
         return;
       }
       if (!phoneNumber.trim()) {
@@ -77,6 +82,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
           options: {
             data: {
               full_name: name,
+              username: username,
               phone: normalizedPhone
             }
           }
@@ -230,6 +236,23 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
                     placeholder="John Doe"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label" htmlFor="auth-username">Username</label>
+                <div style={{ position: 'relative' }}>
+                  <User size={16} style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-secondary)' }} />
+                  <input
+                    id="auth-username"
+                    type="text"
+                    className="form-input"
+                    style={{ paddingLeft: '44px' }}
+                    placeholder="johndoe_99"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                   />
                 </div>

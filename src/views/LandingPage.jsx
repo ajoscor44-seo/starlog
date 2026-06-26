@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 const LandingPage = ({ setActiveTab }) => {
-  const { formatCost, theme, toggleTheme, isLoggedIn, logoutUser, user } = useContext(AppContext);
+  const { formatCost, theme, toggleTheme, isLoggedIn, logoutUser, user, dbIsAdmin } = useContext(AppContext);
 
   const features = [
     {
@@ -107,7 +107,14 @@ const LandingPage = ({ setActiveTab }) => {
                 <div className="feature-icon-box" style={{ background: `rgba(${feat.color === 'var(--color-pink)' ? '255, 0, 127' : feat.color === 'var(--color-turquoise)' ? '0, 242, 254' : '127, 0, 255'}, 0.1)` }}>
                   <Icon size={26} style={{ color: feat.color }} />
                 </div>
-                <h3 style={{ marginTop: '20px', marginBottom: '10px' }}>{feat.title}</h3>
+                <h3 style={{ marginTop: '20px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {feat.title}
+                  {feat.action === 'esim' && !dbIsAdmin && (
+                    <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+                      Coming Soon
+                    </span>
+                  )}
+                </h3>
                 <p>{feat.desc}</p>
                 <div 
                   className="learn-more" 
