@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LandingNav from '../components/LandingNav';
 import { Compass, Mail, Phone, MapPin, Send, MessageSquare, CheckCircle } from 'lucide-react';
 
-const ContactUs = ({ setActiveTab }) => {
+const ContactUs = () => {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('');
@@ -31,7 +33,7 @@ const ContactUs = ({ setActiveTab }) => {
   return (
     <div className="landing-container animate-slide-in">
       {/* Navigation */}
-      <LandingNav setActiveTab={setActiveTab} currentActive="contact" />
+      <LandingNav currentActive="contact" />
 
       {/* Hero Header */}
       <section className="landing-hero" style={{ paddingBottom: '40px' }}>
@@ -184,10 +186,10 @@ const ContactUs = ({ setActiveTab }) => {
             <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>discountzar.ng</span>
           </div>
           <div className="landing-footer-links">
-            <span onClick={() => setActiveTab('about')}>About Us</span>
-            <span onClick={() => setActiveTab('contact')} style={{ color: 'var(--color-turquoise)', fontWeight: '600' }}>Contact Us</span>
-            <span onClick={() => setActiveTab('terms')}>Terms of Service</span>
-            <span onClick={() => setActiveTab('privacy')}>Privacy Policy</span>
+            <span onClick={() => navigate('/about')}>About Us</span>
+            <span onClick={() => navigate('/contact')} style={{ color: 'var(--color-turquoise)', fontWeight: '600' }}>Contact Us</span>
+            <span onClick={() => navigate('/terms')}>Terms of Service</span>
+            <span onClick={() => navigate('/privacy')}>Privacy Policy</span>
           </div>
         </div>
         <div className="landing-footer-copyright">

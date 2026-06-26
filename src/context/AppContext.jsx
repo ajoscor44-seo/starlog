@@ -251,7 +251,6 @@ export const AppProvider = ({ children }) => {
   const [profile, setProfile] = useState({ full_name: '', phone: '' });
 
   // Routing and active session states
-  const [activeTab, setActiveTab] = useState('landing');
   const [activeSession, setActiveSession] = useState(null);
 
   // Virtual Wallet details from PocketFi / Database
@@ -990,6 +989,15 @@ export const AppProvider = ({ children }) => {
     const cleanCountry = countryMap[countryId] || 'usa';
 
     try {
+      const cacheKey = `zp_otp_services_${cleanCountry}`;
+      const timeKey = `zp_otp_services_time_${cleanCountry}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      const cacheTime = sessionStorage.getItem(timeKey);
+      
+      if (cached && cacheTime && Date.now() - Number(cacheTime) < 5 * 60 * 1000) {
+        return { success: true, services: JSON.parse(cached) };
+      }
+
       const { data, error } = await supabase.functions.invoke('sms-gateway', {
         body: { action: 'products', country: cleanCountry }
       });
@@ -1038,6 +1046,9 @@ export const AppProvider = ({ children }) => {
           };
         })
         .sort((a, b) => b.qty - a.qty);
+
+      sessionStorage.setItem(cacheKey, JSON.stringify(parsed));
+      sessionStorage.setItem(timeKey, Date.now().toString());
 
       return { success: true, services: parsed };
     } catch (e) {
@@ -1097,7 +1108,6 @@ export const AppProvider = ({ children }) => {
 
       setActiveOtps(prev => [newOtp, ...prev]);
       setActiveSession(newOtp);
-      setActiveTab('otp');
       return { success: true, otp: newOtp };
 
     } catch (e) {
@@ -1598,13 +1608,29 @@ export const AppProvider = ({ children }) => {
 
   const fetchSocialMediaLogs = async () => {
     try {
+      const cached = sessionStorage.getItem('zp_social_logs');
+      const cacheTime = sessionStorage.getItem('zp_social_logs_time');
+      if (cached && cacheTime && Date.now() - Number(cacheTime) < 5 * 60 * 1000) {
+        return { success: true, data: JSON.parse(cached) };
+      }
+
       const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
         body: { action: 'products' }
       });
       if (error || !data || !data.success) {
         throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch logs'));
       }
-      return { success: true, data: data.products };
+      
+      const productsWithCurrency = data.products.map(p => ({
+        ...p,
+        priceNgn: Math.max(500, Math.ceil(p.price * 0.065)), // 1 VND approx 0.065 NGN
+        priceUsd: Number((Math.ceil(p.price * 0.065) / 1150).toFixed(2))
+      }));
+
+      sessionStorage.setItem('zp_social_logs', JSON.stringify(productsWithCurrency));
+      sessionStorage.setItem('zp_social_logs_time', Date.now().toString());
+      
+      return { success: true, data: productsWithCurrency };
     } catch (e) {
       console.error("Fetch Social Media Logs Error:", e);
       return { success: false, msg: e.message };
@@ -1671,8 +1697,6 @@ export const AppProvider = ({ children }) => {
       virtualWallet,
       generatePocketFiWallet,
       simulatePocketFiDeposit,
-      activeTab,
-      setActiveTab,
       activeSession,
       setActiveSession,
       reuseOtpNumber,

@@ -81,8 +81,8 @@ const SMSVerification = () => {
 
   const isMobile = useIsMobile();
 
-  const [selectedCountry, setSelectedCountry] = useState(countries[0].id);
-  const [selectedService, setSelectedService] = useState(otpServices[0].id);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedService, setSelectedService] = useState(null);
   const [searchCountry, setSearchCountry] = useState('');
   const [searchService, setSearchService] = useState('');
   
@@ -105,6 +105,10 @@ const SMSVerification = () => {
 
   useEffect(() => {
     const loadServices = async () => {
+      if (!selectedCountry) {
+        setDynamicServices([]);
+        return;
+      }
       setIsLoadingServices(true);
       const res = await fetchOtpServicesForCountry(selectedCountry);
       setIsLoadingServices(false);
@@ -133,12 +137,16 @@ const SMSVerification = () => {
   const selectedServiceObj = activeServicesList.find(s => s.id === selectedService) || activeServicesList[0];
 
   const handleRequestNumber = async () => {
+    if (!selectedCountry || !selectedService) {
+      setErrorMsg('Please select a country and a target app before requesting.');
+      return;
+    }
     setErrorMsg('');
     setIsRequesting(true);
     const result = await requestOtpNumber(selectedCountry, selectedService, selectedServiceObj);
     setIsRequesting(false);
     if (result.success) setActiveSession(result.otp);
-    else setErrorMsg(result.msg);
+    else setErrorMsg(result.error || 'Failed to request number');
   };
 
   const handleCopy = (text, key) => {

@@ -1,4 +1,5 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider, AppContext } from './context/AppContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -20,86 +21,74 @@ import TermsOfService from './views/TermsOfService';
 import PrivacyPolicy from './views/PrivacyPolicy';
 import Auth from './views/Auth';
 
-function AppContent() {
+function ProtectedRoute() {
+  const { isLoggedIn } = useContext(AppContext);
+  const location = useLocation();
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return <Outlet />;
+}
+
+function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { isLoggedIn, activeTab, setActiveTab } = useContext(AppContext);
-
-  const renderActiveView = () => {
-    switch (activeTab) {
-      case 'overview':
-        return <DashboardOverview setActiveTab={setActiveTab} />;
-      case 'subs':
-        return <Subscriptions />;
-      case 'otp':
-        return <SMSVerification />;
-      case 'reuse':
-        return <ReuseNumbers />;
-      case 'esim':
-        return <ESim />;
-      case 'smm':
-        return <SmmPanel />;
-      case 'social':
-        return <SocialMediaLogs />;
-      case 'wallet':
-        return <Wallet />;
-      case 'orders':
-        return <OrderHistory />;
-      case 'profile':
-        return <Profile />;
-      case 'admin':
-        return <AdminDashboard />;
-      default:
-        return <DashboardOverview setActiveTab={setActiveTab} />;
-    }
-  };
-
-  const consoleTabs = ['overview', 'subs', 'otp', 'reuse', 'esim', 'smm', 'social', 'wallet', 'orders', 'profile', 'admin'];
-
-  if (activeTab === 'landing') {
-    return <LandingPage setActiveTab={setActiveTab} />;
-  }
-  if (activeTab === 'about') {
-    return <AboutUs setActiveTab={setActiveTab} />;
-  }
-  if (activeTab === 'contact') {
-    return <ContactUs setActiveTab={setActiveTab} />;
-  }
-  if (activeTab === 'terms') {
-    return <TermsOfService setActiveTab={setActiveTab} />;
-  }
-  if (activeTab === 'privacy') {
-    return <PrivacyPolicy setActiveTab={setActiveTab} />;
-  }
-  if (activeTab === 'auth') {
-    return <Auth setActiveTab={setActiveTab} fallbackTab="overview" />;
-  }
-
-  // Auth Guard Interceptor
-  if (!isLoggedIn && consoleTabs.includes(activeTab)) {
-    return <Auth setActiveTab={setActiveTab} fallbackTab={activeTab} />;
-  }
-
+  
   return (
     <div className="app-container">
-      {/* Sidebar Navigation */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-
-      {/* Main Panel Viewport */}
+      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       <main className="main-content">
-        <Header activeTab={activeTab} setActiveTab={setActiveTab} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         <div style={{ flex: 1 }}>
-          {renderActiveView()}
+          <Outlet />
         </div>
       </main>
     </div>
   );
 }
 
+function AppContent() {
+  // Sync the context activeTab with the router (optional, but good for backward compatibility if needed)
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/contact" element={<ContactUs />} />
+      <Route path="/terms" element={<TermsOfService />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/login" element={<Auth fallbackTab="/dashboard" />} />
+
+      {/* Protected Console Routes */}
+      <Route path="/dashboard" element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route index element={<DashboardOverview />} />
+          <Route path="subs" element={<Subscriptions />} />
+          <Route path="otp" element={<SMSVerification />} />
+          <Route path="reuse" element={<ReuseNumbers />} />
+          <Route path="esim/*" element={<ESim />} />
+          <Route path="smm/*" element={<SmmPanel />} />
+          <Route path="social/*" element={<SocialMediaLogs />} />
+          <Route path="wallet" element={<Wallet />} />
+          <Route path="orders" element={<OrderHistory />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="admin" element={<AdminDashboard />} />
+        </Route>
+      </Route>
+
+      {/* Fallback route */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
 function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <BrowserRouter>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </BrowserRouter>
   );
 }
 

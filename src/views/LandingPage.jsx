@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LandingNav from '../components/LandingNav';
 import { AppContext } from '../context/AppContext';
 import { 
@@ -17,7 +18,8 @@ import {
   Layers
 } from 'lucide-react';
 
-const LandingPage = ({ setActiveTab }) => {
+const LandingPage = () => {
+  const navigate = useNavigate();
   const { formatCost, theme, toggleTheme, isLoggedIn, logoutUser, user, dbIsAdmin } = useContext(AppContext);
 
   const features = [
@@ -61,7 +63,7 @@ const LandingPage = ({ setActiveTab }) => {
   return (
     <div className="landing-container">
       {/* Navigation */}
-      <LandingNav setActiveTab={setActiveTab} currentActive="landing" />
+      <LandingNav />
 
       {/* Hero Section */}
       <section className="landing-hero animate-slide-in">
@@ -77,10 +79,10 @@ const LandingPage = ({ setActiveTab }) => {
           DiscountZar matches top-tier telecom access, verification tools, and shared subscription channels under a single premium dashboard. Fund in NGN/USD and deploy assets instantly.
         </p>
         <div className="hero-buttons">
-          <button className="btn btn-primary" style={{ padding: '14px 28px', fontSize: '16px' }} onClick={() => setActiveTab('overview')}>
+          <button className="btn btn-primary" style={{ padding: '14px 28px', fontSize: '16px' }} onClick={() => navigate('/dashboard')}>
             Enter Dashboard <ArrowRight size={18} style={{ marginLeft: '4px' }} />
           </button>
-          <button className="btn btn-secondary" style={{ padding: '14px 28px', fontSize: '16px' }} onClick={() => setActiveTab('otp')}>
+          <button className="btn btn-secondary" style={{ padding: '14px 28px', fontSize: '16px' }} onClick={() => navigate('/dashboard/otp')}>
             Get Free OTP Trial
           </button>
         </div>
@@ -123,7 +125,7 @@ const LandingPage = ({ setActiveTab }) => {
                     if (feat.action === 'subs') {
                       window.open('https://www.discountzar.com/marketplace', '_blank');
                     } else {
-                      setActiveTab(feat.action);
+                      navigate(`/dashboard/${feat.action}`);
                     }
                   }}
                 >
@@ -345,10 +347,10 @@ const LandingPage = ({ setActiveTab }) => {
           </div>
           
           <div className="landing-footer-links">
-            <span onClick={() => setActiveTab('about')}>About Us</span>
-            <span onClick={() => setActiveTab('contact')}>Contact Us</span>
-            <span onClick={() => setActiveTab('terms')}>Terms of Service</span>
-            <span onClick={() => setActiveTab('privacy')}>Privacy Policy</span>
+            <span onClick={() => navigate('/about')}>About Us</span>
+            <span onClick={() => navigate('/contact')}>Contact Us</span>
+            <span onClick={() => navigate('/terms')}>Terms of Service</span>
+            <span onClick={() => navigate('/privacy')}>Privacy Policy</span>
           </div>
         </div>
         

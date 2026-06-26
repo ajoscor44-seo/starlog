@@ -132,6 +132,13 @@ serve(async (req) => {
         .single();
 
       if (profileError || !profile) {
+        return new Response(JSON.stringify({ success: false, error: "Failed to load wallet balance" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (profile.wallet_balance < cost) {
         return new Response(JSON.stringify({ success: false, error: "Insufficient wallet balance" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -189,17 +196,26 @@ serve(async (req) => {
           throw new Error("OlogStore order creation failed");
         }
       } catch (err) {
-        console.warn("Falling back to simulated OlogStore order success", err);
-        // Simulate a successful order fulfillment
-        orderResult = {
-          success: true,
-          order_id: `MOCK_OLOG_${Math.floor(Math.random() * 10000)}`,
-          account_details: {
-            username: `user_${Math.floor(Math.random() * 1000)}`,
-            password: `pass_${Math.floor(Math.random() * 1000)}`,
-            two_factor: "123456"
-          }
-        };
+        console.warn("OlogStore error, refunding user:", err);
+        // Refund User
+        const { data: currentProfile } = await supabaseAdmin.from("profiles").select("wallet_balance").eq("id", user.id).single();
+        if (currentProfile) {
+          await supabaseAdmin.from("profiles").update({ wallet_balance: currentProfile.wallet_balance + cost }).eq("id", user.id);
+        }
+          
+        await supabaseAdmin.from("transactions").insert({
+          user_id: user.id,
+          amount: cost,
+          type: "credit",
+          description: `Refund: Failed to purchase ${plan_name}`,
+          status: "completed",
+          reference: `refund_olog_${Date.now()}`
+        });
+
+        return new Response(JSON.stringify({ success: false, error: "Failed to place order with provider. You have been refunded." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       // 5. Insert into social_media_orders table

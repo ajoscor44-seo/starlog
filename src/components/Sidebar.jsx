@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { 
   LayoutDashboard, 
@@ -15,8 +16,14 @@ import {
   ClipboardList
 } from 'lucide-react';
 
-const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
+const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const { isAdmin, setIsAdmin, dbIsAdmin, user, logoutUser } = useContext(AppContext);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Extract the active tab from the URL pathname (e.g. /dashboard/otp -> otp)
+  const pathParts = location.pathname.split('/');
+  const activeTab = pathParts.length > 2 ? pathParts[2] : 'overview';
 
   const menuItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,7 +42,8 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
     if (external) {
       window.open(url, '_blank');
     } else {
-      setActiveTab(tabId);
+      if (tabId === 'overview') navigate('/dashboard');
+      else navigate(`/dashboard/${tabId}`);
     }
     setSidebarOpen(false); // Close sidebar on mobile
   };
@@ -141,7 +149,7 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
               <button 
                 onClick={() => {
                   logoutUser();
-                  handleNavClick('landing');
+                  navigate('/');
                 }}
                 className="btn btn-secondary" 
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px', fontSize: '13px' }}

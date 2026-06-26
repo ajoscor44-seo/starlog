@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useNavigate, useMatch } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { createPortal } from 'react-dom';
@@ -16,7 +17,10 @@ const SocialMediaLogs = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   
-  const [selectedLog, setSelectedLog] = useState(null);
+  const navigate = useNavigate();
+  const buyMatch = useMatch('/dashboard/social/buy/:id');
+  const selectedLogId = buyMatch?.params?.id;
+  const selectedLog = selectedLogId ? logs.find(l => String(l.slug) === String(selectedLogId) || String(l.id) === String(selectedLogId)) : null;
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(null);
@@ -61,8 +65,8 @@ const SocialMediaLogs = () => {
     if (!selectedLog) return;
     
     setPurchaseLoading(true);
-    // Cost calculation
-    const totalCost = selectedLog.price * purchaseQuantity;
+    // Cost calculation in NGN
+    const totalCost = selectedLog.priceNgn * purchaseQuantity;
     
     const res = await buySocialMediaLog(selectedLog.id, selectedLog.name, purchaseQuantity, totalCost);
     setPurchaseLoading(false);
@@ -75,7 +79,7 @@ const SocialMediaLogs = () => {
   };
 
   const closePurchaseModal = () => {
-    setSelectedLog(null);
+    navigate('/dashboard/social');
     setPurchaseQuantity(1);
     setPurchaseSuccess(null);
   };
@@ -88,6 +92,159 @@ const SocialMediaLogs = () => {
     if (cat.includes('twitter') || cat.includes('x')) return '🐦';
     return '📱';
   };
+
+  if (selectedLog && buyMatch) {
+    return (
+      <div className="animate-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
+        <button 
+          onClick={closePurchaseModal} 
+          style={{ background: 'none', border: 'none', color: '#ab47fc', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: 0, fontSize: '14px', fontWeight: 'bold' }}
+        >
+          <div style={{ background: 'rgba(171,71,252,0.1)', borderRadius: '50%', padding: '6px' }}><ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} /></div>
+          Back to Accounts
+        </button>
+
+        <div className="glass-panel" style={{ padding: isMobile ? '24px 16px' : '40px', borderRadius: '24px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '32px' }}>
+          
+          {/* Left Column: Details */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {selectedLog.image && (
+              <div style={{ width: '100%', height: '200px', borderRadius: '16px', overflow: 'hidden', background: 'rgba(255,255,255,0.02)' }}>
+                <img src={selectedLog.image} alt={selectedLog.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '24px', background: 'rgba(255,255,255,0.05)', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  {getPlatformIcon(selectedLog.category)}
+                </div>
+                <div>
+                  <span style={{ fontSize: '12px', color: '#ab47fc', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold' }}>{selectedLog.category}</span>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Ref: {selectedLog.slug}</div>
+                </div>
+              </div>
+              
+              <h1 style={{ fontSize: isMobile ? '24px' : '32px', margin: '0 0 16px 0', lineHeight: '1.3' }}>{selectedLog.name}</h1>
+              
+              {selectedLog.description ? (
+                <div 
+                  className="social-log-html-content"
+                  style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: '1.6', background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', wordBreak: 'break-word' }}
+                  dangerouslySetInnerHTML={{ __html: selectedLog.description.replace(/color:\s*[^;"]+;?/gi, '').replace(/background(?:-color)?:\s*[^;"]+;?/gi, '') }}
+                />
+              ) : (
+                <div style={{ fontSize: '15px', color: 'var(--text-muted)' }}>No description available for this product.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Checkout Card */}
+          <div style={{ width: isMobile ? '100%' : '380px', flexShrink: 0 }}>
+            {purchaseSuccess ? (
+              <div className="glass-panel pulse-glow-cyan" style={{ padding: '32px 24px', textAlign: 'center', background: 'rgba(59, 183, 94, 0.05)', border: '1px solid rgba(59, 183, 94, 0.2)' }}>
+                <div style={{ width: '64px', height: '64px', background: 'rgba(59, 183, 94, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                  <CheckCircle size={32} color="var(--color-green)" />
+                </div>
+                <h2 style={{ margin: '0 0 10px', fontSize: '24px' }}>Purchase Successful!</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
+                  Your social media account details are ready. Please save them securely.
+                </p>
+                
+                <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '20px', textAlign: 'left', marginBottom: '24px' }}>
+                  <h4 style={{ margin: '0 0 16px', color: '#ab47fc', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Credentials</h4>
+                  
+                  {Object.entries(purchaseSuccess.account_details || {}).map(([key, value]) => (
+                    <div key={key} style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{key.replace('_', ' ')}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <code style={{ fontSize: '14px', color: '#fff', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', flex: 1, fontFamily: 'var(--mono)', wordBreak: 'break-all' }}>
+                          {value?.toString() || 'N/A'}
+                        </code>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.2)', borderRadius: '8px', fontSize: '12px', color: '#eab308' }}>
+                    <AlertCircle size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '4px' }} />
+                    We recommend changing the password and securing the account immediately.
+                  </div>
+                </div>
+                
+                <button className="btn btn-primary" onClick={closePurchaseModal} style={{ width: '100%', background: '#ab47fc', color: '#fff', border: 'none' }}>Back to Accounts</button>
+              </div>
+            ) : (
+              <div className="glass-panel" style={{ border: '1px solid rgba(171, 71, 252, 0.2)', borderRadius: '20px', padding: '24px', position: 'sticky', top: '24px' }}>
+                <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: 'var(--text-primary)' }}>Order Summary</h3>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Availability</span>
+                  {selectedLog.stock > 0 ? (
+                    <div style={{ fontSize: '13px', color: 'var(--color-green)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                      <span style={{ width: '8px', height: '8px', background: 'var(--color-green)', borderRadius: '50%', display: 'inline-block' }}></span>
+                      In Stock ({selectedLog.stock})
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '13px', color: 'var(--color-red)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                      <span style={{ width: '8px', height: '8px', background: 'var(--color-red)', borderRadius: '50%', display: 'inline-block' }}></span>
+                      Out of Stock
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Price per account</span>
+                  <span style={{ color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'var(--mono)' }}>{formatCost(currency === 'NGN' ? selectedLog.priceNgn : selectedLog.priceUsd)}</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Quantity</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', padding: '6px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                    <button 
+                      type="button" 
+                      onClick={() => setPurchaseQuantity(Math.max(1, purchaseQuantity - 1))}
+                      disabled={purchaseLoading || selectedLog.stock <= 0}
+                      style={{ width: '32px', height: '32px', background: 'var(--bg-btn-secondary)', border: 'none', borderRadius: '8px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >-</button>
+                    <span style={{ fontSize: '16px', width: '24px', textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 'bold', color: 'var(--text-primary)' }}>{purchaseQuantity}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setPurchaseQuantity(Math.min(selectedLog.stock, purchaseQuantity + 1))}
+                      disabled={purchaseLoading || selectedLog.stock <= 0}
+                      style={{ width: '32px', height: '32px', background: 'var(--bg-btn-secondary)', border: 'none', borderRadius: '8px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >+</button>
+                  </div>
+                </div>
+                
+                <hr style={{ border: 'none', borderTop: '1px dashed rgba(255,255,255,0.1)', margin: '20px 0' }} />
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <span style={{ color: 'var(--text-primary)', fontSize: '16px', fontWeight: 'bold' }}>Total Cost</span>
+                  <span style={{ color: '#ab47fc', fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--mono)' }}>
+                    {formatCost((currency === 'NGN' ? selectedLog.priceNgn : selectedLog.priceUsd) * purchaseQuantity)}
+                  </span>
+                </div>
+
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleBuy} 
+                  disabled={purchaseLoading || selectedLog.stock <= 0}
+                  style={{ width: '100%', padding: '16px', fontSize: '16px', background: 'linear-gradient(90deg, #9333ea 0%, #ab47fc 100%)', border: 'none', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '12px' }}
+                >
+                  {purchaseLoading ? <div className="spinner" style={{ width: '20px', height: '20px', borderWidth: '3px', borderTopColor: '#fff' }}></div> : <><ShoppingCart size={18} /> Pay Securely</>}
+                </button>
+                
+                <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <Shield size={12} style={{ display: 'inline', verticalAlign: 'text-top', marginRight: '4px' }} />
+                  Secure transaction via wallet balance
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
@@ -224,22 +381,23 @@ const SocialMediaLogs = () => {
                 
                 {log.description && (
                   <div 
-                    style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                    dangerouslySetInnerHTML={{ __html: log.description }}
+                    className="social-log-html-content"
+                    style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}
+                    dangerouslySetInnerHTML={{ __html: log.description.replace(/color:\s*[^;"]+;?/gi, '').replace(/background(?:-color)?:\s*[^;"]+;?/gi, '') }}
                   />
                 )}
               </div>
 
-              <div style={{ zIndex: 1, marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ zIndex: 1, marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Price</span>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff', fontFamily: 'var(--mono)' }}>
-                    {formatCost(currency === 'NGN' ? log.price * 1150 : log.price)}
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-primary)', fontFamily: 'var(--mono)' }}>
+                    {formatCost(currency === 'NGN' ? log.priceNgn : log.priceUsd)}
                   </div>
                 </div>
                 <button 
                   className="btn"
-                  onClick={() => setSelectedLog(log)}
+                  onClick={() => navigate('/dashboard/social/buy/' + (log.slug || log.id))}
                   disabled={log.stock <= 0}
                   style={{ 
                     background: log.stock > 0 ? 'rgba(171, 71, 252, 0.15)' : 'rgba(255,255,255,0.05)', 
@@ -254,118 +412,13 @@ const SocialMediaLogs = () => {
                   }}
                 >
                   <ShoppingCart size={14} />
-                  Buy
+                  View details
                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
-
-      {/* Purchase Modal */}
-      {selectedLog && createPortal(
-        <div className="modal-overlay" style={{ zIndex: 1100 }}>
-          <div className="modal-content animate-slide-in" style={{ width: '100%', maxWidth: '440px', padding: isMobile ? '20px 16px' : '28px', borderRadius: isMobile ? '20px 20px 0 0' : '16px', border: '1px solid rgba(171, 71, 252, 0.3)', background: '#0f0a18' }}>
-            
-            {purchaseSuccess ? (
-              <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                <div style={{ width: '64px', height: '64px', background: 'rgba(59, 183, 94, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                  <CheckCircle size={32} color="var(--color-green)" />
-                </div>
-                <h2 style={{ margin: '0 0 10px', fontSize: '24px' }}>Purchase Successful!</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-                  Your social media account details are ready. Please save them securely.
-                </p>
-                
-                <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '20px', textAlign: 'left', marginBottom: '24px' }}>
-                  <h4 style={{ margin: '0 0 16px', color: '#ab47fc', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Credentials</h4>
-                  
-                  {Object.entries(purchaseSuccess.account_details || {}).map(([key, value]) => (
-                    <div key={key} style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{key.replace('_', ' ')}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <code style={{ fontSize: '14px', color: '#fff', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', flex: 1, fontFamily: 'var(--mono)', wordBreak: 'break-all' }}>
-                          {value?.toString() || 'N/A'}
-                        </code>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.2)', borderRadius: '8px', fontSize: '12px', color: '#eab308' }}>
-                    <AlertCircle size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '4px' }} />
-                    We recommend changing the password and securing the account immediately.
-                  </div>
-                </div>
-                
-                <button className="btn btn-primary" onClick={closePurchaseModal} style={{ width: '100%', background: '#ab47fc', color: '#fff', border: 'none' }}>Done</button>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                  <div>
-                    <span style={{ fontSize: '12px', color: '#ab47fc', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold' }}>Confirm Purchase</span>
-                    <h3 style={{ margin: '4px 0 0 0', fontSize: '18px', lineHeight: '1.3' }}>{selectedLog.name}</h3>
-                  </div>
-                  <div style={{ fontSize: '24px', background: 'rgba(255,255,255,0.05)', width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {getPlatformIcon(selectedLog.category)}
-                  </div>
-                </div>
-
-                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Price per account</span>
-                    <span style={{ color: '#fff', fontSize: '15px', fontFamily: 'var(--mono)' }}>{formatCost(currency === 'NGN' ? selectedLog.price * 1150 : selectedLog.price)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Quantity</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <button 
-                        type="button" 
-                        onClick={() => setPurchaseQuantity(Math.max(1, purchaseQuantity - 1))}
-                        style={{ width: '28px', height: '28px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >-</button>
-                      <span style={{ fontSize: '14px', width: '20px', textAlign: 'center', fontFamily: 'var(--mono)' }}>{purchaseQuantity}</span>
-                      <button 
-                        type="button" 
-                        onClick={() => setPurchaseQuantity(Math.min(selectedLog.stock, purchaseQuantity + 1))}
-                        style={{ width: '28px', height: '28px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >+</button>
-                    </div>
-                  </div>
-                  <hr style={{ border: 'none', borderTop: '1px dashed rgba(255,255,255,0.1)', margin: '16px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#fff', fontSize: '16px', fontWeight: 'bold' }}>Total Cost</span>
-                    <span style={{ color: '#ab47fc', fontSize: '20px', fontWeight: 'bold', fontFamily: 'var(--mono)' }}>
-                      {formatCost((currency === 'NGN' ? selectedLog.price * 1150 : selectedLog.price) * purchaseQuantity)}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button 
-                    className="btn btn-secondary" 
-                    onClick={closePurchaseModal} 
-                    style={{ flex: 1 }}
-                    disabled={purchaseLoading}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={handleBuy} 
-                    disabled={purchaseLoading}
-                    style={{ flex: 2, background: 'linear-gradient(90deg, #9333ea 0%, #ab47fc 100%)', border: 'none', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                  >
-                    {purchaseLoading ? <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderTopColor: '#fff' }}></div> : <><ShoppingCart size={16} /> Pay Securely</>}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
-
     </div>
   );
 };

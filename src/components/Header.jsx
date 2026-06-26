@@ -1,11 +1,17 @@
 import React, { useContext } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { CreditCard, ShieldAlert, ShieldCheck, Sun, Moon, Menu } from 'lucide-react';
 
-const Header = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
+const Header = ({ sidebarOpen, setSidebarOpen }) => {
   const { walletBalance, currency, toggleCurrency, formatCost, isAdmin, setIsAdmin, dbIsAdmin, theme, toggleTheme, user, profile } = useContext(AppContext);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const pathParts = location.pathname.split('/');
+  const activeTab = pathParts.length > 2 ? pathParts[2] : 'overview';
 
   const getTitle = () => {
     switch (activeTab) {
@@ -101,7 +107,7 @@ const Header = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
 
         {/* Wallet Balance Display */}
         <div 
-          onClick={() => setActiveTab('wallet')}
+          onClick={() => navigate('/dashboard/wallet')}
           className="glass-panel interactive" 
           style={{ 
             padding: isMobile ? '6px 10px' : '6px 14px', 

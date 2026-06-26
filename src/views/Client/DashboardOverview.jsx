@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import {
@@ -6,7 +7,8 @@ import {
   Clock, TrendingUp, Zap, ClipboardList, ArrowRight
 } from 'lucide-react';
 
-const DashboardOverview = ({ setActiveTab }) => {
+const DashboardOverview = () => {
+  const navigate = useNavigate();
   const context = useContext(AppContext) || {};
   const {
     walletBalance = 0,
@@ -47,7 +49,7 @@ const DashboardOverview = ({ setActiveTab }) => {
 
         {/* Balance Hero Card */}
         <div
-          onClick={() => setActiveTab('wallet')}
+          onClick={() => navigate('/dashboard/wallet')}
           style={{
             background: 'linear-gradient(135deg, rgba(0,242,254,0.18) 0%, rgba(127,0,255,0.18) 100%)',
             border: '1px solid rgba(0,242,254,0.25)',
@@ -77,7 +79,7 @@ const DashboardOverview = ({ setActiveTab }) => {
             return (
               <div
                 key={i}
-                onClick={() => setActiveTab(s.tab)}
+                onClick={() => navigate(`/dashboard/${s.tab}`)}
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-color)',
@@ -110,7 +112,7 @@ const DashboardOverview = ({ setActiveTab }) => {
               return (
                 <button
                   key={i}
-                  onClick={() => ql.ext ? window.open(ql.url, '_blank') : setActiveTab(ql.tab)}
+                  onClick={() => ql.ext ? window.open(ql.url, '_blank') : navigate(`/dashboard/${ql.tab}`)}
                   style={{
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid var(--border-color)',
@@ -141,7 +143,7 @@ const DashboardOverview = ({ setActiveTab }) => {
               Recent Activity
             </div>
             <button
-              onClick={() => setActiveTab('orders')}
+              onClick={() => navigate('/dashboard/orders')}
               style={{ background: 'none', border: 'none', color: 'var(--color-turquoise)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
             >
               See All <ArrowRight size={12} />
@@ -209,7 +211,7 @@ const DashboardOverview = ({ setActiveTab }) => {
         {stats.map((stat, idx) => {
           const Icon = stat.icon;
           return (
-            <div key={idx} className="glass-panel stat-card" style={{ cursor: 'pointer' }} onClick={() => setActiveTab(stat.tab)}>
+            <div key={idx} className="glass-panel stat-card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/${stat.tab}`)}>
               <div className="stat-icon-wrapper" style={{ backgroundColor: stat.bg }}>
                 <Icon size={24} style={{ color: stat.color }} />
               </div>
@@ -235,7 +237,7 @@ const DashboardOverview = ({ setActiveTab }) => {
                 const Icon = ql.icon;
                 return (
                   <div key={i} className="glass-panel interactive quick-link-card"
-                    onClick={() => ql.ext ? window.open(ql.url, '_blank') : setActiveTab(ql.tab)}>
+                    onClick={() => ql.ext ? window.open(ql.url, '_blank') : navigate(`/dashboard/${ql.tab}`)}>
                     <Icon size={24} />
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{ql.label === 'Accounts' ? 'Accounts Shop' : ql.label === 'OTP Code' ? 'Get OTP Code' : ql.label === 'Reuse #' ? 'Reuse Numbers' : ql.label === 'Orders' ? 'Order History' : ql.label === 'SMM' ? 'SMM Boost' : ql.label}</span>
                   </div>
@@ -278,7 +280,7 @@ const DashboardOverview = ({ setActiveTab }) => {
               <CreditCard size={18} style={{ color: 'var(--color-pink)' }} />
               Recent Transactions
             </h3>
-            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => setActiveTab('orders')}>
+            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => navigate('/dashboard/orders')}>
               View All
             </button>
           </div>

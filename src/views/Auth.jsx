@@ -1,11 +1,18 @@
 import React, { useState, useContext } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { supabase } from '../supabase';
-import { Compass, Mail, Lock, User, Phone, CheckSquare, Square, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Compass, Mail, Lock, User, Phone, CheckSquare, Square, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
-const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
+const Auth = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/dashboard";
+
   const { loginUser } = useContext(AppContext);
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -25,8 +32,22 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
       setErrorMsg('Please enter a valid email address.');
       return;
     }
-    if (password.length < 6) {
+    if (!isForgotPassword && password.length < 6) {
       setErrorMsg('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (isForgotPassword) {
+      setLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/dashboard`,
+      });
+      setLoading(false);
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        setErrorMsg('Password reset link sent! Check your email.');
+      }
       return;
     }
 
@@ -65,7 +86,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
         }
 
         setLoading(false);
-        setActiveTab(fallbackTab);
+        navigate(from, { replace: true });
       } else {
         // Normalize phone number to 11 digits (e.g. 08012345678)
         let normalizedPhone = phoneNumber.replace(/\D/g, '');
@@ -96,7 +117,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
 
         setLoading(false);
         if (data?.session) {
-          setActiveTab(fallbackTab);
+          navigate(from, { replace: true });
         } else {
           setErrorMsg('Registration successful! Please check your email for the confirmation link.');
           // Switch to login tab so they can sign in after verifying
@@ -122,21 +143,9 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
     }}>
       {/* Back to Home Trigger */}
       <button 
-        onClick={() => setActiveTab('landing')}
-        style={{ 
-          position: 'absolute', 
-          top: '24px', 
-          left: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'none',
-          border: 'none',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-          fontSize: '14px',
-          fontWeight: '600'
-        }}
+        className="btn btn-secondary" 
+        onClick={() => navigate('/')} 
+        style={{ position: 'absolute', top: '24px', left: '24px', display: 'flex', alignItems: 'center', gap: '6px', zIndex: 10, background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
       >
         <ArrowLeft size={16} />
         Back to Home
@@ -168,7 +177,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
         {/* Tab Selection */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', paddingBottom: '2px' }}>
           <button 
-            onClick={() => { setIsLogin(true); setErrorMsg(''); }}
+            onClick={() => { setIsLogin(true); setIsForgotPassword(false); setErrorMsg(''); }}
             style={{ 
               flex: 1, 
               padding: '12px 0', 
@@ -184,7 +193,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
             Log In
           </button>
           <button 
-            onClick={() => { setIsLogin(false); setErrorMsg(''); }}
+            onClick={() => { setIsLogin(false); setIsForgotPassword(false); setErrorMsg(''); }}
             style={{ 
               flex: 1, 
               padding: '12px 0', 
@@ -222,7 +231,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
         {/* Form Inputs */}
         <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          {!isLogin && (
+          {!isLogin && !isForgotPassword && (
             <>
               <div>
                 <label className="form-label" htmlFor="auth-name">Full Name</label>
@@ -294,50 +303,70 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
             </div>
           </div>
 
-          <div>
-            <label className="form-label" htmlFor="auth-pass">Password</label>
-            <div style={{ position: 'relative' }}>
-              <Lock size={16} style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-secondary)' }} />
-              <input
-                id="auth-pass"
-                type="password"
-                className="form-input"
-                style={{ paddingLeft: '44px' }}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+          {!isForgotPassword && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className="form-label" htmlFor="auth-pass" style={{ marginBottom: 0 }}>Password</label>
+                {isLogin && (
+                  <span 
+                    style={{ fontSize: '12px', color: 'var(--color-turquoise)', cursor: 'pointer' }}
+                    onClick={() => setIsForgotPassword(true)}
+                  >
+                    Forgot Password?
+                  </span>
+                )}
+              </div>
+              <div style={{ position: 'relative', marginTop: '8px' }}>
+                <Lock size={16} style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-secondary)' }} />
+                <input
+                  id="auth-pass"
+                  type={showPassword ? "text" : "password"}
+                  className="form-input"
+                  style={{ paddingLeft: '44px', paddingRight: '44px' }}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <div 
+                  style={{ position: 'absolute', right: '16px', top: '16px', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Checkboxes */}
-          {isLogin ? (
-            <div 
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
-              onClick={() => setRememberMe(!rememberMe)}
-            >
-              {rememberMe ? (
-                <CheckSquare size={18} style={{ color: 'var(--color-turquoise)' }} />
-              ) : (
-                <Square size={18} style={{ color: 'var(--text-secondary)' }} />
-              )}
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Remember my device</span>
-            </div>
-          ) : (
-            <div 
-              style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
-              onClick={() => setAgreeTerms(!agreeTerms)}
-            >
-              {agreeTerms ? (
-                <CheckSquare size={18} style={{ color: 'var(--color-turquoise)', flexShrink: 0, marginTop: '2px' }} />
-              ) : (
-                <Square size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0, marginTop: '2px' }} />
-              )}
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                I agree to the discountzar.ng Terms of Service and Privacy Policy parameters.
-              </span>
-            </div>
+          {!isForgotPassword && (
+            isLogin ? (
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setRememberMe(!rememberMe)}
+              >
+                {rememberMe ? (
+                  <CheckSquare size={18} style={{ color: 'var(--color-turquoise)' }} />
+                ) : (
+                  <Square size={18} style={{ color: 'var(--text-secondary)' }} />
+                )}
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Remember my device</span>
+              </div>
+            ) : (
+              <div 
+                style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setAgreeTerms(!agreeTerms)}
+              >
+                {agreeTerms ? (
+                  <CheckSquare size={18} style={{ color: 'var(--color-turquoise)', flexShrink: 0, marginTop: '2px' }} />
+                ) : (
+                  <Square size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0, marginTop: '2px' }} />
+                )}
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                  I agree to the discountzar.ng <span onClick={() => navigate('/terms')} style={{ cursor: 'pointer', color: 'var(--color-turquoise)' }}>Terms</span> and <span onClick={() => navigate('/privacy')} style={{ cursor: 'pointer', color: 'var(--color-turquoise)' }}>Privacy</span> policy.
+                </span>
+              </div>
+            )
           )}
 
           {/* Submit */}
@@ -347,7 +376,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
             style={{ padding: '14px', width: '100%', display: 'flex', justifyContent: 'center', marginTop: '8px' }}
             disabled={loading}
           >
-            {loading ? 'Authenticating...' : isLogin ? 'Log In' : 'Create Account'}
+            {loading ? 'Processing...' : isForgotPassword ? 'Send Reset Link' : isLogin ? 'Log In' : 'Create Account'}
           </button>
         </form>
 
@@ -357,7 +386,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
             <span>
               Don't have an account?{' '}
               <strong 
-                onClick={() => { setIsLogin(false); setErrorMsg(''); }}
+                onClick={() => { setIsLogin(false); setIsForgotPassword(false); setErrorMsg(''); }}
                 style={{ color: 'var(--color-turquoise)', cursor: 'pointer' }}
               >
                 Register here
@@ -367,7 +396,7 @@ const Auth = ({ setActiveTab, fallbackTab = 'overview' }) => {
             <span>
               Already have an account?{' '}
               <strong 
-                onClick={() => { setIsLogin(true); setErrorMsg(''); }}
+                onClick={() => { setIsLogin(true); setIsForgotPassword(false); setErrorMsg(''); }}
                 style={{ color: 'var(--color-turquoise)', cursor: 'pointer' }}
               >
                 Log In

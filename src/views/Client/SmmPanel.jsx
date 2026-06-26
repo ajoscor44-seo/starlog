@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
+import { useNavigate, useMatch } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { Share2, Link, Layers, AlertCircle, Sparkles, Send, Info, Zap, X, Users, Heart, Play, Eye, TrendingUp, ChevronDown, ChevronUp, Check } from 'lucide-react';
@@ -100,8 +101,12 @@ const SmmPanel = () => {
   const isMobile = useIsMobile();
 
   const [activeTab, setActiveTab] = useState('All');
-  const [selectedService, setSelectedService] = useState(null);
   
+  const navigate = useNavigate();
+  const buyMatch = useMatch('/dashboard/smm/buy/:id');
+  const selectedServiceId = buyMatch?.params?.id;
+  const selectedService = selectedServiceId ? smmServices.find(s => String(s.id) === String(selectedServiceId)) : null;
+
   // Checkout Modal inputs
   const [targetUrl, setTargetUrl] = useState('');
   const [quantity, setQuantity] = useState(1000);
@@ -215,7 +220,7 @@ const SmmPanel = () => {
       setOrderSuccess(true);
       setTimeout(() => {
         setOrderSuccess(false);
-        setSelectedService(null); // Close modal
+        navigate('/dashboard/smm'); // Close modal
       }, 2500);
     } else {
       setErrorMsg(result.msg);
@@ -524,7 +529,7 @@ const SmmPanel = () => {
                               fontWeight: 700,
                               whiteSpace: 'nowrap',
                             }}
-                            onClick={(e) => { e.stopPropagation(); setSelectedService(srv); }}
+                            onClick={(e) => { e.stopPropagation(); navigate('/dashboard/smm/buy/' + srv.id); }}
                           >
                             Boost
                           </button>
@@ -544,7 +549,7 @@ const SmmPanel = () => {
         <div className="modal-overlay">
           <div className="modal-content animate-slide-in" style={{ maxWidth: '480px' }}>
             
-            <button className="modal-close" onClick={() => setSelectedService(null)}>
+            <button className="modal-close" onClick={() => navigate('/dashboard/smm')}>
               <X size={18} />
             </button>
 

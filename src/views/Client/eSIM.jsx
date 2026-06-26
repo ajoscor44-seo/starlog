@@ -1,4 +1,5 @@
 import React, { useContext, useState } from 'react';
+import { useNavigate, useMatch } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { Smartphone, Download, Wifi, AlertCircle, Info, Check, Copy, X } from 'lucide-react';
@@ -24,7 +25,12 @@ const ESim = () => {
   }
 
   const [selectedRegion, setSelectedRegion] = useState('All');
-  const [selectedPkg, setSelectedPkg] = useState(null);
+  
+  const navigate = useNavigate();
+  const buyMatch = useMatch('/dashboard/esim/buy/:id');
+  const selectedPkgId = buyMatch?.params?.id;
+  const selectedPkg = selectedPkgId ? esimPackages.find(p => String(p.id) === String(selectedPkgId)) : null;
+
   const [activeEsimDetails, setActiveEsimDetails] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedId, setCopiedId] = useState(null);
@@ -40,7 +46,7 @@ const ESim = () => {
     setIsBuying(true);
     const result = await buyEsim(selectedPkg.id);
     setIsBuying(false);
-    if (result.success) { setActiveEsimDetails(result.esim); setSelectedPkg(null); }
+    if (result.success) { setActiveEsimDetails(result.esim); navigate('/dashboard/esim'); }
     else setErrorMsg(result.msg);
   };
 
@@ -103,7 +109,7 @@ const ESim = () => {
               <button
                 className="btn btn-primary"
                 style={{ padding: '8px 16px', fontSize: 13, flexShrink: 0 }}
-                onClick={() => setSelectedPkg(pkg)}
+                onClick={() => navigate('/dashboard/esim/buy/' + pkg.id)}
               >
                 Buy
               </button>
@@ -164,7 +170,7 @@ const ESim = () => {
         {selectedPkg && (
           <div className="modal-overlay">
             <div className="modal-content animate-slide-in" style={{ width: '100%', maxWidth: '400px', borderRadius: '20px 20px 0 0', padding: '20px 16px' }}>
-              <button className="modal-close" onClick={() => setSelectedPkg(null)}><X size={18} /></button>
+              <button className="modal-close" onClick={() => navigate('/dashboard/esim')}><X size={18} /></button>
               <h3 style={{ marginBottom: 6 }}>{selectedPkg.flag} {selectedPkg.country}</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
                 {selectedPkg.isUnlimited ? 'Unlimited Data' : `${selectedPkg.dataGb} GB`} · {selectedPkg.durationDays} days
@@ -179,7 +185,7 @@ const ESim = () => {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
-                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setSelectedPkg(null)} disabled={isBuying}>Cancel</button>
+                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => navigate('/dashboard/esim')} disabled={isBuying}>Cancel</button>
                 <button 
                   className="btn btn-primary" 
                   style={{ flex: 1 }} 
@@ -263,7 +269,7 @@ const ESim = () => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <strong style={{ fontSize: 18, fontFamily: 'var(--font-heading)', color: 'var(--color-turquoise)' }}>{formatCost(pkg.priceNgn)}</strong>
-                  <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 13 }} onClick={() => setSelectedPkg(pkg)}>Purchase Plan</button>
+                  <button className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 13 }} onClick={() => navigate('/dashboard/esim/buy/' + pkg.id)}>Purchase Plan</button>
                 </div>
               </div>
             ))}
@@ -341,7 +347,7 @@ const ESim = () => {
             </div>
             {errorMsg && <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, background: 'rgba(255,59,48,0.15)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: 8, color: '#ff453a', marginBottom: 16, fontSize: 13 }}><AlertCircle size={16} /><span>{errorMsg}</span></div>}
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setSelectedPkg(null)} disabled={isBuying}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => navigate('/dashboard/esim')} disabled={isBuying}>Cancel</button>
               <button 
                 className="btn btn-primary" 
                 onClick={handleBuy}

@@ -1,12 +1,14 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import LandingNav from '../components/LandingNav';
 import { Compass, Shield } from 'lucide-react';
 
-const PrivacyPolicy = ({ setActiveTab }) => {
+const PrivacyPolicy = () => {
+  const navigate = useNavigate();
   return (
     <div className="landing-container animate-slide-in">
       {/* Navigation */}
-      <LandingNav setActiveTab={setActiveTab} currentActive="privacy" />
+      <LandingNav currentActive="privacy" />
 
       {/* Hero Header */}
       <section className="landing-hero" style={{ paddingBottom: '40px' }}>
@@ -66,10 +68,10 @@ const PrivacyPolicy = ({ setActiveTab }) => {
             <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>discountzar.ng</span>
           </div>
           <div className="landing-footer-links">
-            <span onClick={() => setActiveTab('about')}>About Us</span>
-            <span onClick={() => setActiveTab('contact')}>Contact Us</span>
-            <span onClick={() => setActiveTab('terms')}>Terms of Service</span>
-            <span onClick={() => setActiveTab('privacy')} style={{ color: 'var(--color-turquoise)', fontWeight: '600' }}>Privacy Policy</span>
+            <span onClick={() => navigate('/about')}>About Us</span>
+            <span onClick={() => navigate('/contact')}>Contact Us</span>
+            <span onClick={() => navigate('/terms')}>Terms of Service</span>
+            <span onClick={() => navigate('/privacy')} style={{ color: 'var(--color-turquoise)', fontWeight: '600' }}>Privacy Policy</span>
           </div>
         </div>
         <div className="landing-footer-copyright">

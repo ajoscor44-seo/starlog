@@ -1,0 +1,4 @@
+project_id = "" # Replace with your project ID if needed
+
+[functions.pocketfi-webhook]
+verify_jwt = false

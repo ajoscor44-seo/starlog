@@ -1,5 +1,6 @@
 import React, { useContext, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import {
@@ -100,9 +101,10 @@ const OrderHistory = () => {
     activeEsims = [],
     smmOrders = [],
     formatCost = (v) => `₦${Number(v).toLocaleString()}`,
-    reuseOtpNumber,
-    setActiveTab
+    reuseOtpNumber
   } = useContext(AppContext) || {};
+
+  const navigate = useNavigate();
 
   const isMobile = useIsMobile();
 
@@ -271,14 +273,19 @@ const OrderHistory = () => {
             <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>All your transactions and service orders in one place</p>
           </div>
         </div>
-        <button
-          onClick={handleExport}
-          className="btn btn-secondary"
-          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
-        >
-          <Download size={15} />
-          Export CSV
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-secondary" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => navigate('/dashboard')}>
+              Dashboard
+            </button>
+            <button
+              onClick={handleExport}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
+            >
+              <Download size={15} />
+              Export CSV
+            </button>
+        </div>
       </div>
 
       {/* ── Summary Stats Row ── */}
