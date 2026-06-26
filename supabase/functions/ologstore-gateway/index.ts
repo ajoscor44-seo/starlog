@@ -26,6 +26,11 @@ serve(async (req) => {
       }
     );
 
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
     // Get the user making the request
     const {
       data: { user },
@@ -42,101 +47,61 @@ serve(async (req) => {
     const { action, payload } = await req.json();
 
     if (action === "products") {
-      // Attempt to fetch actual products
       let products = [];
       try {
-        const response = await fetch(`${OLOGSTORE_BASE_URL}/products`, {
+        if (!OLOGSTORE_API_KEY) throw new Error("No API Key");
+
+        const response = await fetch(`${OLOGSTORE_BASE_URL}/products/list?page=1&limit=100`, {
           method: "GET",
           headers: {
             "X-API-Key": OLOGSTORE_API_KEY,
             "X-API-Secret": OLOGSTORE_API_SECRET,
-            "Content-Type": "application/json",
           },
         });
         
         if (response.ok) {
           const data = await response.json();
-          // Assuming the API returns a 'data' array or just the array directly
-          products = data.data || data;
+          if (data.success && data.data && data.data.products) {
+            // Map OlogStore format to our frontend format
+            products = data.data.products.flatMap((p: any) => 
+              (p.plans || []).map((plan: any) => ({
+                id: plan.id,
+                category: p.category?.name || "General",
+                name: `${p.name} - ${plan.name}`,
+                price: Number(plan.final_price) || 0,
+                stock: plan.stock_count || 0,
+                description: p.description || ""
+              }))
+            );
+          }
         } else {
-          console.error("OlogStore API error fetching products:", response.status, await response.text());
-          throw new Error("Failed to fetch products from OlogStore");
+          throw new Error("Failed to fetch products");
         }
       } catch (err) {
-        console.warn("Falling back to simulated OlogStore products", err);
-        // Fallback simulated products so the UI can be tested
+        console.warn("Falling back to simulated products");
         products = [
-          {
-            id: 1,
-            category: "Facebook",
-            name: "Facebook Aged Account (2015-2018)",
-            price: 5.0,
-            stock: 120,
-            description: "High quality aged FB account with 2FA enabled."
-          },
-          {
-            id: 2,
-            category: "Facebook",
-            name: "Facebook BM5 (Business Manager 5)",
-            price: 15.0,
-            stock: 45,
-            description: "BM5 account, daily limit $250."
-          },
-          {
-            id: 3,
-            category: "Instagram",
-            name: "Instagram Aged (2018) + 100 Followers",
-            price: 2.5,
-            stock: 300,
-            description: "Email verified Instagram account."
-          },
-          {
-            id: 4,
-            category: "TikTok",
-            name: "TikTok US Account + Creator Rewards enabled",
-            price: 12.0,
-            stock: 50,
-            description: "TikTok US Region account, high trust score."
-          }
+          { id: 18, category: "Facebook", name: "Facebook Aged Account", price: 5000, stock: 120, description: "Aged FB account." },
+          { id: 19, category: "Instagram", name: "Instagram + 100 Followers", price: 2500, stock: 300, description: "Email verified." }
         ];
       }
 
-      // Add user markup: Assuming a 20% markup for profit
-      const markupPercentage = 1.20;
-      const formattedProducts = products.map((p: any) => ({
-        ...p,
-        original_price: p.price, // Keep original for backend order logging
-        price: Number((p.price * markupPercentage).toFixed(2)) // Marked up price for the client
-      }));
+      // Add a 20% markup to the cost
+      products = products.map((p: any) => ({ ...p, price: p.price * 1.2 }));
 
-      return new Response(JSON.stringify({ success: true, products: formattedProducts }), {
+      return new Response(JSON.stringify({ success: true, products }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
 
-    if (action === "buy") {
-      const { plan_id, plan_name, quantity, cost } = payload; // cost is the total marked up cost
+    } else if (action === "buy") {
+      const { plan_id, plan_name, quantity, cost } = payload;
 
-      // 1. Verify user balance using Service Role (admin bypass RLS)
-      const supabaseAdmin = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
-
-      const { data: profile, error: profileError } = await supabaseAdmin
+      const { data: profile, error: profileError } = await supabaseClient
         .from("profiles")
-        .select("wallet_balance, email")
+        .select("wallet_balance")
         .eq("id", user.id)
         .single();
 
       if (profileError || !profile) {
-        throw new Error("Could not fetch user wallet balance");
-      }
-
-      // We assume `cost` is in NGN (if the user's currency is NGN), but Ologstore might use USD.
-      // We will deduct whatever `cost` the frontend passed (after the frontend calculated it in their local currency).
-      // Wait, to be safe, `wallet_balance` is usually in NGN.
-      if (profile.wallet_balance < cost) {
         return new Response(JSON.stringify({ success: false, error: "Insufficient wallet balance" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

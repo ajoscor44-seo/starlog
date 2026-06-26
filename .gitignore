@@ -23,6 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Supabase SQL Database schema and triggers
+*.sql
 # Security exclusions
 .env
 scratch/

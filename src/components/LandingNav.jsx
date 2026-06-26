@@ -51,19 +51,6 @@ const LandingNav = ({ setActiveTab, currentActive }) => {
           >
             Premium Accounts ↗
           </span>
-          <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }} />
-          <span 
-            onClick={() => handleNavClick('about')} 
-            style={{ color: currentActive === 'about' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: '14px' }}
-          >
-            About
-          </span>
-          <span 
-            onClick={() => handleNavClick('contact')} 
-            style={{ color: currentActive === 'contact' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: '14px' }}
-          >
-            Contact
-          </span>
         </div>
       </div>
 

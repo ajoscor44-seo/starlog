@@ -22,10 +22,10 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'subs', label: 'Premium Accounts', icon: User, external: true, url: 'https://www.discountzar.com/marketplace' },
     { id: 'otp', label: 'SMS OTP (Temp)', icon: Key },
+    { id: 'social', label: 'Social Media Logs', icon: ShieldCheck },
     { id: 'reuse', label: 'Reuse Number', icon: RefreshCw },
     { id: 'esim', label: 'eSIM Travel', icon: Smartphone },
     { id: 'smm', label: 'SMM Panel', icon: Share2 },
-    { id: 'social', label: 'Social Media Logs', icon: ShieldCheck },
     { id: 'wallet', label: 'Wallet & Fund', icon: CreditCard },
     { id: 'orders', label: 'Order History', icon: ClipboardList },
     { id: 'profile', label: 'User Profile', icon: User },
@@ -57,17 +57,6 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
         </div>
 
         <ul className="sidebar-menu">
-          <li className="sidebar-item">
-            <div 
-              onClick={() => handleNavClick('landing')}
-              className={`sidebar-link ${activeTab === 'landing' ? 'active' : ''}`}
-            >
-              <Compass size={20} />
-              <span>Portal Home</span>
-            </div>
-          </li>
-
-          <div style={{ height: '1px', background: 'var(--border-color)', margin: '12px 0' }} />
 
           {menuItems.map((item) => {
             const Icon = item.icon;
