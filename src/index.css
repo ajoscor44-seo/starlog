@@ -563,7 +563,7 @@ a:hover {
 
 @keyframes slideIn {
   from { transform: translateY(15px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  to { transform: none; opacity: 1; }
 }
 
 .animate-slide-in {
