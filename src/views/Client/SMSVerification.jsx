@@ -668,7 +668,8 @@ const SMSVerification = () => {
                   ) : filteredServices.length === 0 ? (
                     <div style={{ padding: '30px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>No matching services found.</div>
                   ) : filteredServices.map(s => {
-                    const serviceId = server === 'server3' ? s.serviceName : (s.id || s.ID);
+                    const serviceId = server === 'server3' ? s.serviceName : (server === 'server4' ? s.code : (s.id || s.ID));
+                    const logoKey = s.id || s.ID;
                     const name = server === 'server3' ? (s.description || s.serviceName) : s.name;
                     const emoji = s.emoji || '📱';
                     
@@ -704,7 +705,7 @@ const SMSVerification = () => {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {serviceLogoMap[serviceId] ? React.cloneElement(serviceLogoMap[serviceId], { style: { width: '22px', height: '22px', flexShrink: 0 } }) : <span style={{ fontSize: 22 }}>{emoji}</span>}
+                            {serviceLogoMap[logoKey] ? React.cloneElement(serviceLogoMap[logoKey], { style: { width: '22px', height: '22px', flexShrink: 0 } }) : <span style={{ fontSize: 22 }}>{emoji}</span>}
                           </div>
                           <span style={{ fontSize: 14, fontWeight: 600, color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{name}</span>
                         </div>
@@ -974,7 +975,8 @@ const SMSVerification = () => {
                     <div style={{ padding: '20px', color: 'var(--text-secondary)', textAlign: 'center', gridColumn: '1 / -1' }}>No matching services found.</div>
                   ) : (
                     filteredServices.map(s => {
-                      const serviceId = server === 'server3' ? s.serviceName : (s.id || s.ID);
+                      const serviceId = server === 'server3' ? s.serviceName : (server === 'server4' ? s.code : (s.id || s.ID));
+                      const logoKey = s.id || s.ID;
                       const name = server === 'server3' ? (s.description || s.serviceName) : s.name;
                       const emoji = s.emoji || '📱';
                       
@@ -1005,7 +1007,7 @@ const SMSVerification = () => {
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
                         >
                           <div style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {serviceLogoMap[serviceId] ? React.cloneElement(serviceLogoMap[serviceId], { style: { width: '20px', height: '20px', flexShrink: 0 } }) : <span style={{ fontSize: 20 }}>{emoji}</span>}
+                            {serviceLogoMap[logoKey] ? React.cloneElement(serviceLogoMap[logoKey], { style: { width: '20px', height: '20px', flexShrink: 0 } }) : <span style={{ fontSize: 20 }}>{emoji}</span>}
                           </div>
                           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                             <span className="service-name" style={{ fontSize: '13px' }}>{name}</span>
