@@ -1048,7 +1048,7 @@ export const AppProvider = ({ children }) => {
       if (!res.error && res.data?.status) {
         const priceCredits = Number(res.data.data.price);
         const markupMultiplier = 1 + (profitMarkup.otp / 100);
-        const priceNgn = Math.round(priceCredits * exchangeRate * markupMultiplier);
+        const priceNgn = priceCredits > 0 ? Math.max(300, Math.round(priceCredits * exchangeRate * markupMultiplier)) : 0;
         return { success: true, priceNgn, priceCredits };
       } else {
         return { success: false, msg: res.error || 'Failed to fetch price' };
