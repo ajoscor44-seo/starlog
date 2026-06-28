@@ -80,6 +80,8 @@ const SMSVerification = () => {
     fetchOtpServicesForCountry,
     smsPoolShortTermCountries,
     smsPoolShortTermServices,
+    textVerifiedServices,
+    fetchTextVerifiedPrice,
     profitMarkup
   } = useContext(AppContext);
   const isMobile = useIsMobile();
@@ -101,6 +103,8 @@ const SMSVerification = () => {
   
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedText, setCopiedText] = useState('');
+  const [tvPrices, setTvPrices] = useState({});
+  const [isPriceLoading, setIsPriceLoading] = useState(false);
   const [step, setStep] = useState(1); // mobile wizard: 1=country, 2=service
 
   useEffect(() => {
@@ -112,6 +116,17 @@ const SMSVerification = () => {
 
   useEffect(() => {
     const loadServices = async () => {
+      if (server === 'server3') {
+        if (textVerifiedServices.length > 0) {
+          const firstSrv = textVerifiedServices[0].serviceName;
+          setSelectedService(firstSrv);
+          handleSelectTvService(firstSrv);
+        } else {
+          setSelectedService(null);
+        }
+        return;
+      }
+
       if (!selectedCountry) return;
       
       setIsLoadingServices(true);
@@ -163,14 +178,19 @@ const SMSVerification = () => {
       setIsLoadingServices(false);
     };
     loadServices();
-  }, [selectedCountry, server]);
+  }, [selectedCountry, server, textVerifiedServices]);
 
   useEffect(() => {
     // Automatically select first country when switching servers
     if (server === 'server1') {
       setSelectedCountry(countries[0]?.id);
-    } else {
+      setStep(1);
+    } else if (server === 'server2') {
       setSelectedCountry(smsPoolShortTermCountries[0]?.ID);
+      setStep(1);
+    } else if (server === 'server3') {
+      setSelectedCountry('US');
+      setStep(2);
     }
   }, [server, countries, smsPoolShortTermCountries]);
 
@@ -182,31 +202,68 @@ const SMSVerification = () => {
 
   const activeServicesList = server === 'server1' 
     ? (dynamicServices.length > 0 ? dynamicServices : otpServices) 
-    : smsPoolDynamicServices;
+    : (server === 'server2' ? smsPoolDynamicServices : textVerifiedServices);
 
-  const filteredServices = activeServicesList.filter(s =>
-    (s.name || '').toLowerCase().includes(searchService.toLowerCase())
-  );
+  const filteredServices = activeServicesList.filter(s => {
+    const name = s.description || s.name || s.serviceName || '';
+    return name.toLowerCase().includes(searchService.toLowerCase());
+  });
 
-  const selectedCountryObj = server === 'server1' 
-    ? activeCountriesList.find(c => c.id === selectedCountry) 
-    : activeCountriesList.find(c => c.ID === selectedCountry);
+  const selectedCountryObj = server === 'server3'
+    ? { flag: '🇺🇸', name: 'United States', code: '1' }
+    : (server === 'server1' 
+       ? activeCountriesList.find(c => c.id === selectedCountry) 
+       : activeCountriesList.find(c => c.ID === selectedCountry));
     
   const selectedServiceObj = server === 'server1' 
     ? (activeServicesList.find(s => s.id === selectedService) || activeServicesList[0])
-    : (activeServicesList.find(s => s.ID === selectedService) || activeServicesList[0]);
+    : (server === 'server2'
+       ? (activeServicesList.find(s => s.ID === selectedService) || activeServicesList[0])
+       : (activeServicesList.find(s => s.serviceName === selectedService) || activeServicesList[0]));
 
   const handleRequestNumber = async () => {
-    if (!selectedCountry || !selectedService) {
-      setErrorMsg('Please select a country and a target app before requesting.');
-      return;
+    if (server === 'server3') {
+      if (!selectedService) {
+        setErrorMsg('Please select a target app before requesting.');
+        return;
+      }
+    } else {
+      if (!selectedCountry || !selectedService) {
+        setErrorMsg('Please select a country and a target app before requesting.');
+        return;
+      }
     }
     setErrorMsg('');
     setIsRequesting(true);
-    const result = await requestOtpNumber(selectedCountry, selectedService, selectedServiceObj, server);
+    const countryId = server === 'server3' ? 'US' : selectedCountry;
+    const result = await requestOtpNumber(countryId, selectedService, selectedServiceObj, server);
     setIsRequesting(false);
     if (result.success) setActiveSession(result.otp);
     else setErrorMsg(result.error || result.msg || 'Failed to request number');
+  };
+
+  const handleSelectTvService = async (serviceName) => {
+    setSelectedService(serviceName);
+    if (tvPrices[serviceName] !== undefined) {
+      return;
+    }
+    setIsPriceLoading(true);
+    setErrorMsg('');
+    const res = await fetchTextVerifiedPrice(serviceName);
+    setIsPriceLoading(false);
+    if (res.success) {
+      setTvPrices(prev => ({ ...prev, [serviceName]: res.priceNgn }));
+    } else {
+      setErrorMsg(res.msg || 'Failed to fetch price for this service');
+    }
+  };
+
+  const getSelectedServicePrice = () => {
+    if (!selectedServiceObj) return 0;
+    if (server === 'server1' || server === 'server2') {
+      return selectedServiceObj.priceNgn || 0;
+    }
+    return tvPrices[selectedService] || 0;
   };
 
   const handleCopy = (text, key) => {
@@ -407,15 +464,21 @@ const SMSVerification = () => {
             <div style={{ display: 'flex', gap: 10, marginTop: 4, marginBottom: 4 }}>
               <button 
                 onClick={() => setServer('server1')}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server1' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 13, fontWeight: 600, transition: '0.2s' }}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server1' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
               >
                 Server 1 (Fast)
               </button>
               <button 
                 onClick={() => setServer('server2')}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server2' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server2' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 13, fontWeight: 600, transition: '0.2s' }}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server2' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server2' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
               >
-                Server 2 (High Success)
+                Server 2 (Success)
+              </button>
+              <button 
+                onClick={() => setServer('server3')}
+                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server3' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server3' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
+              >
+                Server 3 (US Only)
               </button>
             </div>
 
@@ -459,9 +522,15 @@ const SMSVerification = () => {
             {/* Step 2: Service */}
             {step === 2 && (
               <div className="glass-panel" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--color-turquoise)', fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left', padding: 0 }}>
-                  ← {selectedCountryObj?.flag} {selectedCountryObj?.name}
-                </button>
+                {server !== 'server3' ? (
+                  <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--color-turquoise)', fontSize: 12, fontWeight: 600, cursor: 'pointer', textAlign: 'left', padding: 0 }}>
+                    ← {selectedCountryObj?.flag} {selectedCountryObj?.name}
+                  </button>
+                ) : (
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textAlign: 'left' }}>
+                    🇺🇸 United States (US Only)
+                  </div>
+                )}
                 <div style={{ position: 'relative' }}>
                   <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input
@@ -481,25 +550,47 @@ const SMSVerification = () => {
                   ) : filteredServices.length === 0 ? (
                     <div style={{ padding: '30px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>No matching services found.</div>
                   ) : filteredServices.map(s => {
-                    const serviceId = s.id || s.ID;
+                    const serviceId = server === 'server3' ? s.serviceName : (s.id || s.ID);
+                    const name = server === 'server3' ? (s.description || s.serviceName) : s.name;
+                    const emoji = s.emoji || '📱';
+                    
+                    const isSelected = selectedService === serviceId;
+                    
+                    let priceText = formatCost(s.priceNgn || 0);
+                    if (server === 'server3') {
+                      if (tvPrices[serviceId] !== undefined) {
+                        priceText = formatCost(tvPrices[serviceId]);
+                      } else if (isSelected && isPriceLoading) {
+                        priceText = 'Loading...';
+                      } else {
+                        priceText = 'Check Price';
+                      }
+                    }
+
                     return (
                       <div
                         key={serviceId}
-                        onClick={() => setSelectedService(serviceId)}
+                        onClick={() => {
+                          if (server === 'server3') {
+                            handleSelectTvService(serviceId);
+                          } else {
+                            setSelectedService(serviceId);
+                          }
+                        }}
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
-                          border: `1px solid ${selectedService === serviceId ? 'var(--color-pink)' : 'var(--border-color)'}`,
-                          background: selectedService === serviceId ? 'rgba(255,0,127,0.07)' : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${isSelected ? 'var(--color-pink)' : 'var(--border-color)'}`,
+                          background: isSelected ? 'rgba(255,0,127,0.07)' : 'rgba(255,255,255,0.02)',
                           transition: 'all 0.15s',
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {serviceLogoMap[serviceId] ? React.cloneElement(serviceLogoMap[serviceId], { style: { width: '22px', height: '22px', flexShrink: 0 } }) : <span style={{ fontSize: 22 }}>{s.emoji}</span>}
+                            {serviceLogoMap[serviceId] ? React.cloneElement(serviceLogoMap[serviceId], { style: { width: '22px', height: '22px', flexShrink: 0 } }) : <span style={{ fontSize: 22 }}>{emoji}</span>}
                           </div>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: selectedService === serviceId ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{s.name}</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{name}</span>
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-turquoise)' }}>{formatCost(s.priceNgn)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-turquoise)' }}>{priceText}</span>
                       </div>
                     );
                   })}
@@ -521,12 +612,12 @@ const SMSVerification = () => {
                       ? React.cloneElement(serviceLogoMap[selectedServiceObj.id || selectedServiceObj.ID], { style: { width: '16px', height: '16px', flexShrink: 0 } }) 
                       : (selectedServiceObj?.emoji && <span style={{ fontSize: 16 }}>{selectedServiceObj.emoji}</span>)}
                   </div>
-                  <span>{selectedServiceObj?.name}</span>
+                  <span>{server === 'server3' ? (selectedServiceObj?.description || selectedServiceObj?.serviceName) : selectedServiceObj?.name}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, fontSize: 15 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Cost:</span>
-                <strong style={{ color: 'var(--color-turquoise)', fontSize: 18, fontFamily: 'var(--font-heading)' }}>{formatCost(selectedServiceObj?.priceNgn || 0)}</strong>
+                <strong style={{ color: 'var(--color-turquoise)', fontSize: 18, fontFamily: 'var(--font-heading)' }}>{formatCost(getSelectedServicePrice())}</strong>
               </div>
               {errorMsg && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: 'rgba(255,59,48,0.15)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: 8, color: '#ff453a', fontSize: 13, marginBottom: 12 }}>
@@ -632,25 +723,36 @@ const SMSVerification = () => {
                 <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.2)', padding: 4, borderRadius: 8, border: '1px solid var(--border-color)' }}>
                   <button onClick={() => setServer('server1')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server1' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server1' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 1</button>
                   <button onClick={() => setServer('server2')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server2' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server2' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 2</button>
+                  <button onClick={() => setServer('server3')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server3' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server3' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 3 (US Only)</button>
                 </div>
               </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label className="form-label" style={{ margin: 0 }}>1. Choose Country</label>
-                  <input type="text" placeholder="Search country..." value={searchCountry} onChange={e => setSearchCountry(e.target.value)} style={{ padding: '4px 8px', fontSize: 12, width: 150, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)' }} />
+              {server !== 'server3' ? (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <label className="form-label" style={{ margin: 0 }}>1. Choose Country</label>
+                    <input type="text" placeholder="Search country..." value={searchCountry} onChange={e => setSearchCountry(e.target.value)} style={{ padding: '4px 8px', fontSize: 12, width: 150, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)' }} />
+                  </div>
+                  <div className="country-list-grid">
+                    {filteredCountries.map(c => {
+                      const countryId = c.id || c.ID;
+                      return (
+                        <div key={countryId} className={`country-item ${selectedCountry === countryId ? 'selected' : ''}`} onClick={() => setSelectedCountry(countryId)}>
+                          <span className="country-flag">{c.flag}</span>
+                          <span>{c.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="country-list-grid">
-                  {filteredCountries.map(c => {
-                    const countryId = c.id || c.ID;
-                    return (
-                      <div key={countryId} className={`country-item ${selectedCountry === countryId ? 'selected' : ''}`} onClick={() => setSelectedCountry(countryId)}>
-                        <span className="country-flag">{c.flag}</span>
-                        <span>{c.name}</span>
-                      </div>
-                    );
-                  })}
+              ) : (
+                <div className="glass-panel animate-fade-in" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: 12 }}>
+                  <span style={{ fontSize: 28 }}>🇺🇸</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>United States (+1)</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Server 3 is specialized for US-only physical SIM verification</div>
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <label className="form-label" style={{ margin: 0 }}>2. Select Target App</label>
@@ -666,15 +768,42 @@ const SMSVerification = () => {
                     <div style={{ padding: '20px', color: 'var(--text-secondary)', textAlign: 'center', gridColumn: '1 / -1' }}>No matching services found.</div>
                   ) : (
                     filteredServices.map(s => {
-                      const serviceId = s.id || s.ID;
+                      const serviceId = server === 'server3' ? s.serviceName : (s.id || s.ID);
+                      const name = server === 'server3' ? (s.description || s.serviceName) : s.name;
+                      const emoji = s.emoji || '📱';
+                      
+                      const isSelected = selectedService === serviceId;
+                      
+                      let priceText = formatCost(s.priceNgn || 0);
+                      if (server === 'server3') {
+                        if (tvPrices[serviceId] !== undefined) {
+                          priceText = formatCost(tvPrices[serviceId]);
+                        } else if (isSelected && isPriceLoading) {
+                          priceText = 'Loading...';
+                        } else {
+                          priceText = 'Check Price';
+                        }
+                      }
+
                       return (
-                        <div key={serviceId} className={`service-item ${selectedService === serviceId ? 'selected' : ''}`} onClick={() => setSelectedService(serviceId)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <div 
+                          key={serviceId} 
+                          className={`service-item ${isSelected ? 'selected' : ''}`} 
+                          onClick={() => {
+                            if (server === 'server3') {
+                              handleSelectTvService(serviceId);
+                            } else {
+                              setSelectedService(serviceId);
+                            }
+                          }} 
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
+                        >
                           <div style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {serviceLogoMap[serviceId] ? React.cloneElement(serviceLogoMap[serviceId], { style: { width: '20px', height: '20px', flexShrink: 0 } }) : (s.emoji && <span style={{ fontSize: 20 }}>{s.emoji}</span>)}
+                            {serviceLogoMap[serviceId] ? React.cloneElement(serviceLogoMap[serviceId], { style: { width: '20px', height: '20px', flexShrink: 0 } }) : <span style={{ fontSize: 20 }}>{emoji}</span>}
                           </div>
                           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <span className="service-name" style={{ fontSize: '13px' }}>{s.name}</span>
-                            <span className="service-price" style={{ fontSize: '11px' }}>{formatCost(s.priceNgn)}</span>
+                            <span className="service-name" style={{ fontSize: '13px' }}>{name}</span>
+                            <span className="service-price" style={{ fontSize: '11px' }}>{priceText}</span>
                           </div>
                         </div>
                       );
@@ -753,6 +882,7 @@ const SMSVerification = () => {
                               </div>
                               <span>{log.service}</span>
                               {log.server === 'server2' && <span className="badge" style={{ fontSize: 9, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)' }}>S2</span>}
+                              {log.server === 'server3' && <span className="badge" style={{ fontSize: 9, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)' }}>S3</span>}
                             </div>
                           </td>
                           <td>{log.flag} {log.country}</td>

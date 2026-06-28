@@ -328,6 +328,7 @@ export const AppProvider = ({ children }) => {
   const [smsPoolRentals, setSmsPoolRentals] = useState([]);
   const [smsPoolShortTermCountries, setSmsPoolShortTermCountries] = useState([]);
   const [smsPoolShortTermServices, setSmsPoolShortTermServices] = useState([]);
+  const [textVerifiedServices, setTextVerifiedServices] = useState([]);
   const [profile, setProfile] = useState({ full_name: '', phone: '', username: '', api_key: '' });
 
   // Routing and active session states
@@ -1038,7 +1039,80 @@ export const AppProvider = ({ children }) => {
     return { success: true, sub: newSub };
   };
 
+  const fetchTextVerifiedPrice = async (serviceName) => {
+    try {
+      const res = await supabase.functions.invoke('textverified-gateway', {
+        body: { action: 'get_price', serviceName }
+      });
+      if (!res.error && res.data?.status) {
+        const priceCredits = Number(res.data.data.price);
+        const markupMultiplier = 1 + (profitMarkup.otp / 100);
+        const priceNgn = Math.round(priceCredits * exchangeRate * markupMultiplier);
+        return { success: true, priceNgn, priceCredits };
+      } else {
+        return { success: false, msg: res.error || 'Failed to fetch price' };
+      }
+    } catch (e) {
+      console.error("fetchTextVerifiedPrice Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
   const requestOtpNumber = async (countryId, serviceId, dynamicServiceObj = null, server = 'server1') => {
+    if (server === 'server3') {
+      const priceRes = await fetchTextVerifiedPrice(serviceId);
+      if (!priceRes.success) {
+        return { success: false, msg: priceRes.msg };
+      }
+
+      const priceNgn = priceRes.priceNgn;
+      const purchaseRes = await executePurchase(priceNgn, 'Purchase', `OTP Verification (Textverified - ${serviceId})`);
+      if (!purchaseRes.success) {
+        return purchaseRes;
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke('textverified-gateway', {
+          body: { action: 'buy', serviceName: serviceId }
+        });
+
+        if (error || !data || !data.status) {
+          throw new Error(error ? error.message : (data ? data.error : 'Failed to retrieve verification number from Server 3'));
+        }
+
+        const detail = data.data;
+        const phone = detail.number;
+        const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
+
+        const newOtp = {
+          id: `tv-${detail.id}`,
+          orderId: detail.id,
+          phoneNumber: formattedPhone,
+          country: 'United States',
+          flag: '🇺🇸',
+          service: serviceId,
+          priceNgn,
+          status: 'PENDING',
+          date: new Date().toLocaleString(),
+          expiresAt: new Date(detail.endsAt).getTime(),
+          smsText: null,
+          otpCode: null,
+          server: 'server3'
+        };
+
+        setActiveOtps(prev => [newOtp, ...prev]);
+        return { success: true, otp: newOtp };
+
+      } catch (e) {
+        console.error("Textverified API Order Error:", e);
+        const ref = `ref-otp-fail-${Math.floor(100000 + Math.random() * 900000)}`;
+        await supabase.rpc('process_deposit', {
+          p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (Textverified - ${serviceId})`
+        });
+        return { success: false, msg: e.message };
+      }
+    }
+
     if (server === 'server2') {
       const country = smsPoolShortTermCountries.find(c => c.ID == countryId);
       const service = smsPoolShortTermServices.find(s => s.ID == serviceId);
@@ -1171,8 +1245,13 @@ export const AppProvider = ({ children }) => {
           body: { action: 'cancel', orderId: otp.fivesimOrderId }
         });
       }
+      if (otp.server === 'server3' && otp.orderId) {
+        await supabase.functions.invoke('textverified-gateway', {
+          body: { action: 'cancel', id: otp.orderId }
+        });
+      }
     } catch (e) {
-      console.error("Failed to cancel order on 5sim:", e);
+      console.error("Failed to cancel order:", e);
     }
 
     const ref = `ref-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -1696,10 +1775,22 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const fetchTextVerifiedServices = async () => {
+    try {
+      const res = await supabase.functions.invoke('textverified-gateway', { body: { action: 'get_services' } });
+      if (!res.error && res.data?.status) {
+        setTextVerifiedServices(res.data.data || []);
+      }
+    } catch (e) {
+      console.error("fetchTextVerifiedServices Error:", e);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchSmsPoolRentals();
       fetchSmsPoolShortTermData();
+      fetchTextVerifiedServices();
     }
   }, [user]);
 
@@ -1775,6 +1866,33 @@ export const AppProvider = ({ children }) => {
             }
           } catch (err) {
             console.error("Error polling SMSPool order:", otp.orderId, err);
+          }
+        }
+      });
+
+      // 4. Poll Server 3 (Textverified) active orders
+      const pendingTextverified = activeOtps.filter(o => o.status === 'PENDING' && o.server === 'server3' && o.orderId);
+      pendingTextverified.forEach(async (otp) => {
+        if (Date.now() < otp.expiresAt) {
+          try {
+            const { data, error } = await supabase.functions.invoke('textverified-gateway', {
+              body: { action: 'check', id: otp.orderId }
+            });
+            if (!error && data?.status && data?.data) {
+              const resData = data.data;
+              if (resData.status === 'COMPLETED' && resData.otpCode) {
+                setActiveOtps(current => current.map(o => o.id === otp.id ? { 
+                  ...o, 
+                  status: 'COMPLETED', 
+                  smsText: resData.smsText, 
+                  otpCode: resData.otpCode 
+                } : o));
+              } else if (resData.status === 'FAILED') {
+                setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
+              }
+            }
+          } catch (err) {
+            console.error("Error polling Textverified order:", otp.orderId, err);
           }
         }
       });
@@ -2140,6 +2258,8 @@ export const AppProvider = ({ children }) => {
       smsPoolRentals,
       smsPoolShortTermCountries,
       smsPoolShortTermServices,
+      textVerifiedServices,
+      fetchTextVerifiedPrice,
       profitMarkup,
       updateProfitMarkup,
       exchangeRate,
