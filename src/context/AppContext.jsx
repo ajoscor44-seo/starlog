@@ -253,7 +253,7 @@ export const AppProvider = ({ children }) => {
   // Profit Markup rate state
   const [profitMarkup, setProfitMarkup] = useState(() => {
     const saved = localStorage.getItem('zp_profit_markup');
-    return saved ? JSON.parse(saved) : { subs: 30, otp: 30, esim: 40, smm: 50 };
+    return saved ? JSON.parse(saved) : { subs: 30, otp: 40, esim: 40, smm: 50 };
   });
 
   const [exchangeRate, setExchangeRate] = useState(() => {
@@ -1065,12 +1065,14 @@ export const AppProvider = ({ children }) => {
         // data.data has { order_id, phonenumber, number, ... }
         const orderData = data.data;
         const phone = orderData.phonenumber || orderData.number || orderData.cc_and_number;
+        const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
         const newOtp = {
           id: `sp-${orderData.order_id}`,
           orderId: orderData.order_id,
-          phoneNumber: phone,
+          phoneNumber: formattedPhone,
           country: country.name,
+          flag: country.flag || '🏳️',
           service: service.name,
           priceNgn,
           status: 'PENDING',
@@ -1121,11 +1123,12 @@ export const AppProvider = ({ children }) => {
       }
 
       const order = data.data;
+      const formattedPhone = String(order.phone).startsWith('+') ? String(order.phone) : '+' + order.phone;
 
       const newOtp = {
         id: `otp-${order.id}`,
         fivesimOrderId: order.id,
-        phoneNumber: order.phone,
+        phoneNumber: formattedPhone,
         country: country.name,
         flag: country.flag,
         service: service.name,
@@ -1295,11 +1298,12 @@ export const AppProvider = ({ children }) => {
       }
 
       const order = data.data;
+      const formattedPhone = String(order.phone).startsWith('+') ? String(order.phone) : '+' + order.phone;
 
       const newOtp = {
         id: `otp-${order.id}`,
         fivesimOrderId: order.id,
-        phoneNumber: order.phone,
+        phoneNumber: formattedPhone,
         country: countryName || 'Reused',
         flag: flag || '🔄',
         service: service.name,
@@ -1358,10 +1362,13 @@ export const AppProvider = ({ children }) => {
         }
 
         const orderData = data.data; // sms pool response
+        const rawNum = orderData.phonenumber || orderData.number;
+        const formattedPhone = String(rawNum).startsWith('+') ? String(rawNum) : '+' + rawNum;
+
         const newRental = {
           id: `rent-sp-${orderData.rental_code || Math.floor(100000 + Math.random() * 900000)}`,
           rental_code: orderData.rental_code, // from SMS Pool
-          phoneNumber: orderData.phonenumber || orderData.number, 
+          phoneNumber: formattedPhone, 
           country: rentalInfo.name,
           flag: '📱', // Need a flag mapper, fallback to emoji
           service: serviceName,
@@ -1403,7 +1410,7 @@ export const AppProvider = ({ children }) => {
     }
 
     const randomDigits = Math.floor(100000000 + Math.random() * 899999999);
-    const phoneNumber = `${country.code}${randomDigits}`;
+    const phoneNumber = country.code.startsWith('+') ? `${country.code}${randomDigits}` : `+${country.code}${randomDigits}`;
 
     const newRental = {
       id: `rent-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -1680,7 +1687,9 @@ export const AppProvider = ({ children }) => {
       // Fetch Services
       const sRes = await supabase.functions.invoke('smspool-gateway', { body: { action: 'get_services' } });
       if (!sRes.error && sRes.data?.status) {
-        setSmsPoolShortTermServices(sRes.data.data || []);
+        const services = sRes.data.data || [];
+        const filtered = services.filter(s => !s.name.toLowerCase().includes('whatsapp'));
+        setSmsPoolShortTermServices(filtered);
       }
     } catch (e) {
       console.error("fetchSmsPoolShortTermData Error:", e);
