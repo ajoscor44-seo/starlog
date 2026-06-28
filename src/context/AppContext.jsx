@@ -13,18 +13,39 @@ const initialSubscriptions = [
   { id: 'sub-surfshark', name: 'Surfshark VPN (Shared)', category: 'Security', priceNgn: 1800, priceUsd: 2.4, features: ['Unlimited devices', 'Strict no-logs policy', 'High speed servers', '30 Days Validity'] },
 ];
 
+// Fallback country list shown before the dynamic fetch completes
 const initialCountries = [
-  { id: 'us', name: 'United States', flag: '🇺🇸', code: '+1' },
-  { id: 'gb', name: 'United Kingdom', flag: '🇬🇧', code: '+44' },
-  { id: 'ng', name: 'Nigeria', flag: '🇳🇬', code: '+234' },
-  { id: 'ca', name: 'Canada', flag: '🇨🇦', code: '+1' },
-  { id: 'za', name: 'South Africa', flag: '🇿🇦', code: '+27' },
-  { id: 'de', name: 'Germany', flag: '🇩🇪', code: '+49' },
-  { id: 'fr', name: 'France', flag: '🇫🇷', code: '+33' },
-  { id: 'in', name: 'India', flag: '🇮🇳', code: '+91' },
-  { id: 'ru', name: 'Russia', flag: '🇷🇺', code: '+7' },
-  { id: 'br', name: 'Brazil', flag: '🇧🇷', code: '+55' },
+  { id: 'us', name: 'United States', flag: '🇺🇸', code: '+1', fivesimSlug: 'usa' },
+  { id: 'gb', name: 'United Kingdom', flag: '🇬🇧', code: '+44', fivesimSlug: 'england' },
+  { id: 'ng', name: 'Nigeria', flag: '🇳🇬', code: '+234', fivesimSlug: 'nigeria' },
+  { id: 'ca', name: 'Canada', flag: '🇨🇦', code: '+1', fivesimSlug: 'canada' },
+  { id: 'za', name: 'South Africa', flag: '🇿🇦', code: '+27', fivesimSlug: 'southafrica' },
+  { id: 'de', name: 'Germany', flag: '🇩🇪', code: '+49', fivesimSlug: 'germany' },
+  { id: 'fr', name: 'France', flag: '🇫🇷', code: '+33', fivesimSlug: 'france' },
+  { id: 'in', name: 'India', flag: '🇮🇳', code: '+91', fivesimSlug: 'india' },
+  { id: 'ru', name: 'Russia', flag: '🇷🇺', code: '+7', fivesimSlug: 'russia' },
+  { id: 'br', name: 'Brazil', flag: '🇧🇷', code: '+55', fivesimSlug: 'brazil' },
 ];
+
+// Maps ISO-2 codes to emoji flags
+const ISO_FLAGS = {
+  af:'🇦🇫',al:'🇦🇱',dz:'🇩🇿',ao:'🇦🇴',ag:'🇦🇬',ar:'🇦🇷',am:'🇦🇲',aw:'🇦🇼',au:'🇦🇺',at:'🇦🇹',
+  az:'🇦🇿',bs:'🇧🇸',bh:'🇧🇭',bd:'🇧🇩',bb:'🇧🇧',be:'🇧🇪',bz:'🇧🇿',bj:'🇧🇯',bt:'🇧🇹',ba:'🇧🇦',
+  bo:'🇧🇴',bw:'🇧🇼',br:'🇧🇷',bg:'🇧🇬',bf:'🇧🇫',bi:'🇧🇮',kh:'🇰🇭',cm:'🇨🇲',ca:'🇨🇦',cv:'🇨🇻',
+  td:'🇹🇩',cl:'🇨🇱',co:'🇨🇴',km:'🇰🇲',cg:'🇨🇬',cr:'🇨🇷',hr:'🇭🇷',cy:'🇨🇾',cz:'🇨🇿',dk:'🇩🇰',
+  dj:'🇩🇯',do:'🇩🇴',tl:'🇹🇱',ec:'🇪🇨',eg:'🇪🇬',gb:'🇬🇧',gq:'🇬🇶',ee:'🇪🇪',et:'🇪🇹',fi:'🇫🇮',
+  fr:'🇫🇷',ga:'🇬🇦',gm:'🇬🇲',ge:'🇬🇪',de:'🇩🇪',gh:'🇬🇭',gr:'🇬🇷',gp:'🇬🇵',gt:'🇬🇹',gn:'🇬🇳',
+  gw:'🇬🇼',gy:'🇬🇾',ht:'🇭🇹',hn:'🇭🇳',hk:'🇭🇰',hu:'🇭🇺',in:'🇮🇳',id:'🇮🇩',ie:'🇮🇪',il:'🇮🇱',
+  it:'🇮🇹',ci:'🇨🇮',jm:'🇯🇲',jo:'🇯🇴',kz:'🇰🇿',ke:'🇰🇪',kw:'🇰🇼',kg:'🇰🇬',la:'🇱🇦',lv:'🇱🇻',
+  ls:'🇱🇸',lr:'🇱🇷',lt:'🇱🇹',lu:'🇱🇺',mo:'🇲🇴',mg:'🇲🇬',mw:'🇲🇼',my:'🇲🇾',mv:'🇲🇻',mr:'🇲🇷',
+  mu:'🇲🇺',mx:'🇲🇽',md:'🇲🇩',mn:'🇲🇳',me:'🇲🇪',ma:'🇲🇦',mz:'🇲🇿',na:'🇳🇦',np:'🇳🇵',nl:'🇳🇱',
+  nc:'🇳🇨',ni:'🇳🇮',ng:'🇳🇬',mk:'🇲🇰',no:'🇳🇴',om:'🇴🇲',pk:'🇵🇰',pa:'🇵🇦',pg:'🇵🇬',py:'🇵🇾',
+  pe:'🇵🇪',ph:'🇵🇭',pl:'🇵🇱',pt:'🇵🇹',pr:'🇵🇷',re:'🇷🇪',ro:'🇷🇴',ru:'🇷🇺',rw:'🇷🇼',kn:'🇰🇳',
+  lc:'🇱🇨',vc:'🇻🇨',sv:'🇸🇻',ws:'🇼🇸',sa:'🇸🇦',sn:'🇸🇳',rs:'🇷🇸',sc:'🇸🇨',sl:'🇸🇱',sk:'🇸🇰',
+  si:'🇸🇮',sb:'🇸🇧',za:'🇿🇦',es:'🇪🇸',lk:'🇱🇰',sr:'🇸🇷',sz:'🇸🇿',se:'🇸🇪',ch:'🇨🇭',tw:'🇹🇼',
+  tj:'🇹🇯',tz:'🇹🇿',th:'🇹🇭',tt:'🇹🇹',tg:'🇹🇬',tn:'🇹🇳',tm:'🇹🇲',ug:'🇺🇬',uy:'🇺🇾',us:'🇺🇸',
+  uz:'🇺🇿',ve:'🇻🇪',vn:'🇻🇳',zm:'🇿🇲'
+};
 
 const initialOtpServices = [
   { id: 'srv-whatsapp', name: 'WhatsApp', emoji: '💬', priceNgn: 800, priceUsd: 1.0 },
@@ -232,7 +253,7 @@ export const AppProvider = ({ children }) => {
   // Profit Markup rate state
   const [profitMarkup, setProfitMarkup] = useState(() => {
     const saved = localStorage.getItem('zp_profit_markup');
-    return saved ? JSON.parse(saved) : { subs: 30, otp: 50, esim: 40, smm: 50 };
+    return saved ? JSON.parse(saved) : { subs: 30, otp: 30, esim: 40, smm: 50 };
   });
 
   const [exchangeRate, setExchangeRate] = useState(() => {
@@ -529,6 +550,38 @@ export const AppProvider = ({ children }) => {
       fetchSmmServices();
     }
   }, [isLoggedIn, profitMarkup.smm]);
+
+  // Dynamically fetch all countries supported by 5sim (Server 1)
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const fetchServer1Countries = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('sms-gateway', {
+          body: { action: 'get_countries' }
+        });
+        if (error || !data || !data.status) return;
+        const raw = data.data; // object keyed by 5sim slug
+        const list = Object.entries(raw)
+          .map(([slug, info]) => {
+            const isoCode = Object.keys(info.iso || {})[0] || '';
+            const dialPrefix = Object.keys(info.prefix || {})[0] || '';
+            return {
+              id: isoCode || slug,
+              name: info.text_en || slug,
+              flag: ISO_FLAGS[isoCode] || '🌐',
+              code: dialPrefix,
+              fivesimSlug: slug
+            };
+          })
+          .filter(c => c.id) // drop entries with no ISO code
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setCountries(list);
+      } catch (err) {
+        console.error('Failed to fetch 5sim countries:', err);
+      }
+    };
+    fetchServer1Countries();
+  }, [isLoggedIn]);
 
 
   // Sync state with Supabase in Realtime when user logs in
@@ -1052,21 +1105,11 @@ export const AppProvider = ({ children }) => {
     }
 
     try {
-      const countryMap = {
-        us: 'usa',
-        gb: 'england',
-        ng: 'nigeria',
-        ca: 'canada',
-        za: 'southafrica',
-        de: 'germany',
-        fr: 'france',
-        in: 'india',
-        ru: 'russia',
-        br: 'brazil'
-      };
-      
       const cleanService = service.id.replace('srv-', '').toLowerCase();
-      const cleanCountry = countryMap[country.id] || country.name.toLowerCase().replace(/\s/g, '');
+      // Use fivesimSlug stored on the country object (populated from the API);
+      // fall back to a simple slug derived from the country name.
+      const cleanCountry = country.fivesimSlug
+        || country.name.toLowerCase().replace(/\s+/g, '');
 
       // Invoke Supabase Edge Function to buy number from 5SIM
       const { data, error } = await supabase.functions.invoke('sms-gateway', {
@@ -1146,19 +1189,9 @@ export const AppProvider = ({ children }) => {
   };
 
   const fetchOtpServicesForCountry = async (countryId) => {
-    const countryMap = {
-      us: 'usa',
-      gb: 'england',
-      ng: 'nigeria',
-      ca: 'canada',
-      za: 'southafrica',
-      de: 'germany',
-      fr: 'france',
-      in: 'india',
-      ru: 'russia',
-      br: 'brazil'
-    };
-    const cleanCountry = countryMap[countryId] || 'usa';
+    // Use the fivesimSlug stored on the country object (populated from the live API)
+    const countryObj = countries.find(c => c.id === countryId);
+    const cleanCountry = countryObj?.fivesimSlug || countryId || 'usa';
 
     try {
       const cacheKey = `zp_otp_services_${cleanCountry}`;

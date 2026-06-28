@@ -166,6 +166,21 @@ serve(async (req) => {
       throw new Error('FIVESIM_API_KEY is not configured on the backend')
     }
 
+    if (action === 'get_countries') {
+      // Public endpoint — no API key required
+      const resp = await fetch('https://5sim.net/v1/guest/countries', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      })
+      const text = await resp.text()
+      let result
+      try { result = JSON.parse(text) } catch { throw new Error(text) }
+      return new Response(JSON.stringify({ status: true, data: result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     let url = ''
     if (action === 'buy') {
       const { country, service } = requestBody
