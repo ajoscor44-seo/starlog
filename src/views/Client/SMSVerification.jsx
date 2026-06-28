@@ -433,22 +433,25 @@ const SMSVerification = () => {
                   />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
-                  {filteredCountries.map(c => (
-                    <div
-                      key={c.id}
-                      onClick={() => { setSelectedCountry(c.id); setStep(2); }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                        border: `1px solid ${selectedCountry === c.id ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
-                        background: selectedCountry === c.id ? 'rgba(0,242,254,0.08)' : 'rgba(255,255,255,0.02)',
-                        color: selectedCountry === c.id ? 'var(--color-turquoise)' : 'var(--text-primary)',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <span style={{ fontSize: 20 }}>{c.flag}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
-                    </div>
-                  ))}
+                  {filteredCountries.map(c => {
+                    const countryId = c.id || c.ID;
+                    return (
+                      <div
+                        key={countryId}
+                        onClick={() => { setSelectedCountry(countryId); setStep(2); }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                          border: `1px solid ${selectedCountry === countryId ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                          background: selectedCountry === countryId ? 'rgba(0,242,254,0.08)' : 'rgba(255,255,255,0.02)',
+                          color: selectedCountry === countryId ? 'var(--color-turquoise)' : 'var(--text-primary)',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>{c.flag}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -477,26 +480,29 @@ const SMSVerification = () => {
                     </div>
                   ) : filteredServices.length === 0 ? (
                     <div style={{ padding: '30px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>No matching services found.</div>
-                  ) : filteredServices.map(s => (
-                    <div
-                      key={s.id}
-                      onClick={() => setSelectedService(s.id)}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
-                        border: `1px solid ${selectedService === s.id ? 'var(--color-pink)' : 'var(--border-color)'}`,
-                        background: selectedService === s.id ? 'rgba(255,0,127,0.07)' : 'rgba(255,255,255,0.02)',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {serviceLogoMap[s.id] ? React.cloneElement(serviceLogoMap[s.id], { style: { width: '22px', height: '22px', flexShrink: 0 } }) : <span style={{ fontSize: 22 }}>{s.emoji}</span>}
+                  ) : filteredServices.map(s => {
+                    const serviceId = s.id || s.ID;
+                    return (
+                      <div
+                        key={serviceId}
+                        onClick={() => setSelectedService(serviceId)}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
+                          border: `1px solid ${selectedService === serviceId ? 'var(--color-pink)' : 'var(--border-color)'}`,
+                          background: selectedService === serviceId ? 'rgba(255,0,127,0.07)' : 'rgba(255,255,255,0.02)',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {serviceLogoMap[serviceId] ? React.cloneElement(serviceLogoMap[serviceId], { style: { width: '22px', height: '22px', flexShrink: 0 } }) : <span style={{ fontSize: 22 }}>{s.emoji}</span>}
+                          </div>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: selectedService === serviceId ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{s.name}</span>
                         </div>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: selectedService === s.id ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{s.name}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-turquoise)' }}>{formatCost(s.priceNgn)}</span>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-turquoise)' }}>{formatCost(s.priceNgn)}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -511,8 +517,8 @@ const SMSVerification = () => {
                 <span>Service:</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--text-primary)' }}>
                   <div style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {selectedServiceObj && serviceLogoMap[selectedServiceObj.id] 
-                      ? React.cloneElement(serviceLogoMap[selectedServiceObj.id], { style: { width: '16px', height: '16px', flexShrink: 0 } }) 
+                    {selectedServiceObj && serviceLogoMap[selectedServiceObj.id || selectedServiceObj.ID] 
+                      ? React.cloneElement(serviceLogoMap[selectedServiceObj.id || selectedServiceObj.ID], { style: { width: '16px', height: '16px', flexShrink: 0 } }) 
                       : (selectedServiceObj?.emoji && <span style={{ fontSize: 16 }}>{selectedServiceObj.emoji}</span>)}
                   </div>
                   <span>{selectedServiceObj?.name}</span>
@@ -634,12 +640,15 @@ const SMSVerification = () => {
                   <input type="text" placeholder="Search country..." value={searchCountry} onChange={e => setSearchCountry(e.target.value)} style={{ padding: '4px 8px', fontSize: 12, width: 150, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)' }} />
                 </div>
                 <div className="country-list-grid">
-                  {filteredCountries.map(c => (
-                    <div key={c.id} className={`country-item ${selectedCountry === c.id ? 'selected' : ''}`} onClick={() => setSelectedCountry(c.id)}>
-                      <span className="country-flag">{c.flag}</span>
-                      <span>{c.name}</span>
-                    </div>
-                  ))}
+                  {filteredCountries.map(c => {
+                    const countryId = c.id || c.ID;
+                    return (
+                      <div key={countryId} className={`country-item ${selectedCountry === countryId ? 'selected' : ''}`} onClick={() => setSelectedCountry(countryId)}>
+                        <span className="country-flag">{c.flag}</span>
+                        <span>{c.name}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <div>
@@ -656,17 +665,20 @@ const SMSVerification = () => {
                   ) : filteredServices.length === 0 ? (
                     <div style={{ padding: '20px', color: 'var(--text-secondary)', textAlign: 'center', gridColumn: '1 / -1' }}>No matching services found.</div>
                   ) : (
-                    filteredServices.map(s => (
-                      <div key={s.id} className={`service-item ${selectedService === s.id ? 'selected' : ''}`} onClick={() => setSelectedService(s.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {serviceLogoMap[s.id] ? React.cloneElement(serviceLogoMap[s.id], { style: { width: '20px', height: '20px', flexShrink: 0 } }) : (s.emoji && <span style={{ fontSize: 20 }}>{s.emoji}</span>)}
+                    filteredServices.map(s => {
+                      const serviceId = s.id || s.ID;
+                      return (
+                        <div key={serviceId} className={`service-item ${selectedService === serviceId ? 'selected' : ''}`} onClick={() => setSelectedService(serviceId)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {serviceLogoMap[serviceId] ? React.cloneElement(serviceLogoMap[serviceId], { style: { width: '20px', height: '20px', flexShrink: 0 } }) : (s.emoji && <span style={{ fontSize: 20 }}>{s.emoji}</span>)}
+                          </div>
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <span className="service-name" style={{ fontSize: '13px' }}>{s.name}</span>
+                            <span className="service-price" style={{ fontSize: '11px' }}>{formatCost(s.priceNgn)}</span>
+                          </div>
                         </div>
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                          <span className="service-name" style={{ fontSize: '13px' }}>{s.name}</span>
-                          <span className="service-price" style={{ fontSize: '11px' }}>{formatCost(s.priceNgn)}</span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
