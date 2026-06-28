@@ -20,14 +20,25 @@ alter table public.profiles add column if not exists api_key text;
 -- Enable Row Level Security (RLS) on profiles
 alter table public.profiles enable row level security;
 
+-- Helper function to check if a user is an administrator without causing infinite recursion
+create or replace function public.is_admin(user_id uuid)
+returns boolean as $$
+begin
+    return exists (
+        select 1 from public.profiles
+        where id = user_id and is_admin = true
+    );
+end;
+$$ language plpgsql security definer;
+
 -- Set up RLS Policies
 drop policy if exists "Profiles are viewable by owner." on public.profiles;
-create policy "Profiles are viewable by owner." on public.profiles
-  for select using (auth.uid() = id);
+create policy "Profiles are viewable by owner or admin can read all" on public.profiles
+  for select using (auth.uid() = id or public.is_admin(auth.uid()));
 
 drop policy if exists "Users can update their own profile." on public.profiles;
-create policy "Users can update their own profile." on public.profiles
-  for update using (auth.uid() = id);
+create policy "Users can update their own profile or admin can update all" on public.profiles
+  for update using (auth.uid() = id or public.is_admin(auth.uid()));
 
 -- Create a table for system configurations (rates, markup)
 create table if not exists public.system_config (
@@ -124,8 +135,8 @@ alter table public.transactions enable row level security;
 
 -- Set up RLS Policies
 drop policy if exists "Users can view their own virtual wallets." on public.virtual_wallets;
-create policy "Users can view their own virtual wallets." on public.virtual_wallets
-  for select using (auth.uid() = user_id);
+create policy "Users can view their own virtual wallets or admin can view all" on public.virtual_wallets
+  for select using (auth.uid() = user_id or public.is_admin(auth.uid()));
 
 drop policy if exists "Users can insert their own virtual wallets." on public.virtual_wallets;
 create policy "Users can insert their own virtual wallets." on public.virtual_wallets
@@ -136,8 +147,8 @@ create policy "Users can update their own virtual wallets." on public.virtual_wa
   for update using (auth.uid() = user_id);
 
 drop policy if exists "Users can view their own transactions." on public.transactions;
-create policy "Users can view their own transactions." on public.transactions
-  for select using (auth.uid() = user_id);
+create policy "Users can view their own transactions or admin can view all" on public.transactions
+  for select using (auth.uid() = user_id or public.is_admin(auth.uid()));
 
 -- Create a function to process user purchases securely and atomically via RPC
 drop function if exists public.process_purchase(uuid, numeric, text, text);
