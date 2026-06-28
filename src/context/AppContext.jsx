@@ -1059,6 +1059,41 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const createOtpOrderInDB = async (newOtp) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase.from('otp_orders').insert({
+        id: newOtp.id,
+        user_id: user.id,
+        phone_number: newOtp.phoneNumber,
+        server: newOtp.server,
+        service: newOtp.service,
+        price_ngn: newOtp.priceNgn,
+        status: newOtp.status,
+        created_at: new Date().toISOString()
+      });
+      if (error) console.error("Error inserting OTP order in DB:", error);
+    } catch (e) {
+      console.error("Failed to insert OTP order:", e);
+    }
+  };
+
+  const updateOtpOrderStatusInDB = async (otpId, status, otpCode = null, smsText = null) => {
+    try {
+      const updateData = { status };
+      if (otpCode !== null) updateData.otp_code = otpCode;
+      if (smsText !== null) updateData.sms_text = smsText;
+      
+      const { error } = await supabase
+        .from('otp_orders')
+        .update(updateData)
+        .eq('id', otpId);
+      if (error) console.error("Error updating OTP order in DB:", error);
+    } catch (e) {
+      console.error("Failed to update OTP order in DB:", e);
+    }
+  };
+
   const requestOtpNumber = async (countryId, serviceId, dynamicServiceObj = null, server = 'server1') => {
     if (server === 'server3') {
       const priceRes = await fetchTextVerifiedPrice(serviceId);
@@ -1102,6 +1137,7 @@ export const AppProvider = ({ children }) => {
         };
 
         setActiveOtps(prev => [newOtp, ...prev]);
+        createOtpOrderInDB(newOtp);
         return { success: true, otp: newOtp };
 
       } catch (e) {
@@ -1153,6 +1189,7 @@ export const AppProvider = ({ children }) => {
         };
 
         setActiveOtps(prev => [newOtp, ...prev]);
+        createOtpOrderInDB(newOtp);
         return { success: true, otp: newOtp };
 
       } catch (e) {
@@ -1210,6 +1247,7 @@ export const AppProvider = ({ children }) => {
         };
 
         setActiveOtps(prev => [newOtp, ...prev]);
+        createOtpOrderInDB(newOtp);
         return { success: true, otp: newOtp };
 
       } catch (e) {
@@ -1268,6 +1306,7 @@ export const AppProvider = ({ children }) => {
       };
 
       setActiveOtps(prev => [newOtp, ...prev]);
+      createOtpOrderInDB(newOtp);
       return { success: true, otp: newOtp };
 
     } catch (e) {
@@ -1323,6 +1362,7 @@ export const AppProvider = ({ children }) => {
       return { success: false, msg: refundRes.error.message };
     }
 
+    updateOtpOrderStatusInDB(otpId, 'REFUNDED');
     setActiveOtps(prev => prev.map(o => o.id === otpId ? { ...o, status: 'REFUNDED' } : o));
     return { success: true };
   };
@@ -1454,6 +1494,7 @@ export const AppProvider = ({ children }) => {
 
       setActiveOtps(prev => [newOtp, ...prev]);
       setActiveSession(newOtp);
+      createOtpOrderInDB(newOtp);
       return { success: true, otp: newOtp };
 
     } catch (e) {
@@ -1946,6 +1987,7 @@ export const AppProvider = ({ children }) => {
       setActiveOtps(current => current.map(otp => {
         if (otp.status === 'PENDING' && Date.now() > otp.expiresAt) {
           refundOtpSession(otp);
+          updateOtpOrderStatusInDB(otp.id, 'EXPIRED');
           return { ...otp, status: 'EXPIRED' };
         }
         return otp;
@@ -1963,6 +2005,7 @@ export const AppProvider = ({ children }) => {
               const smsData = data.data;
               if (smsData.sms && smsData.sms.length > 0) {
                 const latestSms = smsData.sms[0];
+                updateOtpOrderStatusInDB(otp.id, 'COMPLETED', latestSms.code, latestSms.text);
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { 
                   ...o, 
                   status: 'COMPLETED', 
@@ -1971,6 +2014,7 @@ export const AppProvider = ({ children }) => {
                 } : o));
               } else if (smsData.status === 'CANCELED' || smsData.status === 'TIMEOUT' || smsData.status === 'BANNED') {
                 refundOtpSession(otp);
+                updateOtpOrderStatusInDB(otp.id, 'EXPIRED');
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
@@ -1991,6 +2035,7 @@ export const AppProvider = ({ children }) => {
             if (!error && data?.status && data?.data) {
               const resData = data.data;
               if (resData.status === 3 && resData.sms) { // Status 3 means SMS received in SMSPool
+                updateOtpOrderStatusInDB(otp.id, 'COMPLETED', resData.sms, resData.full_sms || resData.sms);
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { 
                   ...o, 
                   status: 'COMPLETED', 
@@ -1999,6 +2044,7 @@ export const AppProvider = ({ children }) => {
                 } : o));
               } else if (resData.status === 6) { // Order Cancelled/Refunded by SMSPool
                  refundOtpSession(otp);
+                 updateOtpOrderStatusInDB(otp.id, 'EXPIRED');
                  setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
@@ -2019,6 +2065,7 @@ export const AppProvider = ({ children }) => {
             if (!error && data?.status && data?.data) {
               const resData = data.data;
               if (resData.status === 'COMPLETED' && resData.otpCode) {
+                updateOtpOrderStatusInDB(otp.id, 'COMPLETED', resData.otpCode, resData.smsText);
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { 
                   ...o, 
                   status: 'COMPLETED', 
@@ -2027,6 +2074,7 @@ export const AppProvider = ({ children }) => {
                 } : o));
               } else if (resData.status === 'FAILED') {
                 refundOtpSession(otp);
+                updateOtpOrderStatusInDB(otp.id, 'EXPIRED');
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
@@ -2047,6 +2095,7 @@ export const AppProvider = ({ children }) => {
             if (!error && data?.status && data?.data) {
               const resData = data.data;
               if (resData.status === 'COMPLETED' && resData.otpCode) {
+                updateOtpOrderStatusInDB(otp.id, 'COMPLETED', resData.otpCode, resData.smsText);
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { 
                   ...o, 
                   status: 'COMPLETED', 
@@ -2055,6 +2104,7 @@ export const AppProvider = ({ children }) => {
                 } : o));
               } else if (resData.status === 'FAILED') {
                 refundOtpSession(otp);
+                updateOtpOrderStatusInDB(otp.id, 'EXPIRED');
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
@@ -2288,6 +2338,20 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const adminFetchAllOtpOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('otp_orders')
+        .select('id, phone_number, server, service, price_ngn, status, otp_code, sms_text, created_at, user_id, profiles(full_name, phone)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error("Failed to fetch OTP orders directly:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
   const adminUpdateSystemConfig = async (id, value) => {
     try {
       const { data, error } = await supabase.functions.invoke('sms-gateway', {
@@ -2468,6 +2532,7 @@ export const AppProvider = ({ children }) => {
       adminFetchAllProfiles,
       adminUpdateSystemConfig,
       adminUpdateProfile,
+      adminFetchAllOtpOrders,
       fetchSocialMediaLogs,
       buySocialMediaLog,
       checkSocialMediaLogStatus,

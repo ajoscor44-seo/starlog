@@ -35,7 +35,8 @@ const AdminDashboard = () => {
     adminFetchAllTransactions,
     adminFetchAllProfiles,
     adminUpdateSystemConfig,
-    adminUpdateProfile
+    adminUpdateProfile,
+    adminFetchAllOtpOrders
   } = useContext(AppContext);
 
   const isMobile = useIsMobile();
@@ -52,6 +53,7 @@ const AdminDashboard = () => {
   // Database-synced states
   const [dbProfiles, setDbProfiles] = useState([]);
   const [dbTransactions, setDbTransactions] = useState([]);
+  const [dbOtpOrders, setDbOtpOrders] = useState([]);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
 
   const fetchAdminData = async () => {
@@ -64,6 +66,10 @@ const AdminDashboard = () => {
       const txRes = await adminFetchAllTransactions();
       if (txRes.success) {
         setDbTransactions(txRes.data);
+      }
+      const otpOrdersRes = await adminFetchAllOtpOrders();
+      if (otpOrdersRes.success) {
+        setDbOtpOrders(otpOrdersRes.data);
       }
     } catch (e) {
       console.error("Failed to load admin db data:", e);
@@ -147,7 +153,15 @@ const AdminDashboard = () => {
   const [searchTx, setSearchTx] = useState('');
   const [filterTxType, setFilterTxType] = useState('ALL');
 
+  // OTP Orders Logs state
+  const [otpPage, setOtpPage] = useState(1);
+  const OTP_PER_PAGE = 20;
+  const [searchOtp, setSearchOtp] = useState('');
+  const [filterOtpServer, setFilterOtpServer] = useState('ALL');
+  const [filterOtpStatus, setFilterOtpStatus] = useState('ALL');
+
   useEffect(() => { setTxPage(1); }, [searchTx, filterTxType]);
+  useEffect(() => { setOtpPage(1); }, [searchOtp, filterOtpServer, filterOtpStatus]);
 
   const allTransactions = [
     ...(dbTransactions || []).map(t => ({
@@ -363,6 +377,9 @@ const AdminDashboard = () => {
         </button>
         <button className={`tab-btn ${adminTab === 'transactions' ? 'active' : ''}`} onClick={() => setAdminTab('transactions')}>
           <List size={16} style={{ marginRight: '6px' }} /> Transaction Logs
+        </button>
+        <button className={`tab-btn ${adminTab === 'otp_orders' ? 'active' : ''}`} onClick={() => setAdminTab('otp_orders')}>
+          <FileText size={16} style={{ marginRight: '6px' }} /> OTP Orders
         </button>
         <button className={`tab-btn ${adminTab === 'rates' ? 'active' : ''}`} onClick={() => setAdminTab('rates')}>
           <Settings size={16} style={{ marginRight: '6px' }} /> Rates & Config
@@ -960,7 +977,172 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Tab Panel: RATES & CONFIG */}
+      {/* Tab Panel: OTP ORDERS */}
+      {adminTab === 'otp_orders' && (
+        <div className="glass-panel animate-slide-in">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '16px', flexDirection: isMobile ? 'column' : 'row' }}>
+            <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={18} style={{ color: 'var(--color-pink)' }} /> OTP Number Orders Log
+            </h3>
+
+            {/* Filter controls */}
+            <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
+              <select className="form-select" style={{ fontSize: '13px', padding: '6px 12px' }} value={filterOtpServer} onChange={(e) => setFilterOtpServer(e.target.value)}>
+                <option value="ALL">All Servers</option>
+                <option value="server1">Server 1 (5SIM)</option>
+                <option value="server2">Server 2 (SMSPool)</option>
+                <option value="server3">Server 3 (Textverified)</option>
+                <option value="server4">Server 4 (HeroSMS)</option>
+              </select>
+
+              <select className="form-select" style={{ fontSize: '13px', padding: '6px 12px' }} value={filterOtpStatus} onChange={(e) => setFilterOtpStatus(e.target.value)}>
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">PENDING</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="EXPIRED">EXPIRED</option>
+                <option value="REFUNDED">REFUNDED</option>
+              </select>
+              
+              <div style={{ position: 'relative', width: isMobile ? '100%' : '180px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="Search number/user..." 
+                  style={{ paddingLeft: '28px', fontSize: '13px', height: '34px' }} 
+                  value={searchOtp} 
+                  onChange={(e) => setSearchOtp(e.target.value)} 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="custom-table-container">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Client</th>
+                  <th>Timestamp</th>
+                  <th>Server</th>
+                  <th>Platform</th>
+                  <th>Number</th>
+                  <th>Cost</th>
+                  <th>Code Given</th>
+                  <th>SMS Text</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const filtered = (dbOtpOrders || [])
+                    .filter(order => filterOtpServer === 'ALL' || order.server === filterOtpServer)
+                    .filter(order => filterOtpStatus === 'ALL' || order.status === filterOtpStatus)
+                    .filter(order => {
+                      const q = searchOtp.toLowerCase();
+                      const clientName = order.profiles?.full_name || 'N/A';
+                      const clientPhone = order.profiles?.phone || 'N/A';
+                      return (
+                        order.id.toLowerCase().includes(q) ||
+                        order.phone_number.includes(q) ||
+                        order.service.toLowerCase().includes(q) ||
+                        clientName.toLowerCase().includes(q) ||
+                        clientPhone.toLowerCase().includes(q)
+                      );
+                    });
+                  
+                  const totalPages = Math.max(1, Math.ceil(filtered.length / OTP_PER_PAGE));
+                  const paginated = filtered.slice((otpPage - 1) * OTP_PER_PAGE, otpPage * OTP_PER_PAGE);
+                  
+                  const serverNames = {
+                    server1: 'Server 1',
+                    server2: 'Server 2',
+                    server3: 'Server 3',
+                    server4: 'Server 4'
+                  };
+
+                  if (paginated.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan="10" style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-secondary)' }}>
+                          No OTP number orders found.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {paginated.map((order) => (
+                        <tr key={order.id}>
+                          <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{order.id}</td>
+                          <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span>{order.profiles?.full_name || 'N/A'}</span>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{order.profiles?.phone || 'N/A'}</span>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '12px' }}>{new Date(order.created_at).toLocaleString()}</td>
+                          <td style={{ fontSize: '13px', fontWeight: '500' }}>{serverNames[order.server] || order.server}</td>
+                          <td style={{ fontSize: '13px', fontWeight: '600' }}>{order.service}</td>
+                          <td style={{ fontFamily: 'var(--mono)', fontWeight: '700', color: 'var(--text-primary)' }}>{order.phone_number}</td>
+                          <td style={{ fontFamily: 'var(--font-heading)', fontWeight: '700' }}>{formatCost(order.price_ngn)}</td>
+                          <td style={{ fontFamily: 'var(--mono)', fontSize: '14px', fontWeight: '800', color: 'var(--color-green)' }}>
+                            {order.otp_code || <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'normal' }}>-</span>}
+                          </td>
+                          <td style={{ fontSize: '12px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.sms_text || ''}>
+                            {order.sms_text || <span style={{ color: 'var(--text-muted)' }}>No SMS yet</span>}
+                          </td>
+                          <td>
+                            <span className={`badge ${
+                              order.status === 'COMPLETED' ? 'badge-success' : 
+                              order.status === 'PENDING' ? 'badge-warning' : 'badge-danger'
+                            }`} style={{ fontSize: '9px' }}>
+                              {order.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      
+                      {/* Pagination Footer */}
+                      {totalPages > 1 && (
+                        <tr>
+                          <td colSpan="10" style={{ padding: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px 10px', fontSize: '12px' }}
+                                disabled={otpPage === 1}
+                                onClick={() => setOtpPage(prev => Math.max(1, prev - 1))}
+                              >
+                                Prev
+                              </button>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                Page {otpPage} of {totalPages}
+                              </span>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px 10px', fontSize: '12px' }}
+                                disabled={otpPage === totalPages}
+                                onClick={() => setOtpPage(prev => Math.min(totalPages, prev + 1))}
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Panel: CARRIER ROUTING (formerly SMS Tools) */}
       {adminTab === 'rates' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Global Exchange Rate */}

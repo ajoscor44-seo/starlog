@@ -269,3 +269,33 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.virtual_wallets;
   END IF;
 END $$;
+
+-- Create OTP Orders Table
+CREATE TABLE IF NOT EXISTS public.otp_orders (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    phone_number TEXT NOT NULL,
+    server TEXT NOT NULL,
+    service TEXT NOT NULL,
+    price_ngn NUMERIC(15, 2) NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    otp_code TEXT,
+    sms_text TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE public.otp_orders ENABLE ROW LEVEL SECURITY;
+
+-- OTP Orders Policies
+DROP POLICY IF EXISTS "Users can view own otp_orders" ON public.otp_orders;
+CREATE POLICY "Users can view own otp_orders or admin can read all" ON public.otp_orders
+    FOR SELECT USING (auth.uid() = user_id OR public.is_admin(auth.uid()));
+
+DROP POLICY IF EXISTS "Users can insert own otp_orders" ON public.otp_orders;
+CREATE POLICY "Users can insert own otp_orders" ON public.otp_orders
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users/Admins can update otp_orders" ON public.otp_orders;
+CREATE POLICY "Users/Admins can update otp_orders" ON public.otp_orders
+    FOR UPDATE USING (auth.uid() = user_id OR public.is_admin(auth.uid()));
