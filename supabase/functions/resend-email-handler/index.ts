@@ -57,6 +57,47 @@ const generateFundingEmail = (amount, newBalance, reference) => `
 </div>
 `;
 
+const generateAdminFundingEmail = (userProfile: any, amount: any, method: any, reference: any) => `
+<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0a18; color: #fff; padding: 30px; border-radius: 12px; border: 1px solid #2d1a45;">
+  <div style="text-align: center; margin-bottom: 20px;">
+    <h1 style="color: #ab47fc; margin: 0; font-size: 24px;">New Deposit Received 💰</h1>
+  </div>
+  <p style="font-size: 16px; color: #e2e8f0;">Hello Admin,</p>
+  <p style="font-size: 16px; color: #e2e8f0; line-height: 1.6;">
+    A user has successfully funded their wallet. Below are the transaction details:
+  </p>
+  
+  <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.1);">User:</td>
+        <td style="padding: 8px 0; color: #fff; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: bold;">
+          ${userProfile.full_name || userProfile.username || 'N/A'} (${userProfile.email || 'No email'})
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.1);">Amount:</td>
+        <td style="padding: 8px 0; color: #3bb75e; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: bold;">
+          ₦${Number(amount).toLocaleString()}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.1);">Funding Method:</td>
+        <td style="padding: 8px 0; color: #fff; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.1);">${method}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #94a3b8;">Transaction ID:</td>
+        <td style="padding: 8px 0; color: #94a3b8; text-align: right;">${reference}</td>
+      </tr>
+    </table>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="https://discountzar.ng/dashboard/admin" style="background: linear-gradient(90deg, #9333ea 0%, #ab47fc 100%); color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Admin Console</a>
+  </div>
+</div>
+`;
+
 const formatDetailsForEmail = (details: any): string => {
   if (!details) return "";
   
@@ -173,6 +214,44 @@ serve(async (req) => {
         recipientEmail = profile.email;
         emailSubject = "Wallet Funded Successfully - DiscountZar";
         emailHtml = generateFundingEmail(record.amount, 0, record.id);
+
+        // Also notify admins if this is a real deposit (not a refund or welcome bonus)
+        const isRefund = record.method?.toLowerCase().includes("refund");
+        const isBonus = record.method?.toLowerCase().includes("bonus");
+
+        if (!isRefund && !isBonus) {
+          try {
+            // Fetch admins
+            const { data: admins } = await supabase
+              .from("profiles")
+              .select("email")
+              .eq("is_admin", true);
+
+            const adminEmails = admins?.map(a => a.email).filter(Boolean) || [];
+
+            if (adminEmails.length > 0) {
+              console.log("Notifying admins of deposit:", adminEmails);
+              const adminEmailHtml = generateAdminFundingEmail(profile, record.amount, record.method, record.id);
+
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${RESEND_API_KEY}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  from: `DiscountZar <${SENDER_EMAIL}>`,
+                  to: adminEmails,
+                  subject: `[Admin Alert] User Wallet Funded: ₦${Number(record.amount).toLocaleString()}`,
+                  html: adminEmailHtml
+                })
+              });
+            }
+          } catch (adminErr) {
+            console.error("Failed to notify admins of deposit:", adminErr);
+            // Don't throw so the main flow isn't blocked
+          }
+        }
       }
     } else if (["social_media_orders"].includes(table)) {
       // Order Notification Email
