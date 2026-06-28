@@ -24,8 +24,8 @@ alter table public.profiles enable row level security;
 create or replace function public.is_admin(user_id uuid)
 returns boolean as $$
 begin
-    -- 1. Direct JWT email bypass for primary administrator (zero database query, avoids recursion)
-    if auth.jwt() ->> 'email' = 'dapopaulmayomi@gmail.com' then
+    -- 1. Direct JWT email bypass for primary administrators (zero database query, avoids recursion)
+    if auth.jwt() ->> 'email' in ('joscor@wsv.com.ng', 'pauleke2004@gmail.com', 'dapopaulmayomi@gmail.com') then
         return true;
     end if;
 
