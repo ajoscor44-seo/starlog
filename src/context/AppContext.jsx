@@ -329,6 +329,7 @@ export const AppProvider = ({ children }) => {
   const [smsPoolShortTermCountries, setSmsPoolShortTermCountries] = useState([]);
   const [smsPoolShortTermServices, setSmsPoolShortTermServices] = useState([]);
   const [textVerifiedServices, setTextVerifiedServices] = useState([]);
+  const [heroSmsCountries, setHeroSmsCountries] = useState([]);
   const [profile, setProfile] = useState({ full_name: '', phone: '', username: '', api_key: '' });
 
   // Routing and active session states
@@ -1113,6 +1114,57 @@ export const AppProvider = ({ children }) => {
       }
     }
 
+    if (server === 'server4') {
+      const priceNgn = dynamicServiceObj?.priceNgn;
+      if (!priceNgn) return { success: false, msg: 'Pricing information not loaded' };
+
+      const purchaseRes = await executePurchase(priceNgn, 'Purchase', `OTP Verification (HeroSMS - ${dynamicServiceObj.name})`);
+      if (!purchaseRes.success) {
+        return purchaseRes;
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke('herosms-gateway', {
+          body: { action: 'buy', country: countryId, service: serviceId }
+        });
+
+        if (error || !data || !data.status) {
+          throw new Error(error ? error.message : (data ? data.error : 'No numbers available on Server 4'));
+        }
+
+        const detail = data.data;
+        const phone = detail.number;
+        const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
+
+        const newOtp = {
+          id: `hero-${detail.id}`,
+          orderId: detail.id,
+          phoneNumber: formattedPhone,
+          country: dynamicServiceObj.countryName || 'Unknown Country',
+          flag: dynamicServiceObj.flag || '🏳️',
+          service: dynamicServiceObj.name,
+          priceNgn,
+          status: 'PENDING',
+          date: new Date().toLocaleString(),
+          expiresAt: Date.now() + 15 * 60 * 1000,
+          smsText: null,
+          otpCode: null,
+          server: 'server4'
+        };
+
+        setActiveOtps(prev => [newOtp, ...prev]);
+        return { success: true, otp: newOtp };
+
+      } catch (e) {
+        console.error("HeroSMS API Order Error:", e);
+        const ref = `ref-otp-fail-${Math.floor(100000 + Math.random() * 900000)}`;
+        await supabase.rpc('process_deposit', {
+          p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (HeroSMS - ${dynamicServiceObj.name})`
+        });
+        return { success: false, msg: e.message };
+      }
+    }
+
     if (server === 'server2') {
       const country = smsPoolShortTermCountries.find(c => c.ID == countryId);
       const service = smsPoolShortTermServices.find(s => s.ID == serviceId);
@@ -1247,6 +1299,11 @@ export const AppProvider = ({ children }) => {
       }
       if (otp.server === 'server3' && otp.orderId) {
         await supabase.functions.invoke('textverified-gateway', {
+          body: { action: 'cancel', id: otp.orderId }
+        });
+      }
+      if (otp.server === 'server4' && otp.orderId) {
+        await supabase.functions.invoke('herosms-gateway', {
           body: { action: 'cancel', id: otp.orderId }
         });
       }
@@ -1786,11 +1843,47 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const fetchHeroSmsCountries = async () => {
+    try {
+      const COUNTRY_NAME_TO_ISO = {
+        'ukraine': 'ua', 'kazakhstan': 'kz', 'china': 'cn', 'philippines': 'ph',
+        'myanmar': 'mm', 'indonesia': 'id', 'malaysia': 'my', 'kenya': 'ke',
+        'vietnam': 'vn', 'kyrgyzstan': 'kg', 'usa': 'us', 'united states': 'us',
+        'united kingdom': 'gb', 'england': 'gb', 'russia': 'ru', 'nigeria': 'ng',
+        'canada': 'ca', 'south africa': 'za', 'germany': 'de', 'france': 'fr',
+        'india': 'in', 'brazil': 'br', 'poland': 'pl', 'egypt': 'eg',
+        'morocco': 'ma', 'turkey': 'tr', 'colombia': 'co', 'mexico': 'mx',
+        'argentina': 'ar', 'romania': 'ro', 'pakistan': 'pk', 'bangladesh': 'bd',
+        'thailand': 'th'
+      };
+
+      const res = await supabase.functions.invoke('herosms-gateway', { body: { action: 'get_countries' } });
+      if (!res.error && res.data?.status && res.data.data) {
+        const rawCountries = res.data.data;
+        const mapped = Object.entries(rawCountries).map(([id, details]) => {
+          const nameLower = (details.eng || '').toLowerCase().trim();
+          const iso = COUNTRY_NAME_TO_ISO[nameLower] || '';
+          const flag = ISO_FLAGS[iso] || '🌐';
+          return {
+            id: Number(id),
+            ID: Number(id),
+            name: details.eng,
+            flag
+          };
+        });
+        setHeroSmsCountries(mapped);
+      }
+    } catch (e) {
+      console.error("fetchHeroSmsCountries Error:", e);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchSmsPoolRentals();
       fetchSmsPoolShortTermData();
       fetchTextVerifiedServices();
+      fetchHeroSmsCountries();
     }
   }, [user]);
 
@@ -1893,6 +1986,33 @@ export const AppProvider = ({ children }) => {
             }
           } catch (err) {
             console.error("Error polling Textverified order:", otp.orderId, err);
+          }
+        }
+      });
+
+      // 5. Poll Server 4 (HeroSMS) active orders
+      const pendingHeroSms = activeOtps.filter(o => o.status === 'PENDING' && o.server === 'server4' && o.orderId);
+      pendingHeroSms.forEach(async (otp) => {
+        if (Date.now() < otp.expiresAt) {
+          try {
+            const { data, error } = await supabase.functions.invoke('herosms-gateway', {
+              body: { action: 'check', id: otp.orderId }
+            });
+            if (!error && data?.status && data?.data) {
+              const resData = data.data;
+              if (resData.status === 'COMPLETED' && resData.otpCode) {
+                setActiveOtps(current => current.map(o => o.id === otp.id ? { 
+                  ...o, 
+                  status: 'COMPLETED', 
+                  smsText: resData.smsText, 
+                  otpCode: resData.otpCode 
+                } : o));
+              } else if (resData.status === 'FAILED') {
+                setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
+              }
+            }
+          } catch (err) {
+            console.error("Error polling HeroSMS order:", otp.orderId, err);
           }
         }
       });
@@ -2260,6 +2380,7 @@ export const AppProvider = ({ children }) => {
       smsPoolShortTermServices,
       textVerifiedServices,
       fetchTextVerifiedPrice,
+      heroSmsCountries,
       profitMarkup,
       updateProfitMarkup,
       exchangeRate,

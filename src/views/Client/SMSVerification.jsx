@@ -82,6 +82,8 @@ const SMSVerification = () => {
     smsPoolShortTermServices,
     textVerifiedServices,
     fetchTextVerifiedPrice,
+    heroSmsCountries,
+    exchangeRate,
     profitMarkup
   } = useContext(AppContext);
   const isMobile = useIsMobile();
@@ -124,6 +126,66 @@ const SMSVerification = () => {
         } else {
           setSelectedService(null);
         }
+        return;
+      }
+
+      if (server === 'server4') {
+        if (!selectedCountry) return;
+        setIsLoadingServices(true);
+        try {
+          const res = await supabase.functions.invoke('herosms-gateway', {
+            body: { action: 'get_prices', country: selectedCountry }
+          });
+          if (!res.error && res.data?.status && res.data.data) {
+            const pricing = res.data.data[selectedCountry] || res.data.data || {};
+            
+            const HERO_SERVICE_MAPPING = {
+              'srv-whatsapp': 'wa',
+              'srv-telegram': 'tg',
+              'srv-google': 'go',
+              'srv-openai': 'dr',
+              'srv-facebook': 'fb',
+              'srv-instagram': 'ig',
+              'srv-tiktok': 'lf',
+              'srv-netflix': 'nf',
+              'srv-discord': 'ds',
+              'srv-twitter': 'tw',
+              'srv-microsoft': 'mm',
+              'srv-apple': 'ap',
+              'srv-yahoo': 'mb',
+              'srv-steam': 'mt',
+              'srv-uber': 'ub'
+            };
+
+            const mapped = otpServices.map(s => {
+              const code = HERO_SERVICE_MAPPING[s.id];
+              const costData = pricing[code];
+              const costUsd = costData ? Number(costData.cost) : 0;
+              const count = costData ? Number(costData.count) : 0;
+              
+              const priceNgn = Math.round(costUsd * exchangeRate * (1 + (profitMarkup.otp / 100)));
+              return {
+                ...s,
+                priceNgn,
+                qty: count,
+                code
+              };
+            }).filter(s => s.qty > 0 && s.priceNgn > 0);
+
+            setDynamicServices(mapped);
+            if (mapped.length > 0) {
+              setSelectedService(mapped[0].code);
+            } else {
+              setSelectedService(null);
+            }
+          } else {
+            setDynamicServices([]);
+            setSelectedService(null);
+          }
+        } catch (e) {
+          console.error("HeroSMS dynamic pricing error:", e);
+        }
+        setIsLoadingServices(false);
         return;
       }
 
@@ -191,32 +253,37 @@ const SMSVerification = () => {
     } else if (server === 'server3') {
       setSelectedCountry('US');
       setStep(2);
+    } else if (server === 'server4') {
+      setSelectedCountry(heroSmsCountries[0]?.id || 1);
+      setStep(1);
     }
-  }, [server, countries, smsPoolShortTermCountries]);
+  }, [server, countries, smsPoolShortTermCountries, heroSmsCountries]);
 
-  const activeCountriesList = server === 'server1' ? countries : smsPoolShortTermCountries;
+  const activeCountriesList = server === 'server1' 
+    ? countries 
+    : (server === 'server2' ? smsPoolShortTermCountries : heroSmsCountries);
 
   const filteredCountries = activeCountriesList.filter(c =>
     (c.name || '').toLowerCase().includes(searchCountry.toLowerCase())
   );
 
-  const activeServicesList = server === 'server1' 
-    ? (dynamicServices.length > 0 ? dynamicServices : otpServices) 
+  const activeServicesList = (server === 'server1' || server === 'server4')
+    ? (dynamicServices.length > 0 ? dynamicServices : otpServices)
     : (server === 'server2' ? smsPoolDynamicServices : textVerifiedServices);
 
   const filteredServices = activeServicesList.filter(s => {
-    const name = s.description || s.name || s.serviceName || '';
+    const name = s.description || s.name || s.serviceName || s.code || '';
     return name.toLowerCase().includes(searchService.toLowerCase());
   });
 
   const selectedCountryObj = server === 'server3'
     ? { flag: '🇺🇸', name: 'United States', code: '1' }
-    : (server === 'server1' 
-       ? activeCountriesList.find(c => c.id === selectedCountry) 
+    : (server === 'server1' || server === 'server4'
+       ? activeCountriesList.find(c => c.id === selectedCountry)
        : activeCountriesList.find(c => c.ID === selectedCountry));
     
-  const selectedServiceObj = server === 'server1' 
-    ? (activeServicesList.find(s => s.id === selectedService) || activeServicesList[0])
+  const selectedServiceObj = (server === 'server1' || server === 'server4')
+    ? (activeServicesList.find(s => (server === 'server4' ? s.code : s.id) === selectedService) || activeServicesList[0])
     : (server === 'server2'
        ? (activeServicesList.find(s => s.ID === selectedService) || activeServicesList[0])
        : (activeServicesList.find(s => s.serviceName === selectedService) || activeServicesList[0]));
@@ -461,24 +528,30 @@ const SMSVerification = () => {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 4, marginBottom: 4 }}>
+            <div style={{ display: 'flex', gap: 10, marginTop: 4, marginBottom: 4, overflowX: 'auto', paddingBottom: 6 }}>
               <button 
                 onClick={() => setServer('server1')}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server1' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
+                style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 8, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server1' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
               >
                 Server 1 (Fast)
               </button>
               <button 
                 onClick={() => setServer('server2')}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server2' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server2' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
+                style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 8, border: `1px solid ${server === 'server2' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server2' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
               >
                 Server 2 (Success)
               </button>
               <button 
                 onClick={() => setServer('server3')}
-                style={{ flex: 1, padding: '10px', borderRadius: 8, border: `1px solid ${server === 'server3' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server3' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
+                style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 8, border: `1px solid ${server === 'server3' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server3' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
               >
                 Server 3 (US Only)
+              </button>
+              <button 
+                onClick={() => setServer('server4')}
+                style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 8, border: `1px solid ${server === 'server4' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server4' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
+              >
+                Server 4 (Stable)
               </button>
             </div>
 
@@ -720,10 +793,11 @@ const SMSVerification = () => {
             <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: 18, margin: 0 }}>Configure SMS OTP</h3>
-                <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.2)', padding: 4, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.2)', padding: 4, borderRadius: 8, border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
                   <button onClick={() => setServer('server1')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server1' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server1' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 1</button>
                   <button onClick={() => setServer('server2')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server2' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server2' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 2</button>
                   <button onClick={() => setServer('server3')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server3' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server3' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 3 (US Only)</button>
+                  <button onClick={() => setServer('server4')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server4' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server4' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 4 (Stable)</button>
                 </div>
               </div>
               {server !== 'server3' ? (
@@ -883,6 +957,7 @@ const SMSVerification = () => {
                               <span>{log.service}</span>
                               {log.server === 'server2' && <span className="badge" style={{ fontSize: 9, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)' }}>S2</span>}
                               {log.server === 'server3' && <span className="badge" style={{ fontSize: 9, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)' }}>S3</span>}
+                              {log.server === 'server4' && <span className="badge" style={{ fontSize: 9, background: 'rgba(57,255,20,0.15)', color: '#39FF14' }}>S4</span>}
                             </div>
                           </td>
                           <td>{log.flag} {log.country}</td>
