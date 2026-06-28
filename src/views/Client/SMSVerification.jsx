@@ -327,7 +327,7 @@ const SMSVerification = () => {
 
   const getSelectedServicePrice = () => {
     if (!selectedServiceObj) return 0;
-    if (server === 'server1' || server === 'server2') {
+    if (server === 'server1' || server === 'server2' || server === 'server4') {
       return selectedServiceObj.priceNgn || 0;
     }
     return tvPrices[selectedService] || 0;
@@ -542,7 +542,7 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 1</span>
-                    <span style={{ fontSize: 8, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>5SIM</span>
+                    <span style={{ fontSize: 8, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>FAST</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Fast dynamic lines</span>
                 </div>
@@ -559,7 +559,7 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 2</span>
-                    <span style={{ fontSize: 8, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>SMSPool</span>
+                    <span style={{ fontSize: 8, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>SUCCESS</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>High success rate</span>
                 </div>
@@ -576,7 +576,7 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3</span>
-                    <span style={{ fontSize: 8, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US SIM</span>
+                    <span style={{ fontSize: 8, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US ONLY</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Physical lines only</span>
                 </div>
@@ -593,7 +593,7 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
-                    <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>HeroSMS</span>
+                    <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>STABLE</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Stable gateways</span>
                 </div>
@@ -857,7 +857,7 @@ const SMSVerification = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 1 (5SIM)</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 1</span>
                       <span style={{ fontSize: 9, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>FAST</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>High availability & dynamic global coverage</span>
@@ -880,7 +880,7 @@ const SMSVerification = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 2 (SMSPool)</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 2</span>
                       <span style={{ fontSize: 9, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>SUCCESS</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Best success rates for secure apps (No WA)</span>
@@ -903,8 +903,8 @@ const SMSVerification = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3 (Textverified)</span>
-                      <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US SIM</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3</span>
+                      <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US ONLY</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Premium US physical non-VOIP real lines</span>
                   </div>
@@ -926,7 +926,7 @@ const SMSVerification = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4 (HeroSMS)</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
                       <span style={{ fontSize: 9, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>STABLE</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Reliable gateway and stable connections</span>
