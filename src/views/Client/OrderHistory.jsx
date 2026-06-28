@@ -173,11 +173,11 @@ const OrderHistory = () => {
           id: otp.id || `otp-${Math.random()}`,
           type: 'OTP',
           method: `SMS OTP — ${otp.service || ''}${otp.country ? ` (${otp.country})` : ''}`,
-          amountNgn: otp.costNgn || 0,
-          date: otp.purchasedAt || '—',
+          amountNgn: otp.costNgn || otp.priceNgn || 0,
+          date: otp.purchasedAt || otp.date || '—',
           status: otp.status || 'PENDING',
-          detail: otp.number ? `Number: ${otp.number}` : null,
-          rawDate: otp.purchasedAt,
+          detail: (otp.number || otp.phoneNumber) ? `Number: ${otp.number || otp.phoneNumber}` : null,
+          rawDate: otp.purchasedAt || otp.date,
           raw: otp,
         });
       }

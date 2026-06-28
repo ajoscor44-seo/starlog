@@ -37,7 +37,9 @@ const ReuseNumbers = () => {
     
     // Sort activeOtps by latest first
     const sorted = [...activeOtps].sort((a, b) => {
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      const timeA = new Date(a.date || a.timestamp || 0).getTime();
+      const timeB = new Date(b.date || b.timestamp || 0).getTime();
+      return timeB - timeA;
     });
 
     for (const otp of sorted) {
@@ -48,7 +50,7 @@ const ReuseNumbers = () => {
           service: otp.service,
           country: otp.country,
           flag: otp.flag,
-          timestamp: otp.timestamp
+          timestamp: otp.date || otp.timestamp || ''
         });
       }
     }
