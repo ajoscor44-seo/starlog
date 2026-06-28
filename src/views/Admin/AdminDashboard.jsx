@@ -62,14 +62,20 @@ const AdminDashboard = () => {
       const profilesRes = await adminFetchAllProfiles();
       if (profilesRes.success) {
         setDbProfiles(profilesRes.data);
+      } else {
+        console.error("AdminDashboard - Failed to fetch profiles:", profilesRes.msg);
       }
       const txRes = await adminFetchAllTransactions();
       if (txRes.success) {
         setDbTransactions(txRes.data);
+      } else {
+        console.error("AdminDashboard - Failed to fetch transactions:", txRes.msg);
       }
       const otpOrdersRes = await adminFetchAllOtpOrders();
       if (otpOrdersRes.success) {
         setDbOtpOrders(otpOrdersRes.data);
+      } else {
+        console.error("AdminDashboard - Failed to fetch OTP orders:", otpOrdersRes.msg);
       }
     } catch (e) {
       console.error("Failed to load admin db data:", e);

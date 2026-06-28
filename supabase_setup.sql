@@ -24,12 +24,21 @@ alter table public.profiles enable row level security;
 create or replace function public.is_admin(user_id uuid)
 returns boolean as $$
 begin
+    -- 1. Direct JWT email bypass for primary administrator (zero database query, avoids recursion)
+    if auth.jwt() ->> 'email' = 'dapopaulmayomi@gmail.com' then
+        return true;
+    end if;
+
+    -- 2. Fallback to checking the profiles table using table owner credentials (bypasses RLS)
     return exists (
         select 1 from public.profiles
         where id = user_id and is_admin = true
     );
 end;
 $$ language plpgsql security definer;
+
+-- Ensure postgres superuser owns this security definer function to bypass RLS and prevent recursive loops
+alter function public.is_admin(uuid) owner to postgres;
 
 -- Set up RLS Policies
 drop policy if exists "Profiles are viewable by owner." on public.profiles;
