@@ -528,31 +528,76 @@ const SMSVerification = () => {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 4, marginBottom: 4, overflowX: 'auto', paddingBottom: 6 }}>
-              <button 
-                onClick={() => setServer('server1')}
-                style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 8, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server1' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
-              >
-                Server 1 (Fast)
-              </button>
-              <button 
-                onClick={() => setServer('server2')}
-                style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 8, border: `1px solid ${server === 'server2' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server2' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
-              >
-                Server 2 (Success)
-              </button>
-              <button 
-                onClick={() => setServer('server3')}
-                style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 8, border: `1px solid ${server === 'server3' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server3' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
-              >
-                Server 3 (US Only)
-              </button>
-              <button 
-                onClick={() => setServer('server4')}
-                style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 8, border: `1px solid ${server === 'server4' ? 'var(--color-turquoise)' : 'var(--border-color)'}`, background: server === 'server4' ? 'rgba(0,242,254,0.1)' : 'rgba(255,255,255,0.02)', color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, transition: '0.2s' }}
-              >
-                Server 4 (Stable)
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4, marginBottom: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {/* Server 1 Card */}
+                <div
+                  onClick={() => setServer('server1')}
+                  style={{
+                    padding: '10px 12px', borderRadius: 10, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                    background: server === 'server1' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
+                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 2,
+                    boxShadow: server === 'server1' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 1</span>
+                    <span style={{ fontSize: 8, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>5SIM</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Fast dynamic lines</span>
+                </div>
+
+                {/* Server 2 Card */}
+                <div
+                  onClick={() => setServer('server2')}
+                  style={{
+                    padding: '10px 12px', borderRadius: 10, border: `1px solid ${server === 'server2' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                    background: server === 'server2' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
+                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 2,
+                    boxShadow: server === 'server2' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 2</span>
+                    <span style={{ fontSize: 8, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>SMSPool</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>High success rate</span>
+                </div>
+
+                {/* Server 3 Card */}
+                <div
+                  onClick={() => setServer('server3')}
+                  style={{
+                    padding: '10px 12px', borderRadius: 10, border: `1px solid ${server === 'server3' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                    background: server === 'server3' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
+                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 2,
+                    boxShadow: server === 'server3' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3</span>
+                    <span style={{ fontSize: 8, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US SIM</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Physical lines only</span>
+                </div>
+
+                {/* Server 4 Card */}
+                <div
+                  onClick={() => setServer('server4')}
+                  style={{
+                    padding: '10px 12px', borderRadius: 10, border: `1px solid ${server === 'server4' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                    background: server === 'server4' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
+                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 2,
+                    boxShadow: server === 'server4' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
+                    <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>HeroSMS</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Stable gateways</span>
+                </div>
+              </div>
             </div>
 
             {/* Step 1: Country */}
@@ -791,13 +836,100 @@ const SMSVerification = () => {
         ) : (
           <>
             <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontSize: 18, margin: 0 }}>Configure SMS OTP</h3>
-                <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.2)', padding: 4, borderRadius: 8, border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                  <button onClick={() => setServer('server1')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server1' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server1' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 1</button>
-                  <button onClick={() => setServer('server2')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server2' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server2' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 2</button>
-                  <button onClick={() => setServer('server3')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server3' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server3' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 3 (US Only)</button>
-                  <button onClick={() => setServer('server4')} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: 'none', background: server === 'server4' ? 'var(--color-turquoise)' : 'transparent', color: server === 'server4' ? '#000' : 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Server 4 (Stable)</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <h3 style={{ fontSize: 18, margin: 0 }}>Select SMS Gateway</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {/* Server 1 Card */}
+                  <div
+                    onClick={() => setServer('server1')}
+                    style={{
+                      padding: '12px 14px', borderRadius: 10, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                      background: server === 'server1' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
+                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 4,
+                      boxShadow: server === 'server1' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
+                    }}
+                    onMouseEnter={e => {
+                      if (server !== 'server1') e.currentTarget.style.borderColor = 'rgba(0,242,254,0.4)';
+                    }}
+                    onMouseLeave={e => {
+                      if (server !== 'server1') e.currentTarget.style.borderColor = 'var(--border-color)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 1 (5SIM)</span>
+                      <span style={{ fontSize: 9, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>FAST</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>High availability & dynamic global coverage</span>
+                  </div>
+
+                  {/* Server 2 Card */}
+                  <div
+                    onClick={() => setServer('server2')}
+                    style={{
+                      padding: '12px 14px', borderRadius: 10, border: `1px solid ${server === 'server2' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                      background: server === 'server2' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
+                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 4,
+                      boxShadow: server === 'server2' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
+                    }}
+                    onMouseEnter={e => {
+                      if (server !== 'server2') e.currentTarget.style.borderColor = 'rgba(0,242,254,0.4)';
+                    }}
+                    onMouseLeave={e => {
+                      if (server !== 'server2') e.currentTarget.style.borderColor = 'var(--border-color)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 2 (SMSPool)</span>
+                      <span style={{ fontSize: 9, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>SUCCESS</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Best success rates for secure apps (No WA)</span>
+                  </div>
+
+                  {/* Server 3 Card */}
+                  <div
+                    onClick={() => setServer('server3')}
+                    style={{
+                      padding: '12px 14px', borderRadius: 10, border: `1px solid ${server === 'server3' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                      background: server === 'server3' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
+                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 4,
+                      boxShadow: server === 'server3' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
+                    }}
+                    onMouseEnter={e => {
+                      if (server !== 'server3') e.currentTarget.style.borderColor = 'rgba(0,242,254,0.4)';
+                    }}
+                    onMouseLeave={e => {
+                      if (server !== 'server3') e.currentTarget.style.borderColor = 'var(--border-color)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3 (Textverified)</span>
+                      <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US SIM</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Premium US physical non-VOIP real lines</span>
+                  </div>
+
+                  {/* Server 4 Card */}
+                  <div
+                    onClick={() => setServer('server4')}
+                    style={{
+                      padding: '12px 14px', borderRadius: 10, border: `1px solid ${server === 'server4' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
+                      background: server === 'server4' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
+                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 4,
+                      boxShadow: server === 'server4' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
+                    }}
+                    onMouseEnter={e => {
+                      if (server !== 'server4') e.currentTarget.style.borderColor = 'rgba(0,242,254,0.4)';
+                    }}
+                    onMouseLeave={e => {
+                      if (server !== 'server4') e.currentTarget.style.borderColor = 'var(--border-color)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4 (HeroSMS)</span>
+                      <span style={{ fontSize: 9, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>STABLE</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Reliable gateway and stable connections</span>
+                  </div>
                 </div>
               </div>
               {server !== 'server3' ? (
