@@ -1917,6 +1917,26 @@ export const AppProvider = ({ children }) => {
     }
   }, [user]);
 
+  const refundOtpSession = async (otp) => {
+    if (!user || otp.refunded) return;
+    otp.refunded = true;
+    const ref = `ref-exp-${Math.floor(100000 + Math.random() * 900000)}`;
+    try {
+      const { error } = await supabase.rpc('process_deposit', {
+        p_tx_id: ref,
+        p_user_id: user.id,
+        p_amount: otp.priceNgn,
+        p_method: `OTP Refund (${otp.service} - ${otp.phoneNumber})`
+      });
+      if (!error) {
+        setWalletBalance(prev => prev + otp.priceNgn);
+        console.log(`Successfully refunded OTP session: ${otp.id}`);
+      }
+    } catch (e) {
+      console.error("Failed to execute refund RPC:", e);
+    }
+  };
+
   // Handle active OTP countdown expirations and poll APIs for SMS
   useEffect(() => {
     if (!user) return;
@@ -1925,16 +1945,7 @@ export const AppProvider = ({ children }) => {
       // 1. Process expirations for all servers
       setActiveOtps(current => current.map(otp => {
         if (otp.status === 'PENDING' && Date.now() > otp.expiresAt) {
-          // Trigger refund
-          if (!otp.refunded) {
-            const ref = `ref-exp-${Math.floor(100000 + Math.random() * 900000)}`;
-            supabase.rpc('process_deposit', {
-              p_tx_id: ref, p_user_id: user.id, p_amount: otp.priceNgn, p_method: `OTP Expired Refund (${otp.service})`
-            }).then(() => {
-              console.log(`Refunded expired OTP ${otp.id}`);
-            });
-            return { ...otp, status: 'EXPIRED', refunded: true };
-          }
+          refundOtpSession(otp);
           return { ...otp, status: 'EXPIRED' };
         }
         return otp;
@@ -1958,6 +1969,9 @@ export const AppProvider = ({ children }) => {
                   smsText: latestSms.text, 
                   otpCode: latestSms.code 
                 } : o));
+              } else if (smsData.status === 'CANCELED' || smsData.status === 'TIMEOUT' || smsData.status === 'BANNED') {
+                refundOtpSession(otp);
+                setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
           } catch (err) {
@@ -1984,6 +1998,7 @@ export const AppProvider = ({ children }) => {
                   otpCode: resData.sms 
                 } : o));
               } else if (resData.status === 6) { // Order Cancelled/Refunded by SMSPool
+                 refundOtpSession(otp);
                  setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
@@ -2011,6 +2026,7 @@ export const AppProvider = ({ children }) => {
                   otpCode: resData.otpCode 
                 } : o));
               } else if (resData.status === 'FAILED') {
+                refundOtpSession(otp);
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
@@ -2038,6 +2054,7 @@ export const AppProvider = ({ children }) => {
                   otpCode: resData.otpCode 
                 } : o));
               } else if (resData.status === 'FAILED') {
+                refundOtpSession(otp);
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
@@ -2214,28 +2231,60 @@ export const AppProvider = ({ children }) => {
 
   const adminFetchAllTransactions = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('sms-gateway', {
-        body: { action: 'admin-get-transactions' }
-      });
-      if (error || !data || !data.status) {
-        throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch transactions'));
-      }
-      return { success: true, data: data.data };
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('id, amount, type, method, status, created_at, user_id, profiles(full_name, phone)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      
+      const formatted = data.map(tx => ({
+        id: tx.id,
+        user_id: tx.user_id,
+        amountNgn: Number(tx.amount),
+        amountUsd: Number(tx.amount) / 750,
+        type: tx.type,
+        method: tx.method,
+        status: tx.status,
+        date: new Date(tx.created_at).toLocaleString(),
+        user_name: tx.profiles?.full_name || 'N/A',
+        user_phone: tx.profiles?.phone || 'N/A'
+      }));
+      return { success: true, data: formatted };
     } catch (e) {
-      console.error("Admin Fetch Transactions Error:", e);
-      return { success: false, msg: e.message };
+      console.warn("Direct transactions fetch failed, attempting Edge Function fallback...", e.message);
+      try {
+        const { data, error } = await supabase.functions.invoke('sms-gateway', {
+          body: { action: 'admin-get-transactions' }
+        });
+        if (error || !data || !data.status) {
+          throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch transactions'));
+        }
+        return { success: true, data: data.data };
+      } catch (err) {
+        return { success: false, msg: err.message };
+      }
     }
   };
 
   const adminFetchAllProfiles = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('sms-gateway', {
-        body: { action: 'admin-get-profiles' }
-      });
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, email, phone, wallet_balance, updated_at, created_at')
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return { success: true, data: data.data };
-    } catch (err) {
-      return { success: false, msg: err.message };
+      return { success: true, data };
+    } catch (e) {
+      console.warn("Direct profiles fetch failed, attempting Edge Function fallback...", e.message);
+      try {
+        const { data, error } = await supabase.functions.invoke('sms-gateway', {
+          body: { action: 'admin-get-profiles' }
+        });
+        if (error) throw error;
+        return { success: true, data: data.data };
+      } catch (err) {
+        return { success: false, msg: err.message };
+      }
     }
   };
 
