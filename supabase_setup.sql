@@ -20,6 +20,20 @@ alter table public.profiles add column if not exists api_key text;
 -- Enable Row Level Security (RLS) on profiles
 alter table public.profiles enable row level security;
 
+-- Create a separate table for system administrators to prevent RLS recursive loops on profiles
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS
+alter table public.admins enable row level security;
+
+-- Admins policy
+drop policy if exists "Admins can view admins" on public.admins;
+create policy "Admins can view admins" on public.admins
+  for select using (auth.uid() = user_id or exists (select 1 from public.admins where user_id = auth.uid()));
+
 -- Helper function to check if a user is an administrator without causing infinite recursion
 create or replace function public.is_admin(user_id uuid)
 returns boolean as $$
@@ -29,10 +43,10 @@ begin
         return true;
     end if;
 
-    -- 2. Fallback to checking the profiles table using table owner credentials (bypasses RLS)
+    -- 2. Fallback to checking the admins table (prevents profiles recursion loop)
     return exists (
-        select 1 from public.profiles
-        where id = user_id and is_admin = true
+        select 1 from public.admins
+        where user_id = $1
     );
 end;
 $$ language plpgsql security definer;
