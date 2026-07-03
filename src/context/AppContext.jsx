@@ -1093,9 +1093,14 @@ export const AppProvider = ({ children }) => {
       err.includes('insufficient balance') ||
       err.includes('insufficient funds') ||
       err.includes('not enough balance') ||
+      err.includes('not enough user balance') ||
       err.includes('not enough money') ||
       err.includes('out of funds') ||
-      err.includes('insufficient_funds')
+      err.includes('insufficient_funds') ||
+      err.includes('low balance') ||
+      err.includes('low_balance') ||
+      err.includes('balance is too low') ||
+      err.includes('balance too low')
     ) {
       return 'This service is currently unavailable on this server. Please try using another server.';
     }
