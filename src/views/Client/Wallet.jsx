@@ -84,6 +84,9 @@ const Wallet = () => {
     setTimeout(() => setCopiedText(false), 2000);
   };
 
+  const totalTxPages = Math.max(1, Math.ceil(transactions.length / TX_PER_PAGE));
+  const paginatedTx = transactions.slice((txPage - 1) * TX_PER_PAGE, txPage * TX_PER_PAGE);
+
   return (
     <div className="animate-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
@@ -343,7 +346,7 @@ const Wallet = () => {
           </div>
         ) : isMobile ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {transactions.map((tx) => (
+            {paginatedTx.map((tx) => (
               <div key={tx.id} className="glass-panel" style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -372,6 +375,13 @@ const Wallet = () => {
                 </div>
               </div>
             ))}
+            {transactions.length > TX_PER_PAGE && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', padding: '12px 0' }}>
+                <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '8px' }} disabled={txPage === 1} onClick={() => setTxPage(p => p - 1)}>Prev</button>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {txPage} of {totalTxPages}</span>
+                <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '8px' }} disabled={txPage === totalTxPages} onClick={() => setTxPage(p => p + 1)}>Next</button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="custom-table-container">
@@ -387,51 +397,42 @@ const Wallet = () => {
                 </tr>
               </thead>
               <tbody>
-                {(() => {
-                  const totalTxPages = Math.max(1, Math.ceil(transactions.length / TX_PER_PAGE));
-                  const paginatedTx = transactions.slice((txPage - 1) * TX_PER_PAGE, txPage * TX_PER_PAGE);
-
-                  return (
-                    <>
-                      {paginatedTx.map((tx) => (
-                        <tr key={tx.id}>
-                          <td style={{ fontFamily: 'var(--mono)', fontSize: '13px' }}>{tx.id}</td>
-                          <td>{tx.date}</td>
-                          <td>
-                            <span className={`badge ${
-                              tx.type === 'Deposit' ? 'badge-success' : 
-                              tx.type === 'Refund' ? 'badge-info' : 'badge-danger'
-                            }`} style={{ fontSize: '9px' }}>
-                              {tx.type}
-                            </span>
-                          </td>
-                          <td style={{ fontWeight: '500' }}>{tx.method}</td>
-                          <td style={{ 
-                            fontFamily: 'var(--font-heading)', 
-                            fontWeight: '700',
-                            color: tx.type === 'Deposit' || tx.type === 'Refund' ? 'var(--color-green)' : '#ff453a'
-                          }}>
-                            {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn)}
-                          </td>
-                          <td>
-                            <span className="badge badge-success" style={{ fontSize: '10px' }}>{tx.status}</span>
-                          </td>
-                        </tr>
-                      ))}
-                      {transactions.length > TX_PER_PAGE && (
-                        <tr>
-                          <td colSpan="6">
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
-                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === 1} onClick={() => setTxPage(p => p - 1)}>Prev</button>
-                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {txPage} of {totalTxPages}</span>
-                              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === totalTxPages} onClick={() => setTxPage(p => p + 1)}>Next</button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  );
-                })()}
+                {paginatedTx.map((tx) => (
+                  <tr key={tx.id}>
+                    <td style={{ fontFamily: 'var(--mono)', fontSize: '13px' }}>{tx.id}</td>
+                    <td>{tx.date}</td>
+                    <td>
+                      <span className={`badge ${
+                        tx.type === 'Deposit' ? 'badge-success' : 
+                        tx.type === 'Refund' ? 'badge-info' : 'badge-danger'
+                      }`} style={{ fontSize: '9px' }}>
+                        {tx.type}
+                      </span>
+                    </td>
+                    <td style={{ fontWeight: '500' }}>{tx.method}</td>
+                    <td style={{ 
+                      fontFamily: 'var(--font-heading)', 
+                      fontWeight: '700',
+                      color: tx.type === 'Deposit' || tx.type === 'Refund' ? 'var(--color-green)' : '#ff453a'
+                    }}>
+                      {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn)}
+                    </td>
+                    <td>
+                      <span className="badge badge-success" style={{ fontSize: '10px' }}>{tx.status}</span>
+                    </td>
+                  </tr>
+                ))}
+                {transactions.length > TX_PER_PAGE && (
+                  <tr>
+                    <td colSpan="6">
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                        <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === 1} onClick={() => setTxPage(p => p - 1)}>Prev</button>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {txPage} of {totalTxPages}</span>
+                        <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === totalTxPages} onClick={() => setTxPage(p => p + 1)}>Next</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
