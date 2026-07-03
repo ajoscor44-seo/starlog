@@ -32,11 +32,17 @@ const Wallet = () => {
   const [showCryptoModal, setShowCryptoModal] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
 
+  const [generationError, setGenerationError] = useState('');
+
   const handleGenerateWallet = async (e) => {
     e.preventDefault();
     setIsGenerating(true);
-    await generatePocketFiWallet(selectedBank);
+    setGenerationError('');
+    const result = await generatePocketFiWallet(selectedBank);
     setIsGenerating(false);
+    if (result && !result.success) {
+      setGenerationError(result.msg || "Failed to generate virtual wallet account.");
+    }
   };
 
   const handleSimulateDeposit = async (e) => {
@@ -144,6 +150,13 @@ const Wallet = () => {
                     <AlertCircle size={16} style={{ color: 'var(--color-turquoise)', marginBottom: '8px', display: 'block' }} />
                     Generate a dedicated virtual bank account to top up your wallet instantly. Any bank transfer made to this account will credit your balance automatically in under 30 seconds.
                   </div>
+
+                  {generationError && (
+                    <div style={{ padding: '12px 16px', background: 'rgba(255, 75, 75, 0.08)', border: '1px solid rgba(255, 75, 75, 0.25)', borderRadius: '10px', fontSize: '13px', color: 'var(--color-red)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <AlertCircle size={16} style={{ color: 'var(--color-red)', flexShrink: 0 }} />
+                      <span>{generationError}</span>
+                    </div>
+                  )}
 
                   <div>
                     <label className="form-label" htmlFor="pocketfi-bank-select">Select Funding Bank Partner</label>

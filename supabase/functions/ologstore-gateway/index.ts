@@ -13,6 +13,10 @@ const corsHeaders = {
 // Helper to translate common Vietnamese terms to English
 const translateToEnglish = (text: string) => {
   if (!text) return text;
+  
+  // Clean up unicode characters and normalize
+  let result = text.normalize("NFC");
+  
   const map: Record<string, string> = {
     'Học Tập': 'Learning',
     'Giải trí': 'Entertainment',
@@ -27,14 +31,120 @@ const translateToEnglish = (text: string) => {
     'Chính chủ': 'Official',
     'Bảo hành': 'Warranty',
     'Vĩnh viễn': 'Lifetime',
-    'Mật khẩu': 'Password'
+    'Mật khẩu': 'Password',
+    'xác minh danh tính': 'Identity Verified',
+    'xác minh': 'Verified',
+    'xác thực': 'Authenticated',
+    'đã kháng': 'Appealed/Reinstated',
+    'kháng ads': 'Ads Appealed',
+    'kháng': 'Appealed',
+    'chất lượng': 'Quality',
+    'quốc gia': 'Country',
+    'ngẫu nhiên': 'Random',
+    'định dạng': 'Format',
+    'bạn bè': 'Friends',
+    'bè': 'Friends',
+    'theo dõi': 'Followers',
+    'lọc': 'Filtered',
+    'sạch': 'Clean',
+    'quảng cáo': 'Ads',
+    'bảo mật': 'Security/2FA',
+    'mã': 'Code',
+    'khôi phục': 'Recovery',
+    'ảo': 'Virtual',
+    'chưa': 'Not',
+    'đã': 'Already/Yes',
+    'quét': 'Scanned',
+    'sở hữu': 'Owned',
+    'tạo': 'Created',
+    'thanh toán': 'Payment',
+    'thẻ': 'Card',
+    'giá': 'Price',
+    'rẻ': 'Cheap',
+    'sỉ': 'Wholesale',
+    'lẻ': 'Retail',
+    'loại': 'Type',
+    'dưới': 'Under',
+    'trên': 'Above',
+    'kho': 'Stock',
+    'hết hàng': 'Out of Stock',
+    'còn hàng': 'In Stock',
+    'bao': 'Guarantee',
+    'lỗi': 'Error',
+    'đổi': 'Change/Replace',
+    'hoàn tiền': 'Refund',
+    'hỗ trợ': 'Support',
+    'giờ': 'Hours',
+    'phút': 'Minutes',
+    'giây': 'Seconds',
+    'Việt Nam': 'Vietnam',
+    'Ngoại': 'Foreign/International',
+    'Cổ': 'Aged',
+    'Mới': 'New',
+    'Siêu cổ': 'Super Aged',
+    'Mỹ': 'USA',
+    'Anh': 'UK',
+    'Pháp': 'France',
+    'Đức': 'Germany',
+    'Nga': 'Russia',
+    'Trung Quốc': 'China',
+    'Thái Lan': 'Thailand',
+    'Ấn Độ': 'India',
+    'Philippines': 'Philippines',
+    'Indonesia': 'Indonesia',
+    'Campuchia': 'Cambodia',
+    'Lào': 'Laos',
+    'Thường': 'Regular/Standard',
+    'Cá nhân': 'Personal',
+    'Doanh nghiệp': 'Business',
+    'Đại lý': 'Reseller',
+    'Vnd': 'VND',
+    'Đồng': 'Dong',
+    'Giá rẻ': 'Budget/Cheap',
+    'Cao cấp': 'Premium',
+    'Hạn': 'Limit/Expiry',
+    'Khóa': 'Locked/Blocked',
+    'Mở khóa': 'Unlocked',
+    'Liên kết': 'Linked',
+    'Không': 'No/Without',
+    'Có': 'Yes/With',
+    'Bao gồm': 'Including',
+    'Yêu cầu': 'Required',
+    'Tự động': 'Automatic',
+    'Thủ công': 'Manual',
+    'Nhanh': 'Fast',
+    'Chậm': 'Slow',
+    'Ổn định': 'Stable',
+    'Hệ thống': 'System',
+    'Hỗ trợ 24/7': '24/7 Support',
+    'Thông tin': 'Information/Details',
+    'Tên': 'Name',
+    'Tuổi': 'Age',
+    'Giới tính': 'Gender',
+    'Nam': 'Male',
+    'Nữ': 'Female',
+    'không đủ tiền': 'insufficient balance',
+    'Số dư không đủ': 'insufficient balance',
+    'Tài khoản không đủ': 'insufficient balance'
   };
-  
-  let result = text;
-  Object.keys(map).forEach(key => {
-    const regex = new RegExp(key, "gi");
-    result = result.replace(regex, map[key]);
-  });
+
+  const sortedKeys = Object.keys(map).sort((a, b) => b.length - a.length);
+
+  for (const key of sortedKeys) {
+    const escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(escapedKey, "gi");
+    result = result.replace(regex, (match) => {
+      const replacement = map[key];
+      if (match === match.toUpperCase()) {
+        return replacement.toUpperCase();
+      }
+      if (match[0] === match[0].toUpperCase()) {
+        return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+      }
+      return replacement;
+    });
+  }
+
   return result;
 };
 
@@ -42,19 +152,29 @@ const translateToEnglish = (text: string) => {
 const parseDeliveryItem = (itemStr: string): Record<string, string> => {
   const parts: Record<string, string> = {};
   if (!itemStr) return parts;
-  // Split by "|" and parse "Key: Value" pairs
   const segments = itemStr.split('|');
   segments.forEach((seg: string) => {
     const colonIdx = seg.indexOf(':');
     if (colonIdx > 0) {
-      const key = seg.substring(0, colonIdx).trim();
+      let key = seg.substring(0, colonIdx).trim();
       const val = seg.substring(colonIdx + 1).trim();
-      if (key && val) parts[key] = val;
+      if (key && val) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey === 'tài khoản' || lowerKey === 'tai khoan' || lowerKey === 'username' || lowerKey === 'user' || lowerKey === 'login') {
+          key = 'Username/Email';
+        } else if (lowerKey === 'mật khẩu' || lowerKey === 'mat khau' || lowerKey === 'pass') {
+          key = 'Password';
+        } else if (lowerKey === 'mã bảo mật' || lowerKey === '2fa' || lowerKey === 'code' || lowerKey === 'mã 2fa') {
+          key = '2FA Backup Key';
+        } else {
+          key = translateToEnglish(key);
+        }
+        parts[key] = val;
+      }
     }
   });
-  // If no key-value pairs were parsed, store the raw string
   if (Object.keys(parts).length === 0 && itemStr.trim()) {
-    parts['Details'] = itemStr.trim();
+    parts['Details'] = translateToEnglish(itemStr.trim());
   }
   return parts;
 };
@@ -136,8 +256,8 @@ serve(async (req) => {
         ];
       }
 
-      // Add a 20% markup to the cost
-      products = products.map((p: any) => ({ ...p, price: p.price * 1.2 }));
+      // Keep raw provider price (markup is added dynamically in frontend)
+      products = products.map((p: any) => ({ ...p, price: p.price }));
 
       return new Response(JSON.stringify({ success: true, products }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -213,6 +333,9 @@ serve(async (req) => {
         if (response.ok) {
           orderResult = await response.json();
           console.log("OlogStore order response:", JSON.stringify(orderResult));
+          if (orderResult && orderResult.success === false) {
+            throw new Error(orderResult.message || orderResult.error || "OlogStore order creation failed");
+          }
         } else {
           console.error("Ologstore API Order Error:", response.status, await response.text());
           throw new Error("OlogStore order creation failed");
@@ -234,7 +357,19 @@ serve(async (req) => {
           reference: `refund_olog_${Date.now()}`
         });
 
-        return new Response(JSON.stringify({ success: false, error: "Failed to place order with provider. You have been refunded." }), {
+        const errMsg = err.message || '';
+        let userFriendlyError = "Failed to place order with provider. You have been refunded.";
+        if (
+          errMsg.toLowerCase().includes('không đủ tiền') ||
+          errMsg.toLowerCase().includes('số dư') ||
+          errMsg.toLowerCase().includes('balance') ||
+          errMsg.toLowerCase().includes('money') ||
+          errMsg.toLowerCase().includes('fund')
+        ) {
+          userFriendlyError = "This service is currently unavailable on this server. Please try using another server.";
+        }
+
+        return new Response(JSON.stringify({ success: false, error: userFriendlyError }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

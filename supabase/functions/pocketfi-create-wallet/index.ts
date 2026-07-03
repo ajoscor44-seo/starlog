@@ -88,10 +88,20 @@ serve(async (req) => {
       })
     })
 
-    const result = await response.json()
+    let result: any = {}
+    try {
+      const text = await response.text()
+      result = JSON.parse(text)
+    } catch {
+      throw new Error("This bank partner is temporarily unavailable on PocketFi. Please try selecting another bank (e.g., Paga Bank or Kuda Bank).")
+    }
 
     if (!response.ok || !result.status) {
-      throw new Error(result.message || 'Failed to create virtual wallet with PocketFi')
+      const errorMsg = result.message || 'Failed to create virtual wallet with PocketFi'
+      if (errorMsg.toLowerCase().includes('unable to process') || errorMsg.toLowerCase().includes('not supported') || errorMsg.toLowerCase().includes('invalid bank')) {
+        throw new Error("This bank partner is temporarily unavailable on PocketFi. Please try selecting another bank (e.g., Paga Bank or Kuda Bank).")
+      }
+      throw new Error(errorMsg)
     }
 
     const bankObj = result.banks[0]

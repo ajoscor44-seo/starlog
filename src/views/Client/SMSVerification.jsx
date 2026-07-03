@@ -66,6 +66,26 @@ const serviceLogoMap = {
     </svg>
   )
 };
+
+const getServiceLogo = (serviceName, width = '100%', height = '100%') => {
+  if (!serviceName) return <span style={{ fontSize: 12 }}>💬</span>;
+  const nameLower = serviceName.toLowerCase();
+  let key = '';
+  if (nameLower.includes('whatsapp')) key = 'srv-whatsapp';
+  else if (nameLower.includes('telegram')) key = 'srv-telegram';
+  else if (nameLower.includes('google') || nameLower.includes('gmail')) key = 'srv-google';
+  else if (nameLower.includes('openai') || nameLower.includes('chatgpt')) key = 'srv-openai';
+  else if (nameLower.includes('facebook')) key = 'srv-facebook';
+  else if (nameLower.includes('instagram')) key = 'srv-instagram';
+  else if (nameLower.includes('tiktok')) key = 'srv-tiktok';
+  else if (nameLower.includes('netflix')) key = 'srv-netflix';
+  
+  if (key && serviceLogoMap[key]) {
+    return React.cloneElement(serviceLogoMap[key], { style: { width, height, flexShrink: 0 } });
+  }
+  return <span style={{ fontSize: 12 }}>💬</span>;
+};
+
 const SMSVerification = () => {
   const { 
     countries, 
@@ -378,7 +398,7 @@ const SMSVerification = () => {
           <div style={{ position: 'relative', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: 24 }}>{activeSession.flag}</span>
             <div style={{ position: 'absolute', right: -4, bottom: -4, background: 'var(--bg-main)', borderRadius: '50%', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.3)' }}>
-              {serviceLogoMap[activeSession.serviceId] ? React.cloneElement(serviceLogoMap[activeSession.serviceId], { style: { width: '14px', height: '14px', flexShrink: 0 } }) : <span style={{ fontSize: 12 }}>💬</span>}
+              {getServiceLogo(activeSession.service, '14px', '14px')}
             </div>
           </div>
           <div style={{ textAlign: 'left' }}>
@@ -421,7 +441,33 @@ const SMSVerification = () => {
       {/* Code Box */}
       <div style={{ width: '100%', maxWidth: 450, padding: 16, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {activeSession.status === 'PENDING' ? (
-          <div style={{ color: 'var(--text-secondary)', fontSize: 13 }} className="blink-loader">Waiting for SMS code…</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }} className="blink-loader">Waiting for SMS code…</div>
+            {(activeSession.expiresAt - Date.now() <= 3 * 60 * 1000) && (
+              <div 
+                className="animate-pulse" 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 8, 
+                  padding: '8px 12px', 
+                  background: 'rgba(255, 171, 0, 0.1)', 
+                  border: '1px solid rgba(255, 171, 0, 0.25)', 
+                  borderRadius: 8, 
+                  color: '#ffab00', 
+                  fontSize: 12,
+                  marginTop: 6,
+                  maxWidth: '90%',
+                  lineHeight: '1.4'
+                }}
+              >
+                <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                <span style={{ textAlign: 'left' }}>
+                  This server might be busy. If the code does not drop soon, please try using another server.
+                </span>
+              </div>
+            )}
+          </div>
         ) : activeSession.status === 'COMPLETED' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ fontSize: 11, color: 'var(--color-green)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>SMS Code Received ✓</div>
@@ -796,7 +842,7 @@ const SMSVerification = () => {
                     <div style={{ position: 'relative', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span style={{ fontSize: 18 }}>{log.flag}</span>
                       <div style={{ position: 'absolute', right: -4, bottom: -4, background: 'var(--bg-card)', borderRadius: '50%', padding: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {serviceLogoMap[log.serviceId] ? React.cloneElement(serviceLogoMap[log.serviceId], { style: { width: '12px', height: '12px', flexShrink: 0 } }) : null}
+                        {getServiceLogo(log.service, '12px', '12px')}
                       </div>
                     </div>
                     <div>

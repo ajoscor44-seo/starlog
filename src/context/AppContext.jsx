@@ -817,12 +817,53 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('zp_transactions', JSON.stringify(transactions));
   }, [transactions]);
 
+  const syncOtpOrdersFromDB = async (uid) => {
+    try {
+      const { data, error } = await supabase
+        .from('otp_orders')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        const mapped = data.map(dbOtp => {
+          const createdTime = new Date(dbOtp.created_at).getTime();
+          return {
+            id: dbOtp.id,
+            phoneNumber: dbOtp.phone_number,
+            server: dbOtp.server,
+            service: dbOtp.service,
+            priceNgn: Number(dbOtp.price_ngn),
+            status: dbOtp.status,
+            otpCode: dbOtp.otp_code,
+            smsText: dbOtp.sms_text,
+            created_at: dbOtp.created_at,
+            fivesimOrderId: dbOtp.server === 'server1' ? Number(dbOtp.id) : null,
+            orderId: dbOtp.id,
+            expiresAt: createdTime + 15 * 60 * 1000
+          };
+        });
+        setActiveOtps(mapped);
+      }
+    } catch (e) {
+      console.error("Failed to sync OTP orders from database:", e);
+    }
+  };
+
   useEffect(() => {
     if (!user?.id) return;
     // Load user-scoped data from localStorage when user logs in
     const uid = user.id;
     const savedOtps = localStorage.getItem(`zp_activeOtps_${uid}`);
-    if (savedOtps) setActiveOtps(JSON.parse(savedOtps));
+    if (savedOtps) {
+      try {
+        setActiveOtps(JSON.parse(savedOtps));
+      } catch (e) {}
+    }
+    
+    // Sync live from database so numbers don't disappear
+    syncOtpOrdersFromDB(uid);
+
     const savedRented = localStorage.getItem(`zp_rentedNumbers_${uid}`);
     if (savedRented) setRentedNumbers(JSON.parse(savedRented));
     const savedEsims = localStorage.getItem(`zp_activeEsims_${uid}`);
@@ -1040,6 +1081,69 @@ export const AppProvider = ({ children }) => {
     return { success: true, sub: newSub };
   };
 
+  const customizeGatewayError = (errorStr, server) => {
+    const err = String(errorStr || '').toLowerCase();
+    
+    // 1. Check for insufficient balance / no funds on the API provider
+    if (
+      err.includes('no money') ||
+      err.includes('no_money') ||
+      err.includes('no balance') ||
+      err.includes('no_balance') ||
+      err.includes('insufficient balance') ||
+      err.includes('insufficient funds') ||
+      err.includes('not enough balance') ||
+      err.includes('not enough money') ||
+      err.includes('out of funds') ||
+      err.includes('insufficient_funds')
+    ) {
+      return 'This service is currently unavailable on this server. Please try using another server.';
+    }
+
+    // 2. Check for out of numbers / stock
+    if (
+      err.includes('no free phones') ||
+      err.includes('no numbers') ||
+      err.includes('no_numbers') ||
+      err.includes('out of stock') ||
+      err.includes('no phone numbers') ||
+      err.includes('no number available') ||
+      err.includes('numbers unavailable')
+    ) {
+      const serverLabel = server ? (server.startsWith('server') ? server.replace('server', 'Server ') : server) : 'this server';
+      return `No numbers are currently available for this service on ${serverLabel}. Please try another country or server.`;
+    }
+
+    // 3. Check for auth/api key config errors (usually developer error but user shouldn't see raw secrets/config errors)
+    if (
+      err.includes('api key') ||
+      err.includes('apikey') ||
+      err.includes('unauthorized') ||
+      err.includes('forbidden') ||
+      err.includes('not configured') ||
+      err.includes('invalid credentials')
+    ) {
+      return 'Gateway configuration error. Please try another server or contact support if the issue persists.';
+    }
+
+    // 4. Default customized fallback
+    if (err.trim() === '') {
+      return 'Failed to request verification number. Please try another server.';
+    }
+
+    // Otherwise, return a capitalized, cleaned version of the error message to make it look premium
+    let cleanMsg = errorStr
+      .replace(/_/g, ' ')
+      .replace(/access/gi, '')
+      .trim();
+    
+    if (cleanMsg.length > 0) {
+      return cleanMsg.charAt(0).toUpperCase() + cleanMsg.slice(1);
+    }
+    
+    return 'An unexpected error occurred. Please try again or use another server.';
+  };
+
   const fetchTextVerifiedPrice = async (serviceName) => {
     try {
       const res = await supabase.functions.invoke('textverified-gateway', {
@@ -1051,11 +1155,11 @@ export const AppProvider = ({ children }) => {
         const priceNgn = priceCredits > 0 ? Math.max(300, Math.round(priceCredits * exchangeRate * markupMultiplier)) : 0;
         return { success: true, priceNgn, priceCredits };
       } else {
-        return { success: false, msg: res.error || 'Failed to fetch price' };
+        return { success: false, msg: customizeGatewayError(res.error || 'Failed to fetch price', 'server3') };
       }
     } catch (e) {
       console.error("fetchTextVerifiedPrice Error:", e);
-      return { success: false, msg: e.message };
+      return { success: false, msg: customizeGatewayError(e.message, 'server3') };
     }
   };
 
@@ -1146,7 +1250,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (Textverified - ${serviceId})`
         });
-        return { success: false, msg: e.message };
+        return { success: false, msg: customizeGatewayError(e.message, 'server3') };
       }
     }
 
@@ -1172,12 +1276,16 @@ export const AppProvider = ({ children }) => {
         const phone = detail.number;
         const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
+        const country = heroSmsCountries.find(c => Number(c.id) === Number(countryId));
+        const countryName = country ? country.name : 'Unknown Country';
+        const countryFlag = country ? country.flag : '🏳️';
+
         const newOtp = {
           id: `hero-${detail.id}`,
           orderId: detail.id,
           phoneNumber: formattedPhone,
-          country: dynamicServiceObj.countryName || 'Unknown Country',
-          flag: dynamicServiceObj.flag || '🏳️',
+          country: countryName,
+          flag: countryFlag,
           service: dynamicServiceObj.name,
           priceNgn,
           status: 'PENDING',
@@ -1198,7 +1306,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (HeroSMS - ${dynamicServiceObj.name})`
         });
-        return { success: false, msg: e.message };
+        return { success: false, msg: customizeGatewayError(e.message, 'server4') };
       }
     }
 
@@ -1256,7 +1364,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (${service.name})`
         });
-        return { success: false, msg: e.message };
+        return { success: false, msg: customizeGatewayError(e.message, 'server2') };
       }
     }
 
@@ -1321,7 +1429,7 @@ export const AppProvider = ({ children }) => {
         p_method: `OTP Purchase Failed Refund (${service.name})`
       });
 
-      return { success: false, msg: "Buy failed: " + e.message };
+      return { success: false, msg: customizeGatewayError(e.message, 'server1') };
     }
   };
 
@@ -1509,7 +1617,7 @@ export const AppProvider = ({ children }) => {
         p_method: `OTP Reuse Failed Refund (${service.name})`
       });
 
-      return { success: false, msg: e.message };
+      return { success: false, msg: customizeGatewayError(e.message, 'server1') };
     }
   };
 
@@ -1566,7 +1674,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: costNgn, p_method: `Rental Failed Refund`
         });
-        return { success: false, msg: e.message };
+        return { success: false, msg: 'This service is currently unavailable on this server. Please try using another server.' };
       }
     }
 
@@ -1675,7 +1783,7 @@ export const AppProvider = ({ children }) => {
         p_method: `eSIM Setup Failed Refund (${pkg.country})`
       });
 
-      return { success: false, msg: e.message };
+      return { success: false, msg: customizeGatewayError(e.message, 'eSIM Provisioner') };
     }
   };
 
@@ -1739,7 +1847,7 @@ export const AppProvider = ({ children }) => {
           p_amount: costNgn,
           p_method: `SMM Order Failed Refund`
         });
-        return { success: false, msg: error?.message || data?.error || 'SMM Gateway Error' };
+        return { success: false, msg: customizeGatewayError(error?.message || data?.error || 'SMM Gateway Error', 'SMM Panel') };
       }
 
       const smmOrderId = data.data.order;
@@ -1767,7 +1875,7 @@ export const AppProvider = ({ children }) => {
         p_amount: costNgn,
         p_method: `SMM Order Failed Refund`
       });
-      return { success: false, msg: err.message || 'SMM Order Execution Failed' };
+      return { success: false, msg: customizeGatewayError(err.message || 'SMM Order Execution Failed', 'SMM Panel') };
     }
   };
 
@@ -2394,11 +2502,17 @@ export const AppProvider = ({ children }) => {
         throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch logs'));
       }
       
-      const productsWithCurrency = data.products.map(p => ({
-        ...p,
-        priceNgn: Math.max(500, Math.ceil(p.price * 0.065)), // 1 VND approx 0.065 NGN
-        priceUsd: Number((Math.ceil(p.price * 0.065) / 1150).toFixed(2))
-      }));
+      const markup = profitMarkup.subs || 30;
+      const productsWithCurrency = data.products.map(p => {
+        const basePriceUsd = p.price / 25400;
+        const priceNgn = Math.max(500, Math.round(basePriceUsd * exchangeRate * (1 + markup / 100)));
+        const priceUsd = priceNgn / exchangeRate;
+        return {
+          ...p,
+          priceNgn,
+          priceUsd
+        };
+      });
 
       sessionStorage.setItem('zp_social_logs', JSON.stringify(productsWithCurrency));
       sessionStorage.setItem('zp_social_logs_time', Date.now().toString());
@@ -2406,7 +2520,7 @@ export const AppProvider = ({ children }) => {
       return { success: true, data: productsWithCurrency };
     } catch (e) {
       console.error("Fetch Social Media Logs Error:", e);
-      return { success: false, msg: e.message };
+      return { success: false, msg: customizeGatewayError(e.message, 'Log Server') };
     }
   };
 
@@ -2437,7 +2551,7 @@ export const AppProvider = ({ children }) => {
       return { success: true, order: data.order };
     } catch (e) {
       console.error("Buy Social Media Log Error:", e);
-      return { success: false, msg: e.message };
+      return { success: false, msg: customizeGatewayError(e.message, 'Log Server') };
     }
   };
 
