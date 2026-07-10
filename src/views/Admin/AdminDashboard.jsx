@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../supabase';
@@ -89,25 +89,27 @@ const AdminDashboard = () => {
   }, [adminTab]);
 
   // Combine real database-linked profiles
-  const allUsers = (dbProfiles || []).length > 0
-    ? (dbProfiles || []).map(p => ({
-        id: p.id,
-        full_name: p.id === user?.id ? `${p.username || p.full_name || 'Admin'} (You / Admin)` : p.username || p.full_name || 'Unnamed Client',
-        phone: p.phone || 'N/A',
-        email: p.email || 'N/A',
-        wallet_balance: Number(p.wallet_balance),
-        created_at: p.created_at || new Date().toISOString(),
-        isReal: true
-      }))
-    : (profile && profile.full_name ? [{
-        id: user?.id || 'real-admin',
-        full_name: `${profile.username || profile.full_name} (You / Admin)`,
-        phone: profile.phone || 'N/A',
-        email: user?.email || 'N/A',
-        wallet_balance: walletBalance,
-        created_at: new Date().toISOString(),
-        isReal: true
-      }] : []);
+  const allUsers = useMemo(() => {
+    return (dbProfiles || []).length > 0
+      ? (dbProfiles || []).map(p => ({
+          id: p.id,
+          full_name: p.id === user?.id ? `${p.username || p.full_name || 'Admin'} (You / Admin)` : p.username || p.full_name || 'Unnamed Client',
+          phone: p.phone || 'N/A',
+          email: p.email || 'N/A',
+          wallet_balance: Number(p.wallet_balance),
+          created_at: p.created_at || new Date().toISOString(),
+          isReal: true
+        }))
+      : (profile && profile.full_name ? [{
+          id: user?.id || 'real-admin',
+          full_name: `${profile.username || profile.full_name} (You / Admin)`,
+          phone: profile.phone || 'N/A',
+          email: user?.email || 'N/A',
+          wallet_balance: walletBalance,
+          created_at: new Date().toISOString(),
+          isReal: true
+        }] : []);
+  }, [dbProfiles, user, profile, walletBalance]);
 
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
@@ -139,12 +141,14 @@ const AdminDashboard = () => {
   const [editProfileResult, setEditProfileResult] = useState('');
 
   // SMS Simulator Form State
-  const activeOtpTargets = activeOtps.filter(o => o.status === 'WAITING');
-  const activeRentalTargets = rentedNumbers.filter(r => r.status === 'ACTIVE');
-  const allTargets = [
-    ...activeOtpTargets.map(o => ({ type: 'OTP Session', number: o.phoneNumber, label: `${o.service} Temp OTP - ${o.phoneNumber}` })),
-    ...activeRentalTargets.map(r => ({ type: 'Rental line', number: r.phoneNumber, label: `${r.flag} Rented Line (${r.service}) - ${r.phoneNumber}` }))
-  ];
+  const allTargets = useMemo(() => {
+    const activeOtpTargets = activeOtps.filter(o => o.status === 'WAITING');
+    const activeRentalTargets = rentedNumbers.filter(r => r.status === 'ACTIVE');
+    return [
+      ...activeOtpTargets.map(o => ({ type: 'OTP Session', number: o.phoneNumber, label: `${o.service} Temp OTP - ${o.phoneNumber}` })),
+      ...activeRentalTargets.map(r => ({ type: 'Rental line', number: r.phoneNumber, label: `${r.flag} Rented Line (${r.service}) - ${r.phoneNumber}` }))
+    ];
+  }, [activeOtps, rentedNumbers]);
 
   const [selectedNumber, setSelectedNumber] = useState(allTargets[0]?.number || '');
   const [smsText, setSmsText] = useState('Your verification code is: 582910');
@@ -235,13 +239,19 @@ const AdminDashboard = () => {
       } else {
         const updated = allUsers.find(u => u.id === selectedUser.id);
         if (updated) {
-          setSelectedUser(updated);
+          // Only update if critical properties changed to prevent recursive render loops
+          if (updated.wallet_balance !== selectedUser.wallet_balance || 
+              updated.full_name !== selectedUser.full_name ||
+              updated.phone !== selectedUser.phone ||
+              updated.email !== selectedUser.email) {
+            setSelectedUser(updated);
+          }
         } else {
           setSelectedUser(allUsers[0]);
         }
       }
     }
-  }, [allUsers, walletBalance, dbProfiles]);
+  }, [allUsers, walletBalance, dbProfiles, selectedUser]);
 
   const handleSimulateSms = (e) => {
     e.preventDefault();
