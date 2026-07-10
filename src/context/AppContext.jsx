@@ -553,37 +553,7 @@ export const AppProvider = ({ children }) => {
     }
   }, [isLoggedIn, profitMarkup.smm]);
 
-  // Dynamically fetch all countries supported by 5sim (Server 1)
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    const fetchServer1Countries = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('sms-gateway', {
-          body: { action: 'get_countries' }
-        });
-        if (error || !data || !data.status) return;
-        const raw = data.data; // object keyed by 5sim slug
-        const list = Object.entries(raw)
-          .map(([slug, info]) => {
-            const isoCode = Object.keys(info.iso || {})[0] || '';
-            const dialPrefix = Object.keys(info.prefix || {})[0] || '';
-            return {
-              id: isoCode || slug,
-              name: info.text_en || slug,
-              flag: ISO_FLAGS[isoCode] || '🌐',
-              code: dialPrefix,
-              fivesimSlug: slug
-            };
-          })
-          .filter(c => c.id) // drop entries with no ISO code
-          .sort((a, b) => a.name.localeCompare(b.name));
-        setCountries(list);
-      } catch (err) {
-        console.error('Failed to fetch 5sim countries:', err);
-      }
-    };
-    fetchServer1Countries();
-  }, [isLoggedIn]);
+  // Server 1 (5SIM) is currently disabled.
 
 
   // Sync state with Supabase in Realtime when user logs in
@@ -1306,7 +1276,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const requestOtpNumber = async (countryId, serviceId, dynamicServiceObj = null, server = 'server1') => {
+  const requestOtpNumber = async (countryId, serviceId, dynamicServiceObj = null, server = 'server2') => {
     if (server === 'server3') {
       const priceRes = await fetchTextVerifiedPrice(serviceId);
       if (!priceRes.success) {
@@ -1483,73 +1453,7 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    const country = countries.find(c => c.id === countryId);
-    const service = dynamicServiceObj || otpServices.find(s => s.id === serviceId);
-    if (!country || !service) return { success: false, msg: 'Invalid parameters selected' };
-
-    const price = service.priceNgn;
-    const purchaseRes = await executePurchase(price, 'Purchase', `OTP Verification (${service.name} - ${country.name})`);
-    if (!purchaseRes.success) {
-      return purchaseRes;
-    }
-
-    try {
-      const cleanService = service.id.replace('srv-', '').toLowerCase();
-      // Use fivesimSlug stored on the country object (populated from the API);
-      // fall back to a simple slug derived from the country name.
-      const cleanCountry = country.fivesimSlug
-        || country.name.toLowerCase().replace(/\s+/g, '');
-
-      // Invoke Supabase Edge Function to buy number from 5SIM
-      const { data, error } = await supabase.functions.invoke('sms-gateway', {
-        body: { action: 'buy', country: cleanCountry, service: cleanService }
-      });
-
-      if (error || !data || !data.status) {
-        throw new Error(error ? error.message : (data ? data.error : 'Failed to retrieve verification number'));
-      }
-
-      const order = data.data;
-      const formattedPhone = String(order.phone).startsWith('+') ? String(order.phone) : '+' + order.phone;
-
-      const autoCountry = getCountryFromNumber(formattedPhone);
-      const countryName = autoCountry ? autoCountry.name : country.name;
-      const countryFlag = autoCountry ? autoCountry.flag : country.flag;
-
-      const newOtp = {
-        id: `otp-${order.id}`,
-        fivesimOrderId: order.id,
-        phoneNumber: formattedPhone,
-        country: countryName,
-        flag: countryFlag,
-        service: service.name,
-        priceNgn: price,
-        status: 'PENDING',
-        date: new Date().toLocaleString(),
-        expiresAt: Date.now() + 15 * 60 * 1000,
-        smsText: null,
-        otpCode: null,
-        server: 'server1'
-      };
-
-      setActiveOtps(prev => [newOtp, ...prev]);
-      createOtpOrderInDB(newOtp);
-      return { success: true, otp: newOtp };
-
-    } catch (e) {
-      console.error("5SIM API Buy Error:", e);
-      
-      // Auto-refund since buy failed
-      const ref = `ref-fail-${Math.floor(100000 + Math.random() * 900000)}`;
-      await supabase.rpc('process_deposit', {
-        p_tx_id: ref,
-        p_user_id: user.id,
-        p_amount: price,
-        p_method: `OTP Purchase Failed Refund (${service.name})`
-      });
-
-      return { success: false, msg: customizeGatewayError(e.message, 'server1') };
-    }
+    return { success: false, msg: 'Server 1 is currently disabled. Please select Server 2, 3, or 4.' };
   };
 
   const cancelOtp = async (otpId) => {
@@ -1678,72 +1582,11 @@ export const AppProvider = ({ children }) => {
       return purchaseRes;
     }
 
-    try {
-      const cleanService = service.id.replace('srv-', '').toLowerCase();
-      const cleanNumber = number.replace(/\D/g, ''); // strip '+' and spaces
-
-      // Invoke Supabase Edge Function to reuse number from 5SIM
-      const { data, error } = await supabase.functions.invoke('sms-gateway', {
-        body: { action: 'reuse', product: cleanService, number: cleanNumber }
-      });
-
-      if (error) {
-        // Handle the case where the edge function itself returned a non-2xx HTTP code
-        const rawMsg = error.message || '';
-        if (rawMsg.includes('non-2xx') || rawMsg.includes('Edge Function')) {
-          throw new Error('The reuse service is temporarily unavailable. Please try again in a moment, or contact support if the issue persists.');
-        }
-        throw new Error(error.message);
-      }
-
-      if (!data || !data.status) {
-        throw new Error(data?.error || 'Failed to reuse verification number');
-      }
-
-      const order = data.data;
-      const formattedPhone = String(order.phone).startsWith('+') ? String(order.phone) : '+' + order.phone;
-
-      const autoCountry = getCountryFromNumber(formattedPhone);
-
-      const newOtp = {
-        id: `otp-${order.id}`,
-        fivesimOrderId: order.id,
-        phoneNumber: formattedPhone,
-        country: autoCountry ? autoCountry.name : (countryName || 'Reused'),
-        flag: autoCountry ? autoCountry.flag : (flag || '🔄'),
-        service: service.name,
-        priceNgn: price,
-        status: 'PENDING',
-        date: new Date().toLocaleString(),
-        expiresAt: Date.now() + 15 * 60 * 1000,
-        smsText: null,
-        otpCode: null,
-        server: 'server1'
-      };
-
-      setActiveOtps(prev => [newOtp, ...prev]);
-      setActiveSession(newOtp);
-      createOtpOrderInDB(newOtp);
-      return { success: true, otp: newOtp };
-
-    } catch (e) {
-      console.error("5SIM API Reuse Error:", e);
-      
-      // Auto-refund since reuse failed
-      const ref = `ref-fail-${Math.floor(100000 + Math.random() * 900000)}`;
-      await supabase.rpc('process_deposit', {
-        p_tx_id: ref,
-        p_user_id: user.id,
-        p_amount: price,
-        p_method: `OTP Reuse Failed Refund (${service.name})`
-      });
-
-      return { success: false, msg: customizeGatewayError(e.message, 'server1') };
-    }
+    return { success: false, msg: 'Number reuse is only supported on Server 1, which is currently disabled.' };
   };
 
 
-  const rentNumber = async (countryId, serviceName, durationDays, server = 'server1') => {
+  const rentNumber = async (countryId, serviceName, durationDays, server = 'server2') => {
     if (server === 'server2') {
       // SMS Pool logic
       const rentalInfo = smsPoolRentals.find(r => r.ID === countryId);
@@ -1799,41 +1642,7 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    // Existing Simulated Server 1 Logic
-    const country = countries.find(c => c.id === countryId);
-    if (!country) return { success: false, msg: 'Country not found' };
-
-    let rateNgn = 2500;
-    if (durationDays === 30) rateNgn = 7000;
-    if (durationDays === 90) rateNgn = 18000;
-    if (serviceName !== 'All Services') {
-      rateNgn = Math.round(rateNgn * 0.7);
-    }
-
-    const purchaseRes = await executePurchase(rateNgn, 'Purchase', `Number Rental (${durationDays} Days - ${country.name})`);
-    if (!purchaseRes.success) {
-      return purchaseRes;
-    }
-
-    const randomDigits = Math.floor(100000000 + Math.random() * 899999999);
-    const phoneNumber = country.code.startsWith('+') ? `${country.code}${randomDigits}` : `+${country.code}${randomDigits}`;
-
-    const newRental = {
-      id: `rent-${Math.floor(100000 + Math.random() * 900000)}`,
-      phoneNumber,
-      country: country.name,
-      flag: country.flag,
-      service: serviceName,
-      durationDays,
-      expiryDate: new Date(Date.now() + 3600000 * 24 * durationDays).toLocaleDateString(),
-      priceNgn: rateNgn,
-      messages: [],
-      status: 'ACTIVE',
-      server: 'server1'
-    };
-
-    setRentedNumbers(prev => [newRental, ...prev]);
-    return { success: true, rental: newRental };
+    return { success: false, msg: 'Server 1 rentals are currently disabled. Please select Server 2.' };
   };
 
   const buyEsim = async (packageId) => {

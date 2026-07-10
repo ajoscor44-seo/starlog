@@ -8,7 +8,7 @@ const RentNumbers = () => {
   const { countries, rentedNumbers, rentNumber, formatCost, fetchOtpServicesForCountry, smsPoolRentals, profitMarkup } = useContext(AppContext);
   const isMobile = useIsMobile();
 
-  const [server, setServer] = useState('server1');
+  const [server, setServer] = useState('server2');
   const [selectedCountry, setSelectedCountry] = useState(countries[0]?.id);
   const [purpose, setPurpose] = useState('All Services');
   const [duration, setDuration] = useState(7);
@@ -123,30 +123,9 @@ const RentNumbers = () => {
           </p>
         </div>
 
-        {/* Server Toggle */}
-        <div className="glass-panel" style={{ padding: 6, display: 'flex', gap: 6 }}>
-          <button 
-            style={{ 
-              flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
-              background: server === 'server1' ? 'rgba(0,242,254,0.15)' : 'transparent',
-              color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)',
-              border: server === 'server1' ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent'
-            }}
-            onClick={() => setServer('server1')}
-          >
-            Server 1 (Fast)
-          </button>
-          <button 
-            style={{ 
-              flex: 1, padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
-              background: server === 'server2' ? 'rgba(255,185,0,0.15)' : 'transparent',
-              color: server === 'server2' ? 'var(--color-amber)' : 'var(--text-secondary)',
-              border: server === 'server2' ? '1px solid rgba(255,185,0,0.3)' : '1px solid transparent'
-            }}
-            onClick={() => setServer('server2')}
-          >
-            Server 2 (Long-term)
-          </button>
+        {/* Server Status Tag */}
+        <div className="glass-panel" style={{ padding: '12px 14px', fontSize: 13, fontWeight: 600, color: 'var(--color-amber)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Phone size={14} /> Server 2 (SMSPool Long-term) Active
         </div>
 
         {/* Country picker */}
@@ -365,30 +344,9 @@ const RentNumbers = () => {
         </p>
       </div>
 
-      {/* Server Toggle Desktop */}
-      <div className="glass-panel" style={{ padding: 6, display: 'flex', gap: 6, width: 'max-content' }}>
-        <button 
-          style={{ 
-            padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600, transition: 'all 0.2s',
-            background: server === 'server1' ? 'rgba(0,242,254,0.15)' : 'transparent',
-            color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-secondary)',
-            border: server === 'server1' ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent'
-          }}
-          onClick={() => setServer('server1')}
-        >
-          Server 1 (Fast)
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600, transition: 'all 0.2s',
-            background: server === 'server2' ? 'rgba(255,185,0,0.15)' : 'transparent',
-            color: server === 'server2' ? 'var(--color-amber)' : 'var(--text-secondary)',
-            border: server === 'server2' ? '1px solid rgba(255,185,0,0.3)' : '1px solid transparent'
-          }}
-          onClick={() => setServer('server2')}
-        >
-          Server 2 (Long-term)
-        </button>
+      {/* Server Status Tag Desktop */}
+      <div className="glass-panel" style={{ padding: '12px 20px', fontSize: 14, fontWeight: 600, color: 'var(--color-amber)', display: 'flex', alignItems: 'center', gap: 8, width: 'max-content' }}>
+        <Phone size={16} /> Server 2 (SMSPool Long-term) Active
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24 }}>

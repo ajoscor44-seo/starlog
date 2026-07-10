@@ -1039,7 +1039,6 @@ const AdminDashboard = () => {
             <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
               <select className="form-select" style={{ fontSize: '13px', padding: '6px 12px' }} value={filterOtpServer} onChange={(e) => setFilterOtpServer(e.target.value)}>
                 <option value="ALL">All Servers</option>
-                <option value="server1">Server 1 (5SIM)</option>
                 <option value="server2">Server 2 (SMSPool)</option>
                 <option value="server3">Server 3 (Textverified)</option>
                 <option value="server4">Server 4 (HeroSMS)</option>

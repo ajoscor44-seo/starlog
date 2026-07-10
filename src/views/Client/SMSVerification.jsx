@@ -110,7 +110,7 @@ const SMSVerification = () => {
   const [otpPage, setOtpPage] = useState(1);
   const OTP_PER_PAGE = 10;
 
-  const [server, setServer] = useState('server1');
+  const [server, setServer] = useState('server2');
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [searchCountry, setSearchCountry] = useState('');
@@ -212,16 +212,7 @@ const SMSVerification = () => {
       if (!selectedCountry) return;
       
       setIsLoadingServices(true);
-      if (server === 'server1') {
-        const res = await fetchOtpServicesForCountry(selectedCountry);
-        if (res.success && res.services.length > 0) {
-          setDynamicServices(res.services);
-          setSelectedService(res.services[0].id);
-        } else {
-          setDynamicServices([]);
-          setSelectedService(otpServices[0].id);
-        }
-      } else {
+      if (server === 'server2') {
         // Server 2 (SMSPool) fetching prices for selected country
         try {
           const res = await supabase.functions.invoke('smspool-gateway', {
@@ -262,11 +253,7 @@ const SMSVerification = () => {
   }, [selectedCountry, server, textVerifiedServices]);
 
   useEffect(() => {
-    // Automatically select first country when switching servers
-    if (server === 'server1') {
-      setSelectedCountry(countries[0]?.id);
-      setStep(1);
-    } else if (server === 'server2') {
+    if (server === 'server2') {
       setSelectedCountry(smsPoolShortTermCountries[0]?.ID);
       setStep(1);
     } else if (server === 'server3') {
@@ -278,9 +265,7 @@ const SMSVerification = () => {
     }
   }, [server, countries, smsPoolShortTermCountries, heroSmsCountries]);
 
-  const activeCountriesList = server === 'server1' 
-    ? countries 
-    : (server === 'server2' ? smsPoolShortTermCountries : heroSmsCountries);
+  const activeCountriesList = server === 'server2' ? smsPoolShortTermCountries : heroSmsCountries;
 
   const filteredCountries = useMemo(() => {
     return activeCountriesList.filter(c =>
@@ -288,7 +273,7 @@ const SMSVerification = () => {
     );
   }, [activeCountriesList, searchCountry]);
 
-  const activeServicesList = (server === 'server1' || server === 'server4')
+  const activeServicesList = server === 'server4'
     ? (dynamicServices.length > 0 ? dynamicServices : otpServices)
     : (server === 'server2' ? smsPoolDynamicServices : textVerifiedServices);
 
@@ -316,11 +301,11 @@ const SMSVerification = () => {
 
   const selectedCountryObj = server === 'server3'
     ? { flag: '🇺🇸', name: 'United States', code: '1' }
-    : (server === 'server1' || server === 'server4'
+    : (server === 'server4'
        ? activeCountriesList.find(c => c.id === selectedCountry)
        : activeCountriesList.find(c => c.ID === selectedCountry));
     
-  const selectedServiceObj = (server === 'server1' || server === 'server4')
+  const selectedServiceObj = server === 'server4'
     ? (activeServicesList.find(s => (server === 'server4' ? s.code : s.id) === selectedService) || activeServicesList[0])
     : (server === 'server2'
        ? (activeServicesList.find(s => s.ID === selectedService) || activeServicesList[0])
@@ -365,7 +350,7 @@ const SMSVerification = () => {
 
   const getSelectedServicePrice = () => {
     if (!selectedServiceObj) return 0;
-    if (server === 'server1' || server === 'server2' || server === 'server4') {
+    if (server === 'server2' || server === 'server4') {
       return selectedServiceObj.priceNgn || 0;
     }
     return tvPrices[selectedService] || 0;
@@ -620,23 +605,7 @@ const SMSVerification = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4, marginBottom: 8 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {/* Server 1 Card */}
-                <div
-                  onClick={() => setServer('server1')}
-                  style={{
-                    padding: '10px 12px', borderRadius: 10, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
-                    background: server === 'server1' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
-                    cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 2,
-                    boxShadow: server === 'server1' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 1</span>
-                    <span style={{ fontSize: 8, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>FAST</span>
-                  </div>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Fast dynamic lines</span>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
 
                 {/* Server 2 Card */}
                 <div
@@ -930,29 +899,7 @@ const SMSVerification = () => {
             <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <h3 style={{ fontSize: 18, margin: 0 }}>Select SMS Gateway</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {/* Server 1 Card */}
-                  <div
-                    onClick={() => setServer('server1')}
-                    style={{
-                      padding: '12px 14px', borderRadius: 10, border: `1px solid ${server === 'server1' ? 'var(--color-turquoise)' : 'var(--border-color)'}`,
-                      background: server === 'server1' ? 'rgba(0,242,254,0.06)' : 'rgba(255,255,255,0.02)',
-                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: 4,
-                      boxShadow: server === 'server1' ? '0 0 10px rgba(0,242,254,0.1)' : 'none'
-                    }}
-                    onMouseEnter={e => {
-                      if (server !== 'server1') e.currentTarget.style.borderColor = 'rgba(0,242,254,0.4)';
-                    }}
-                    onMouseLeave={e => {
-                      if (server !== 'server1') e.currentTarget.style.borderColor = 'var(--border-color)';
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server1' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 1</span>
-                      <span style={{ fontSize: 9, background: 'rgba(0,242,254,0.15)', color: 'var(--color-turquoise)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>FAST</span>
-                    </div>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>High availability & dynamic global coverage</span>
-                  </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
 
                   {/* Server 2 Card */}
                   <div
