@@ -1,17 +1,38 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { Key, Eye, EyeOff, Copy, Check, RefreshCw, Code, Server, ShieldCheck, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 const DeveloperApi = () => {
-  const { profile, regenerateApiKey } = useContext(AppContext);
+  const { profile, regenerateApiKey, isAdmin, isAuthLoading } = useContext(AppContext);
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
+
+  // Safeguard role access: navigate away if loading finishes and user is not an administrator
+  useEffect(() => {
+    if (!isAuthLoading && !isAdmin) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAdmin, isAuthLoading, navigate]);
 
   const [showKey, setShowKey] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [copiedCodes, setCopiedCodes] = useState({});
+
+  if (isAuthLoading) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', background: '#f0f0f1' }}>
+        <div className="spinner-loader" style={{ width: '40px', height: '40px', borderTopColor: 'var(--color-turquoise)' }}></div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
 
   // Accordion open states
   const [expandedEndpoints, setExpandedEndpoints] = useState({

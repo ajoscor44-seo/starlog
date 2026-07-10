@@ -322,3 +322,31 @@ CREATE POLICY "Users can insert own otp_orders" ON public.otp_orders
 DROP POLICY IF EXISTS "Users/Admins can update otp_orders" ON public.otp_orders;
 CREATE POLICY "Users/Admins can update otp_orders" ON public.otp_orders
     FOR UPDATE USING (auth.uid() = user_id OR public.is_admin(auth.uid()));
+
+-- Automatically sync profiles.is_admin changes to the admins table to bypass RLS recursion loops
+CREATE OR REPLACE FUNCTION public.sync_profile_admins()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.is_admin = true THEN
+        INSERT INTO public.admins (user_id)
+        VALUES (NEW.id)
+        ON CONFLICT (user_id) DO NOTHING;
+    ELSE
+        DELETE FROM public.admins
+        WHERE user_id = NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to sync on insert/update of is_admin
+DROP TRIGGER IF EXISTS sync_profile_admins_trigger ON public.profiles;
+CREATE TRIGGER sync_profile_admins_trigger
+    AFTER INSERT OR UPDATE OF is_admin ON public.profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.sync_profile_admins();
+
+-- Perform backfill for any existing admins in profiles table
+INSERT INTO public.admins (user_id)
+SELECT id FROM public.profiles WHERE is_admin = true
+ON CONFLICT (user_id) DO NOTHING;

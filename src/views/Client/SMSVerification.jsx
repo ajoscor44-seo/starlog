@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useMemo } from 'react';
+import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../supabase';
@@ -250,7 +250,7 @@ const SMSVerification = () => {
       setIsLoadingServices(false);
     };
     loadServices();
-  }, [selectedCountry, server, textVerifiedServices]);
+  }, [selectedCountry, server, textVerifiedServices, smsPoolShortTermServices, otpServices, exchangeRate, profitMarkup]);
 
   useEffect(() => {
     if (server === 'server2') {
@@ -332,7 +332,7 @@ const SMSVerification = () => {
     else setErrorMsg(result.error || result.msg || 'Failed to request number');
   };
 
-  const handleSelectTvService = async (serviceName) => {
+  const handleSelectTvService = useCallback(async (serviceName) => {
     setSelectedService(serviceName);
     if (tvPrices[serviceName] !== undefined) {
       return;
@@ -346,7 +346,7 @@ const SMSVerification = () => {
     } else {
       setErrorMsg(res.msg || 'Failed to fetch price for this service');
     }
-  };
+  }, [tvPrices, fetchTextVerifiedPrice]);
 
   const getSelectedServicePrice = () => {
     if (!selectedServiceObj) return 0;

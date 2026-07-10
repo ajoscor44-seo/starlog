@@ -1,11 +1,13 @@
 import React, { useContext, useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../supabase';
 import { 
   ShieldCheck, MessageSquare, Plus, Save, DollarSign, Wallet, 
   CheckCircle, AlertCircle, Users, List, BarChart3, Settings, 
-  TrendingUp, RefreshCw, Send, ArrowUpRight, Search, FileText, Download 
+  TrendingUp, RefreshCw, Send, ArrowUpRight, Search, FileText, Download,
+  Eye, UserCheck, Ban, LayoutDashboard
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -36,10 +38,32 @@ const AdminDashboard = () => {
     adminFetchAllProfiles,
     adminUpdateSystemConfig,
     adminUpdateProfile,
-    adminFetchAllOtpOrders
+    adminFetchAllOtpOrders,
+    isAdmin,
+    isAuthLoading
   } = useContext(AppContext);
 
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
+
+  // Safeguard role access: navigate away if loading finishes and user is not an administrator
+  useEffect(() => {
+    if (!isAuthLoading && !isAdmin) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAdmin, isAuthLoading, navigate]);
+
+  if (isAuthLoading) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', background: '#f0f0f1' }}>
+        <div className="spinner-loader" style={{ width: '40px', height: '40px', borderTopColor: 'var(--color-turquoise)' }}></div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
 
   // Dashboard Sub-navigation Tabs: 'overview', 'users', 'transactions', 'sms', 'pricing'
   const [adminTab, setAdminTab] = useState('overview');
@@ -91,18 +115,26 @@ const AdminDashboard = () => {
   // Combine real database-linked profiles
   const allUsers = useMemo(() => {
     return (dbProfiles || []).length > 0
-      ? (dbProfiles || []).map(p => ({
-          id: p.id,
-          full_name: p.id === user?.id ? `${p.username || p.full_name || 'Admin'} (You / Admin)` : p.username || p.full_name || 'Unnamed Client',
-          phone: p.phone || 'N/A',
-          email: p.email || 'N/A',
-          wallet_balance: Number(p.wallet_balance),
-          created_at: p.created_at || new Date().toISOString(),
-          isReal: true
-        }))
-      : (profile && profile.full_name ? [{
+      ? (dbProfiles || []).map(p => {
+          const rawName = p.full_name || '';
+          const nameClean = rawName.includes('(You / Admin)') ? rawName.replace(/\(You \/ Admin\)/g, '').trim() : rawName;
+          return {
+            id: p.id,
+            full_name: p.id === user?.id 
+              ? `${nameClean || p.username || p.email || 'Admin'} (You / Admin)` 
+              : nameClean || p.username || p.email || 'Unnamed Client',
+            username: p.username || '',
+            phone: p.phone || 'N/A',
+            email: p.email || 'N/A',
+            wallet_balance: Number(p.wallet_balance),
+            created_at: p.created_at || new Date().toISOString(),
+            isReal: true
+          };
+        })
+      : (profile && (profile.full_name || profile.username) ? [{
           id: user?.id || 'real-admin',
-          full_name: `${profile.username || profile.full_name} (You / Admin)`,
+          full_name: `${profile.full_name || profile.username || user?.email || 'Admin'} (You / Admin)`,
+          username: profile.username || '',
           phone: profile.phone || 'N/A',
           email: user?.email || 'N/A',
           wallet_balance: walletBalance,
@@ -112,16 +144,64 @@ const AdminDashboard = () => {
   }, [dbProfiles, user, profile, walletBalance]);
 
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userFilterTab, setUserFilterTab] = useState('ALL'); // ALL, VERIFIED, BANNED
+  
+  // Local storage mock states for verification & bans
+  const [verifiedUserIds, setVerifiedUserIds] = useState(() => {
+    return JSON.parse(localStorage.getItem('zp_verified_user_ids') || '[]');
+  });
+  const [restrictedUserIds, setRestrictedUserIds] = useState(() => {
+    return JSON.parse(localStorage.getItem('zp_restricted_user_ids') || '[]');
+  });
 
-  const filteredUsers = allUsers.filter(u => 
-    (u.full_name || '').toLowerCase().includes(userSearchQuery.toLowerCase()) || 
-    (u.phone || '').includes(userSearchQuery) ||
-    (u.email || '').toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-    u.id.toLowerCase().includes(userSearchQuery.toLowerCase())
-  );
+  const getInitials = (name) => {
+    if (!name) return '??';
+    // Strip parenthetical info (like "(You / Admin)")
+    const cleanName = name.replace(/\([^)]*\)/g, '').trim();
+    const parts = cleanName.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase().slice(0, 2);
+    }
+    return cleanName.slice(0, 2).toUpperCase();
+  };
 
-  // Reset pagination on search
-  useEffect(() => { setUsersPage(1); }, [userSearchQuery]);
+  const handleToggleVerify = (userId) => {
+    let next;
+    if (verifiedUserIds.includes(userId)) {
+      next = verifiedUserIds.filter(id => id !== userId);
+    } else {
+      next = [...verifiedUserIds, userId];
+    }
+    setVerifiedUserIds(next);
+    localStorage.setItem('zp_verified_user_ids', JSON.stringify(next));
+  };
+
+  const handleToggleRestrict = (userId) => {
+    let next;
+    if (restrictedUserIds.includes(userId)) {
+      next = restrictedUserIds.filter(id => id !== userId);
+    } else {
+      next = [...restrictedUserIds, userId];
+    }
+    setRestrictedUserIds(next);
+    localStorage.setItem('zp_restricted_user_ids', JSON.stringify(next));
+  };
+
+  const filteredUsers = allUsers
+    .filter(u => {
+      if (userFilterTab === 'VERIFIED') return verifiedUserIds.includes(u.id);
+      if (userFilterTab === 'BANNED') return restrictedUserIds.includes(u.id);
+      return true;
+    })
+    .filter(u => 
+      (u.full_name || '').toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+      (u.phone || '').includes(userSearchQuery) ||
+      (u.email || '').toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+      u.id.toLowerCase().includes(userSearchQuery.toLowerCase())
+    );
+
+  // Reset pagination on search or filter tab change
+  useEffect(() => { setUsersPage(1); }, [userSearchQuery, userFilterTab]);
 
   const paginatedUsers = filteredUsers.slice((usersPage - 1) * USERS_PER_PAGE, usersPage * USERS_PER_PAGE);
   const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
@@ -408,385 +488,1118 @@ const AdminDashboard = () => {
     return acc + profit;
   }, 0);
 
+  // Detailed Category Stats
+  const categoryStats = useMemo(() => {
+    const txs = dbTransactions || [];
+    const stats = {
+      otp: { count: 0, volume: 0 },
+      esim: { count: 0, volume: 0 },
+      smm: { count: 0, volume: 0 },
+      subs: { count: 0, volume: 0 },
+      other: { count: 0, volume: 0 }
+    };
+    txs.forEach(tx => {
+      if (tx.type !== 'Purchase') return;
+      const method = (tx.method || '').toLowerCase();
+      const amount = Number(tx.amountNgn || tx.amount || 0);
+      if (method.includes('otp')) {
+        stats.otp.count++;
+        stats.otp.volume += amount;
+      } else if (method.includes('esim')) {
+        stats.esim.count++;
+        stats.esim.volume += amount;
+      } else if (method.includes('smm')) {
+        stats.smm.count++;
+        stats.smm.volume += amount;
+      } else if (method.includes('subscription') || method.includes('sub')) {
+        stats.subs.count++;
+        stats.subs.volume += amount;
+      } else {
+        stats.other.count++;
+        stats.other.volume += amount;
+      }
+    });
+    return stats;
+  }, [dbTransactions]);
+
+  // Compute top server statistics based on live OTP orders
+  const topServers = useMemo(() => {
+    const counts = {};
+    (dbOtpOrders || []).forEach(order => {
+      const srv = order.server || 'Unknown';
+      if (!counts[srv]) {
+        counts[srv] = { name: srv, total: 0, completed: 0 };
+      }
+      counts[srv].total++;
+      if (order.status === 'COMPLETED' || order.status === 'SUCCESS') {
+        counts[srv].completed++;
+      }
+    });
+    return Object.values(counts)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [dbOtpOrders]);
+
+  const renderTabHeader = (title) => {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 20px 0', flexWrap: 'wrap', gap: '10px' }}>
+        <h1 className="wp-heading" style={{ margin: 0 }}>{title}</h1>
+        <button 
+          className="wp-button-secondary" 
+          onClick={fetchAdminData} 
+          disabled={isLoadingDb}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 12px', fontSize: '13px', borderRadius: '3px' }}
+        >
+          <RefreshCw size={14} className={isLoadingDb ? 'spin-animation' : ''} />
+          {isLoadingDb ? 'Refreshing...' : 'Refresh Data'}
+        </button>
+      </div>
+    );
+  };
+
   return (
-    <div className="animate-slide-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
-      {/* Dashboard Top Header */}
-      <div className="glass-panel" style={{ 
-        background: 'linear-gradient(135deg, rgba(255, 0, 127, 0.08) 0%, rgba(0, 242, 254, 0.08) 100%)', 
-        border: '1px solid rgba(255, 0, 127, 0.25)',
-        padding: '24px',
-        borderRadius: '16px'
-      }}>
-        <h3 style={{ fontSize: '22px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <ShieldCheck size={26} style={{ color: 'var(--color-pink)' }} />
-          Admin System Terminal
-        </h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
-          Manage global settings, adjust client account values, search transaction history, and dispatch incoming SMS codes.
-        </p>
+    <div className="wp-admin-wrapper">
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .spin-animation {
+          animation: spin 1s linear infinite;
+        }
+        /* WP Theme sandbox variables and styles */
+        .wp-admin-wrapper {
+          display: flex;
+          flex-direction: ${isMobile ? 'column' : 'row'};
+          min-height: calc(100vh - 60px);
+          background-color: #f0f0f1;
+          color: #2c3338;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          margin: -24px;
+          box-sizing: border-box;
+        }
+        .wp-admin-wrapper * {
+          box-sizing: border-box;
+        }
+        .wp-sidebar {
+          width: ${isMobile ? '100%' : '180px'};
+          background: #1d2327;
+          color: #c3c4c7;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: ${isMobile ? 'row' : 'column'};
+          overflow-x: ${isMobile ? 'auto' : 'visible'};
+          border-bottom: ${isMobile ? '1px solid #2c3338' : 'none'};
+        }
+        .wp-sidebar-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: ${isMobile ? '12px 14px' : '10px 16px'};
+          color: #c3c4c7;
+          background: none;
+          border: none;
+          width: ${isMobile ? 'auto' : '100%'};
+          white-space: nowrap;
+          text-align: left;
+          cursor: pointer;
+          font-size: 13px;
+          transition: all 0.1s ease-in-out;
+          border-left: ${isMobile ? 'none' : '4px solid transparent'};
+          border-bottom: ${isMobile ? '3px solid transparent' : 'none'};
+        }
+        .wp-sidebar-item:hover {
+          background: #2c3338;
+          color: #72aee6;
+        }
+        .wp-sidebar-item.active {
+          background: #2c3338;
+          color: #fff;
+          border-left-color: ${isMobile ? 'none' : '#2271b1'};
+          border-bottom-color: ${isMobile ? '#2271b1' : 'none'};
+          font-weight: 600;
+        }
+        .wp-content {
+          flex: 1;
+          padding: 20px;
+          background: #f0f0f1;
+          overflow-x: hidden;
+        }
+        .wp-heading {
+          font-size: 23px;
+          font-weight: 400;
+          margin: 0 0 20px 0;
+          color: #1d2327;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .wp-button-primary {
+          background: #2271b1;
+          border: 1px solid #2271b1;
+          border-radius: 3px;
+          color: #fff;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          font-size: 13px;
+          padding: 4px 12px;
+          font-weight: 500;
+          height: 30px;
+          transition: background 0.1s ease-in-out;
+        }
+        .wp-button-primary:hover {
+          background: #135e96;
+          border-color: #135e96;
+        }
+        .wp-button-secondary {
+          background: #f6f7f7;
+          border: 1px solid #8c8f94;
+          border-radius: 3px;
+          color: #2271b1;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          font-size: 13px;
+          padding: 4px 12px;
+          font-weight: 500;
+          height: 30px;
+          transition: all 0.1s ease-in-out;
+        }
+        .wp-button-secondary:hover {
+          background: #f0f6fc;
+          color: #135e96;
+          border-color: #135e96;
+        }
+        .wp-button-secondary:disabled, .wp-button-primary:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .wp-metabox {
+          background: #fff;
+          border: 1px solid #ccd0d4;
+          box-shadow: 0 1px 1px rgba(0,0,0,.04);
+          margin-bottom: 20px;
+        }
+        .wp-metabox-header {
+          border-bottom: 1px solid #ccd0d4;
+          padding: 10px 15px;
+          background: #fff;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .wp-metabox-header h2 {
+          font-size: 14px;
+          font-weight: 600;
+          margin: 0;
+          color: #1d2327;
+        }
+        .wp-metabox-content {
+          padding: 15px;
+        }
+        .wp-table-container {
+          width: 100%;
+          overflow-x: auto;
+          margin-bottom: 15px;
+        }
+        .wp-table {
+          width: 100%;
+          border-collapse: collapse;
+          background: #fff;
+          border: 1px solid #ccd0d4;
+          text-align: left;
+        }
+        .wp-table th {
+          padding: 10px 12px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #2c3338;
+          border-bottom: 1px solid #ccd0d4;
+          background: #f6f7f7;
+        }
+        .wp-table td {
+          padding: 10px 12px;
+          font-size: 13px;
+          color: #2c3338;
+          border-bottom: 1px solid #ccd0d4;
+        }
+        .wp-table tr:nth-child(even) td {
+          background: #f6f7f7;
+        }
+        .wp-table tr:hover td {
+          background: #f0f6fc;
+        }
+        .wp-notice {
+          background: #fff;
+          border: 1px solid #ccd0d4;
+          border-left-width: 4px;
+          box-shadow: 0 1px 1px rgba(0,0,0,.04);
+          margin: 5px 0 15px;
+          padding: 8px 12px;
+          font-size: 13px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .wp-notice-success { border-left-color: #00a32a; }
+        .wp-notice-warning { border-left-color: #dba617; }
+        .wp-notice-error { border-left-color: #d63638; }
+        .wp-notice-info { border-left-color: #72aee6; }
+        
+        .wp-input {
+          background-color: #fff;
+          border: 1px solid #8c8f94;
+          border-radius: 3px;
+          color: #2c3338;
+          font-size: 13px;
+          height: 30px;
+          padding: 0 8px;
+          width: 100%;
+        }
+        .wp-input:focus {
+          border-color: #2271b1;
+          box-shadow: 0 0 0 1px #2271b1;
+          outline: none;
+        }
+        .wp-select {
+          background-color: #fff;
+          border: 1px solid #8c8f94;
+          border-radius: 3px;
+          color: #2c3338;
+          font-size: 13px;
+          height: 30px;
+          padding: 0 24px 0 8px;
+          background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%232c3338' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 8px center;
+          background-size: 8px 10px;
+          appearance: none;
+          min-width: 120px;
+        }
+        .wp-select:focus {
+          border-color: #2271b1;
+          outline: none;
+        }
+        .wp-card-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 15px;
+          margin-bottom: 20px;
+        }
+        .wp-badge {
+          display: inline-block;
+          padding: 3px 6px;
+          font-size: 11px;
+          font-weight: 500;
+          border-radius: 2px;
+          line-height: 1;
+        }
+        .wp-badge-success { background: #d2f4ea; color: #0f5132; border: 1px solid #badbcc; }
+        .wp-badge-warning { background: #fff3cd; color: #664d03; border: 1px solid #ffecb5; }
+        .wp-badge-error { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; }
+        .wp-badge-info { background: #cff4fc; color: #055160; border: 1px solid #b6effb; }
+
+        /* Mockup Users Table Styling */
+        .wp-user-table-controls {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          gap: 15px;
+          flex-wrap: wrap;
+          background: #fff;
+          padding: 12px 16px;
+          border: 1px solid #ccd0d4;
+          border-radius: 4px;
+          box-shadow: 0 1px 1px rgba(0,0,0,.04);
+        }
+        .wp-user-search-wrapper {
+          position: relative;
+          flex: 1;
+          min-width: 250px;
+        }
+        .wp-user-search-input {
+          background-color: #fcfcfd;
+          border: 1px solid #cbd5e1;
+          border-radius: 9999px;
+          color: #2c3338;
+          font-size: 13px;
+          height: 36px;
+          padding: 0 16px 0 36px;
+          width: 100%;
+          outline: none;
+          transition: all 0.15s ease-in-out;
+        }
+        .wp-user-search-input:focus {
+          border-color: #6366F1;
+          background-color: #fff;
+          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+        }
+        .wp-user-search-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #9ca3af;
+        }
+        .wp-user-filters-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .wp-user-date-input-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          color: #64748b;
+        }
+        .wp-user-date-field {
+          background: #fff;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          padding: 4px 8px;
+          font-size: 12px;
+          color: #334155;
+          height: 32px;
+          outline: none;
+        }
+        .wp-user-filter-tabs {
+          display: flex;
+          background: #f1f5f9;
+          padding: 3px;
+          border-radius: 8px;
+          gap: 2px;
+        }
+        .wp-user-filter-tab-btn {
+          border: none;
+          background: none;
+          padding: 6px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #64748b;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .wp-user-filter-tab-btn:hover {
+          color: #0f172a;
+        }
+        .wp-user-filter-tab-btn.active {
+          background: #fff;
+          color: #0f172a;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .wp-users-table-card {
+          background: #fff;
+          border: 1px solid #ccd0d4;
+          border-radius: 4px;
+          box-shadow: 0 1px 1px rgba(0,0,0,.04);
+          overflow: hidden;
+        }
+        .wp-user-table-new {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+        }
+        .wp-user-table-new th {
+          padding: 14px 16px;
+          font-size: 11px;
+          font-weight: bold;
+          text-transform: uppercase;
+          color: #a0aec0;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid #edf2f7;
+          background: #fafafa;
+        }
+        .wp-user-table-new td {
+          padding: 16px 16px;
+          font-size: 13px;
+          color: #2d3748;
+          border-bottom: 1px solid #edf2f7;
+          vertical-align: middle;
+        }
+        .wp-user-table-new tr:hover td {
+          background: #f8fafc;
+        }
+        .wp-user-member-cell {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .wp-user-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: #EEF2FF;
+          color: #6366F1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 13px;
+          flex-shrink: 0;
+        }
+        .wp-user-member-name {
+          font-size: 14px;
+          font-weight: 700;
+          color: #1a202c;
+          margin: 0;
+        }
+        .wp-user-member-username {
+          font-size: 12px;
+          color: #a0aec0;
+          margin: 2px 0 0 0;
+          font-weight: normal;
+        }
+        .wp-user-contact-email {
+          font-size: 13px;
+          color: #4a5568;
+          word-break: break-all;
+        }
+        .wp-user-contact-phone {
+          font-size: 12px;
+          color: #a0aec0;
+          margin: 2px 0 0 0;
+        }
+        .wp-user-status-deposited {
+          background: #EEF2FF;
+          color: #4F46E5;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-weight: bold;
+          font-size: 11px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          border: 1px solid #E0E7FF;
+          text-transform: uppercase;
+        }
+        .wp-user-status-standard {
+          color: #a0aec0;
+          font-size: 11px;
+          font-weight: bold;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+        }
+        .wp-user-wallet-blue {
+          background: #E0F2FE;
+          color: #0369A1;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-weight: bold;
+          font-size: 11px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          border: 1px solid #BAE6FD;
+          text-transform: uppercase;
+        }
+        .wp-user-wallet-none {
+          background: #F1F5F9;
+          color: #64748B;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-weight: bold;
+          font-size: 11px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          border: 1px solid #E2E8F0;
+          text-transform: uppercase;
+        }
+        .wp-user-action-btn-circle {
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #94A3B8;
+          cursor: pointer;
+          transition: all 0.15s;
+          padding: 0;
+        }
+        .wp-user-action-btn-circle:hover {
+          background: #e2e8f0;
+          color: #475569;
+        }
+        .wp-user-action-adjust-pill {
+          background: #EEF2FF;
+          color: #6366F1;
+          border: 1px solid #E0E7FF;
+          padding: 5px 10px;
+          border-radius: 6px;
+          font-weight: bold;
+          font-size: 11px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .wp-user-action-adjust-pill:hover {
+          background: #e0e7ff;
+        }
+        .wp-user-action-verify-pill {
+          background: #F8FAFC;
+          color: #94A3B8;
+          border: 1px solid #E2E8F0;
+          padding: 5px 10px;
+          border-radius: 6px;
+          font-weight: bold;
+          font-size: 11px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .wp-user-action-verify-pill:hover {
+          background: #f1f5f9;
+        }
+        .wp-user-action-verify-pill.active {
+          background: #ECFDF5;
+          color: #10B981;
+          border-color: #D1FAE5;
+        }
+        .wp-user-action-restrict-pill {
+          background: #FEF2F2;
+          color: #EF4444;
+          border: 1px solid #FEE2E2;
+          padding: 5px 10px;
+          border-radius: 6px;
+          font-weight: bold;
+          font-size: 11px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .wp-user-action-restrict-pill:hover {
+          background: #fee2e2;
+        }
+        .wp-user-action-restrict-pill.active {
+          background: #EF4444;
+          color: #fff;
+          border-color: #EF4444;
+        }
+      `}</style>
+
+      {/* WP Admin Left Sidebar */}
+      <div className="wp-sidebar">
+        <button className={`wp-sidebar-item ${adminTab === 'overview' ? 'active' : ''}`} onClick={() => setAdminTab('overview')}>
+          <LayoutDashboard size={16} /> Overview
+        </button>
+        <button className={`wp-sidebar-item ${adminTab === 'stats' ? 'active' : ''}`} onClick={() => setAdminTab('stats')}>
+          <BarChart3 size={16} /> Platform Stats
+        </button>
+        <button className={`wp-sidebar-item ${adminTab === 'users' ? 'active' : ''}`} onClick={() => setAdminTab('users')}>
+          <Users size={16} /> Users
+        </button>
+        <button className={`wp-sidebar-item ${adminTab === 'transactions' ? 'active' : ''}`} onClick={() => setAdminTab('transactions')}>
+          <List size={16} /> Transactions
+        </button>
+        <button className={`wp-sidebar-item ${adminTab === 'otp_orders' ? 'active' : ''}`} onClick={() => setAdminTab('otp_orders')}>
+          <FileText size={16} /> OTP Orders
+        </button>
+        <button className={`wp-sidebar-item ${adminTab === 'rates' ? 'active' : ''}`} onClick={() => setAdminTab('rates')}>
+          <Settings size={16} /> Rates & Config
+        </button>
+        <button className={`wp-sidebar-item ${adminTab === 'profile' ? 'active' : ''}`} onClick={() => setAdminTab('profile')}>
+          <ShieldCheck size={16} /> Profile
+        </button>
       </div>
 
-      {/* Admin Tab Menu */}
-      <div className="tabs-container" style={{ margin: 0, overflowX: isMobile ? 'auto' : 'visible' }}>
-        <button className={`tab-btn ${adminTab === 'overview' ? 'active' : ''}`} onClick={() => setAdminTab('overview')}>
-          <BarChart3 size={16} style={{ marginRight: '6px' }} /> Overview
-        </button>
-        <button className={`tab-btn ${adminTab === 'users' ? 'active' : ''}`} onClick={() => setAdminTab('users')}>
-          <Users size={16} style={{ marginRight: '6px' }} /> Users Panel
-        </button>
-        <button className={`tab-btn ${adminTab === 'transactions' ? 'active' : ''}`} onClick={() => setAdminTab('transactions')}>
-          <List size={16} style={{ marginRight: '6px' }} /> Transaction Logs
-        </button>
-        <button className={`tab-btn ${adminTab === 'otp_orders' ? 'active' : ''}`} onClick={() => setAdminTab('otp_orders')}>
-          <FileText size={16} style={{ marginRight: '6px' }} /> OTP Orders
-        </button>
-        <button className={`tab-btn ${adminTab === 'rates' ? 'active' : ''}`} onClick={() => setAdminTab('rates')}>
-          <Settings size={16} style={{ marginRight: '6px' }} /> Rates & Config
-        </button>
-        <button className={`tab-btn ${adminTab === 'sms' ? 'active' : ''}`} onClick={() => setAdminTab('sms')}>
-          <MessageSquare size={16} style={{ marginRight: '6px' }} /> SMS Tools
-        </button>
-        <button className={`tab-btn ${adminTab === 'profile' ? 'active' : ''}`} onClick={() => setAdminTab('profile')}>
-          <ShieldCheck size={16} style={{ marginRight: '6px' }} /> Profile
-        </button>
-      </div>
-
-      {/* Tab Panel: OVERVIEW */}
-      {adminTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Card Grid */}
-          <div className="stat-grid" style={{ gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '20px' }}>
-            <div className="glass-panel stat-card">
-              <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(59, 183, 94, 0.1)' }}>
-                <DollarSign size={24} style={{ color: 'var(--color-green)' }} />
-              </div>
-              <div>
-                <div className="stat-lbl">System Cash Pool</div>
-                <div className="stat-val">{formatCost(totalClientCash)}</div>
-              </div>
-            </div>
-
-            <div className="glass-panel stat-card" style={{ background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
-              <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(0, 242, 254, 0.1)' }}>
-                <TrendingUp size={24} style={{ color: 'var(--color-turquoise)' }} />
-              </div>
-              <div>
-                <div className="stat-lbl">Est. Platform Profit</div>
-                <div className="stat-val" style={{ color: 'var(--color-turquoise)' }}>{formatCost(estimatedProfit)}</div>
-              </div>
-            </div>
-
-            <div className="glass-panel stat-card">
-              <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(255, 0, 127, 0.1)' }}>
-                <Users size={24} style={{ color: 'var(--color-pink)' }} />
-              </div>
-              <div>
-                <div className="stat-lbl">Live DB Clients</div>
-                <div className="stat-val">{liveUserCount} Users</div>
-              </div>
-            </div>
-
-            <div className="glass-panel stat-card">
-              <div className="stat-icon-wrapper" style={{ backgroundColor: 'rgba(127, 0, 255, 0.1)' }}>
-                <ArrowUpRight size={24} style={{ color: 'var(--color-violet)' }} />
-              </div>
-              <div>
-                <div className="stat-lbl">System Orders</div>
-                <div className="stat-val">{totalLedgerTransactions} total</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Metrics */}
-          <div className="glass-panel">
-            <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Active System Services Summary</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '24px' }}>
-              <div style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>eSIM Travel Packages</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--color-turquoise)', marginTop: '8px' }}>{activeEsims?.length || 0} active profiles</div>
-              </div>
-              <div style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>SMM Reseller Tasks</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--color-pink)', marginTop: '8px' }}>{smmOrders?.length || 0} pending API jobs</div>
-              </div>
-              <div style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Shared Premium Accounts</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--color-violet)', marginTop: '8px' }}>{accountSubscriptions?.length || 0} leased screens</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Detailed Ledger Stats */}
-          <div className="glass-panel">
-            <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Database Ledger Detailed Breakdown</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '24px' }}>
-              <div style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Live Purchases Volume</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: '#ff453a', marginTop: '8px' }}>{livePurchaseCount} transactions</div>
-              </div>
-              <div style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Live Deposits Volume</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--color-green)', marginTop: '8px' }}>{liveDepositCount} transactions</div>
-              </div>
-              <div style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total Cash Deposited (Live)</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--color-green)', marginTop: '8px' }}>{formatCost(totalDepositedReal)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab Panel: USERS */}
-      {adminTab === 'users' && (
-        <div className="glass-panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '20px', flexDirection: isMobile ? 'column' : 'row' }}>
-            <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={18} style={{ color: 'var(--color-turquoise)' }} /> Registered Clients
-            </h3>
+      {/* WP Main Content Work Area */}
+      <div className="wp-content">
+        
+        {/* OVERVIEW TAB */}
+        {adminTab === 'overview' && (
+          <div>
+            {renderTabHeader('Dashboard')}
             
-            <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto', alignItems: 'center' }}>
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px', height: '34px' }} 
-                onClick={fetchAdminData}
-                disabled={isLoadingDb}
-              >
-                <RefreshCw size={14} className={isLoadingDb ? 'spin-slow' : ''} />
-                {isMobile ? '' : 'Refresh'}
-              </button>
-              <div style={{ position: 'relative', width: isMobile ? '100%' : '180px' }}>
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <div className="wp-card-grid">
+              <div className="wp-metabox">
+                <div className="wp-metabox-header">
+                  <h2>System Cash Pool</h2>
+                </div>
+                <div className="wp-metabox-content">
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#00a32a' }}>{formatCost(totalClientCash)}</div>
+                  <div style={{ fontSize: '12px', color: '#646970', marginTop: '4px' }}>Total client balances</div>
+                </div>
+              </div>
+
+              <div className="wp-metabox">
+                <div className="wp-metabox-header">
+                  <h2>Est. Platform Profit</h2>
+                </div>
+                <div className="wp-metabox-content">
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2271b1' }}>{formatCost(estimatedProfit)}</div>
+                  <div style={{ fontSize: '12px', color: '#646970', marginTop: '4px' }}>Estimated OTP markups</div>
+                </div>
+              </div>
+
+              <div className="wp-metabox">
+                <div className="wp-metabox-header">
+                  <h2>Live DB Clients</h2>
+                </div>
+                <div className="wp-metabox-content">
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1d2327' }}>{liveUserCount} Users</div>
+                  <div style={{ fontSize: '12px', color: '#646970', marginTop: '4px' }}>Registered in database</div>
+                </div>
+              </div>
+
+              <div className="wp-metabox">
+                <div className="wp-metabox-header">
+                  <h2>System Orders</h2>
+                </div>
+                <div className="wp-metabox-content">
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1d2327' }}>{totalLedgerTransactions} total</div>
+                  <div style={{ fontSize: '12px', color: '#646970', marginTop: '4px' }}>Audit transaction count</div>
+                </div>
+              </div>
+            </div>
+
+
+          </div>
+        )}
+
+        {/* STATS TAB */}
+        {adminTab === 'stats' && (
+          <div>
+            {renderTabHeader('Platform Stats')}
+            
+            <div className="wp-card-grid">
+              {/* Financial Performance */}
+              <div className="wp-metabox" style={{ gridColumn: 'span 2' }}>
+                <div className="wp-metabox-header">
+                  <h2>Financial Performance Summary</h2>
+                </div>
+                <div className="wp-metabox-content" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '15px', borderRadius: '4px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970', textTransform: 'uppercase', fontWeight: '600' }}>Total Cash Deposited</div>
+                    <div style={{ fontSize: '26px', fontWeight: 'bold', color: '#00a32a', marginTop: '6px' }}>{formatCost(totalDepositedReal)}</div>
+                    <div style={{ fontSize: '11px', color: '#8c8f94', marginTop: '4px' }}>Cumulative customer top-ups</div>
+                  </div>
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '15px', borderRadius: '4px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970', textTransform: 'uppercase', fontWeight: '600' }}>Platform Net Profits</div>
+                    <div style={{ fontSize: '26px', fontWeight: 'bold', color: '#2271b1', marginTop: '6px' }}>{formatCost(estimatedProfit)}</div>
+                    <div style={{ fontSize: '11px', color: '#8c8f94', marginTop: '4px' }}>Calculated service markups</div>
+                  </div>
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '15px', borderRadius: '4px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970', textTransform: 'uppercase', fontWeight: '600' }}>Wallet Liabilities</div>
+                    <div style={{ fontSize: '26px', fontWeight: 'bold', color: '#d63638', marginTop: '6px' }}>{formatCost(totalClientCash)}</div>
+                    <div style={{ fontSize: '11px', color: '#8c8f94', marginTop: '4px' }}>Sum of outstanding client balances</div>
+                  </div>
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '15px', borderRadius: '4px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970', textTransform: 'uppercase', fontWeight: '600' }}>Average Client Wallet</div>
+                    <div style={{ fontSize: '26px', fontWeight: 'bold', color: '#1d2327', marginTop: '6px' }}>{formatCost(totalClientCash / Math.max(1, liveUserCount))}</div>
+                    <div style={{ fontSize: '11px', color: '#8c8f94', marginTop: '4px' }}>Per registered database user</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transaction Volumes */}
+              <div className="wp-metabox">
+                <div className="wp-metabox-header">
+                  <h2>System Event Activity</h2>
+                </div>
+                <div className="wp-metabox-content" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px' }}>
+                    <span style={{ color: '#646970' }}>Total Audit Log Events</span>
+                    <span style={{ fontWeight: 'bold' }}>{totalLedgerTransactions} txs</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px' }}>
+                    <span style={{ color: '#646970' }}>Successful Deposits</span>
+                    <span style={{ fontWeight: 'bold', color: '#00a32a' }}>{liveDepositCount} deposits</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px' }}>
+                    <span style={{ color: '#646970' }}>Purchase Logs</span>
+                    <span style={{ fontWeight: 'bold', color: '#2271b1' }}>{livePurchaseCount} purchases</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '4px' }}>
+                    <span style={{ color: '#646970' }}>Conversion Rate</span>
+                    <span style={{ fontWeight: 'bold' }}>{((livePurchaseCount / Math.max(1, totalLedgerTransactions)) * 100).toFixed(1)}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="wp-card-grid" style={{ marginTop: '20px' }}>
+              {/* Category Purchase Volume breakdown */}
+              <div className="wp-metabox" style={{ gridColumn: 'span 2' }}>
+                <div className="wp-metabox-header">
+                  <h2>Purchase Share by Service Category</h2>
+                </div>
+                <div className="wp-metabox-content" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {(() => {
+                    const totalVolume = Math.max(1, categoryStats.otp.volume + categoryStats.esim.volume + categoryStats.smm.volume + categoryStats.subs.volume + categoryStats.other.volume);
+                    const renderCategoryRow = (title, stats, color) => {
+                      const percent = ((stats.volume / totalVolume) * 100).toFixed(1);
+                      return (
+                        <div key={title}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                            <span style={{ fontWeight: '600' }}>{title} <span style={{ color: '#646970', fontWeight: '400', fontSize: '12px' }}>({stats.count} purchases)</span></span>
+                            <span style={{ fontWeight: 'bold' }}>{formatCost(stats.volume)} <span style={{ color: '#8c8f94', fontWeight: '400', fontSize: '11px' }}>({percent}%)</span></span>
+                          </div>
+                          <div style={{ height: '8px', background: '#f0f0f1', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${percent}%`, height: '100%', background: color, borderRadius: '4px' }}></div>
+                          </div>
+                        </div>
+                      );
+                    };
+                    return (
+                      <>
+                        {renderCategoryRow("SMS / OTP Verifications", categoryStats.otp, "#2271b1")}
+                        {renderCategoryRow("eSIM Travel Packages", categoryStats.esim, "#72aee6")}
+                        {renderCategoryRow("SMM Reseller Social Tasks", categoryStats.smm, "#6366F1")}
+                        {renderCategoryRow("Premium Account Subscriptions", categoryStats.subs, "#1d2327")}
+                        {renderCategoryRow("Other Services", categoryStats.other, "#a7aaad")}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Top Customers (Highest Balances) */}
+              <div className="wp-metabox">
+                <div className="wp-metabox-header">
+                  <h2>Top Balances (VIP Customers)</h2>
+                </div>
+                <div className="wp-metabox-content" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[...allUsers]
+                    .sort((a, b) => b.wallet_balance - a.wallet_balance)
+                    .slice(0, 5)
+                    .map((cust, idx) => {
+                      const cleanName = cust.full_name.replace(/\([^)]*\)/g, '').trim();
+                      const initials = getInitials(cust.full_name);
+                      return (
+                        <div key={cust.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: idx < 4 ? '1px solid #f0f0f1' : 'none', paddingBottom: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div className="wp-user-avatar" style={{ width: '28px', height: '28px', fontSize: '11px' }}>
+                              {initials}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '13px', fontWeight: '600', color: '#1d2327' }}>{cleanName}</div>
+                              <div style={{ fontSize: '11px', color: '#646970' }}>{cust.email}</div>
+                            </div>
+                          </div>
+                          <span style={{ fontWeight: 'bold', color: '#2271b1', fontSize: '13px' }}>{formatCost(cust.wallet_balance)}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            <div className="wp-card-grid" style={{ marginTop: '20px' }}>
+              {/* Top OTP Servers Performance */}
+              <div className="wp-metabox" style={{ gridColumn: 'span 2' }}>
+                <div className="wp-metabox-header">
+                  <h2>Top OTP Server Performance</h2>
+                </div>
+                <div className="wp-metabox-content" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {topServers.length === 0 ? (
+                    <div style={{ padding: '10px', color: '#64748b', textAlign: 'center' }}>No OTP server transaction data found.</div>
+                  ) : topServers.map((srv) => {
+                    const pct = srv.total > 0 ? ((srv.completed / srv.total) * 100).toFixed(0) : 0;
+                    return (
+                      <div key={srv.name}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                          <span style={{ fontWeight: '600' }}>{srv.name} <span style={{ color: '#646970', fontWeight: '400', fontSize: '12px' }}>({srv.total} total orders)</span></span>
+                          <span style={{ fontWeight: 'bold' }}>{pct}% Success <span style={{ color: '#8c8f94', fontWeight: '400', fontSize: '11px' }}>({srv.completed} successful)</span></span>
+                        </div>
+                        <div style={{ height: '8px', background: '#f0f0f1', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: pct > 80 ? '#00a32a' : pct > 50 ? '#dba617' : '#d63638', borderRadius: '4px' }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* USERS TAB */}
+        {adminTab === 'users' && (
+          <div>
+            {renderTabHeader('Users')}
+
+            {/* Custom search and filter controls matching mockup */}
+            <div className="wp-user-table-controls">
+              <div className="wp-user-search-wrapper">
+                <Search size={16} className="wp-user-search-icon" />
                 <input 
                   type="text" 
-                  className="form-input" 
-                  placeholder="Search client..." 
-                  style={{ paddingLeft: '28px', fontSize: '13px', height: '34px' }} 
+                  className="wp-user-search-input" 
+                  placeholder="Find by id, name, username..." 
                   value={userSearchQuery} 
                   onChange={(e) => setUserSearchQuery(e.target.value)} 
                 />
               </div>
-            </div>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '16px' }}>
-            {filteredUsers.length === 0 ? (
-              <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                No users found matching query.
-              </div>
-            ) : paginatedUsers.map((u) => {
-              const dbProf = (dbProfiles || []).find(p => p.id === u.id) || {};
-              const isAdminUser = dbProf.is_admin === true;
-              return (
-                <div 
-                  key={u.id}
-                  onClick={() => handleOpenEditModal(u)}
-                  className="glass-panel interactive"
-                  style={{ 
-                    padding: '16px', 
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    border: '1px solid var(--border-color)',
-                    background: 'rgba(255, 255, 255, 0.01)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {u.full_name}
-                        {isAdminUser && (
-                          <span style={{ fontSize: '10px', background: 'rgba(255, 0, 127, 0.1)', color: 'var(--color-pink)', border: '1px solid rgba(255, 0, 127, 0.2)', padding: '2px 6px', borderRadius: '4px' }}>
-                            Admin
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                        Email: {u.email}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Phone: {u.phone}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: '800', fontSize: '18px', color: 'var(--color-turquoise)' }}>{formatCost(u.wallet_balance)}</div>
-                      {u.isReal && <div style={{ fontSize: '10px', color: 'var(--color-green)', marginTop: '4px' }}>Real Profile</div>}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                    <span>Joined: {new Date(u.created_at).toLocaleDateString()}</span>
-                    <span style={{ color: 'var(--color-turquoise)', fontWeight: '600' }}>Manage Account &rarr;</span>
-                  </div>
+
+              <div className="wp-user-filters-right">
+                {/* Visual Start/End Date Pickers */}
+                <div className="wp-user-date-input-group">
+                  <input type="date" className="wp-user-date-field" defaultValue="2026-07-10" />
+                  <span>to</span>
+                  <input type="date" className="wp-user-date-field" defaultValue="2026-07-10" />
                 </div>
-              );
-            })}
+
+                {/* Filter Tabs Group */}
+                <div className="wp-user-filter-tabs">
+                  <button 
+                    className={`wp-user-filter-tab-btn ${userFilterTab === 'ALL' ? 'active' : ''}`}
+                    onClick={() => setUserFilterTab('ALL')}
+                  >
+                    ALL
+                  </button>
+                  <button 
+                    className={`wp-user-filter-tab-btn ${userFilterTab === 'VERIFIED' ? 'active' : ''}`}
+                    onClick={() => setUserFilterTab('VERIFIED')}
+                  >
+                    VERIFIED
+                  </button>
+                  <button 
+                    className={`wp-user-filter-tab-btn ${userFilterTab === 'BANNED' ? 'active' : ''}`}
+                    onClick={() => setUserFilterTab('BANNED')}
+                  >
+                    BANNED
+                  </button>
+                </div>
+
+                <button type="button" className="wp-button-secondary" style={{ height: '36px', borderRadius: '8px' }} onClick={fetchAdminData} disabled={isLoadingDb}>
+                  <RefreshCw size={12} className={isLoadingDb ? 'spin-slow' : ''} style={{ marginRight: '6px' }} /> Refresh
+                </button>
+              </div>
+            </div>
+
+            <div className="wp-users-table-card">
+              <div className="wp-table-container" style={{ margin: 0 }}>
+                <table className="wp-user-table-new">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '25%' }}>MEMBER</th>
+                      <th style={{ width: '25%' }}>CONTACT</th>
+                      <th style={{ width: '12%' }}>STATUS</th>
+                      <th style={{ width: '15%' }}>VIRTUAL WALLET</th>
+                      <th style={{ width: '10%' }}>BALANCE</th>
+                      <th style={{ width: '13%', textAlign: 'right' }}>ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No users found matching filters.</td>
+                      </tr>
+                    ) : paginatedUsers.map((u) => {
+                      const initials = getInitials(u.full_name);
+                      
+                      const isVerified = verifiedUserIds.includes(u.id);
+                      const isRestricted = restrictedUserIds.includes(u.id);
+                      const isDeposited = u.wallet_balance > 0;
+                      
+                      // Fallback username display
+                      const displayUsername = u.username 
+                        ? `@${u.username}` 
+                        : `@${(u.full_name || '').toLowerCase().replace(/\([^)]*\)/g, '').trim().replace(/\s+/g, '_')}_${u.id.slice(0, 4)}`;
+
+                      return (
+                        <tr key={u.id}>
+                          <td>
+                            <div className="wp-user-member-cell">
+                              <div className="wp-user-avatar">
+                                {initials}
+                              </div>
+                              <div>
+                                <p className="wp-user-member-name">{u.full_name}</p>
+                                <p className="wp-user-member-username">{displayUsername}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="wp-user-contact-email">{u.email}</div>
+                            <div className="wp-user-contact-phone">{u.phone !== 'N/A' ? u.phone : 'No phone'}</div>
+                          </td>
+                          <td>
+                            {isDeposited ? (
+                              <span className="wp-user-status-deposited">
+                                <span style={{ width: '6px', height: '6px', backgroundColor: '#6366F1', display: 'inline-block', borderRadius: '1px' }}></span>
+                                DEPOSITED
+                              </span>
+                            ) : (
+                              <span className="wp-user-status-standard">STANDARD</span>
+                            )}
+                          </td>
+                          <td>
+                            {isDeposited ? (
+                              <span className="wp-user-wallet-blue">
+                                <span style={{ fontSize: '12px', marginRight: '4px' }}>🏦</span>
+                                PocketFi
+                              </span>
+                            ) : (
+                              <span className="wp-user-wallet-none">
+                                <span style={{ width: '6px', height: '6px', backgroundColor: '#64748B', display: 'inline-block', borderRadius: '50%' }}></span>
+                                NONE
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b' }}>
+                              ₦{u.wallet_balance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                              <button 
+                                className="wp-user-action-btn-circle" 
+                                title="View User"
+                                onClick={() => handleOpenEditModal(u)}
+                              >
+                                <Eye size={12} />
+                              </button>
+                              
+                              <button 
+                                className="wp-user-action-adjust-pill" 
+                                title="Adjust Balance"
+                                onClick={() => {
+                                  setSelectedUser(u);
+                                  setAdjustType('set');
+                                  setAdjustAmount('');
+                                  setIsUserModalOpen(true);
+                                }}
+                              >
+                                <Wallet size={10} />
+                                ADJUST
+                              </button>
+                              
+                              <button 
+                                className={`wp-user-action-verify-pill ${isVerified ? 'active' : ''}`}
+                                title={isVerified ? "Unverify User" : "Verify User"}
+                                onClick={() => handleToggleVerify(u.id)}
+                              >
+                                <UserCheck size={10} />
+                                VERIFY
+                              </button>
+                              
+                              <button 
+                                className={`wp-user-action-restrict-pill ${isRestricted ? 'active' : ''}`}
+                                title={isRestricted ? "Remove restriction" : "Restrict User"}
+                                onClick={() => handleToggleRestrict(u.id)}
+                              >
+                                <Ban size={10} />
+                                RESTRICT
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {filteredUsers.length > USERS_PER_PAGE && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '15px' }}>
+                <button className="wp-button-secondary" disabled={usersPage === 1} onClick={() => setUsersPage(p => p - 1)}>Prev</button>
+                <span style={{ fontSize: '13px', color: '#2c3338' }}>Page {usersPage} of {totalUserPages}</span>
+                <button className="wp-button-secondary" disabled={usersPage === totalUserPages} onClick={() => setUsersPage(p => p + 1)}>Next</button>
+              </div>
+            )}
           </div>
-          
-          {/* Pagination UI for Users */}
-          {filteredUsers.length > USERS_PER_PAGE && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={usersPage === 1} onClick={() => setUsersPage(p => p - 1)}>Prev</button>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {usersPage} of {totalUserPages}</span>
-              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={usersPage === totalUserPages} onClick={() => setUsersPage(p => p + 1)}>Next</button>
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
-      {/* Modal Popup for Managing User */}
-      {isUserModalOpen && selectedUser && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          padding: '20px'
-        }} onClick={() => setIsUserModalOpen(false)}>
-          <div className="glass-panel animate-zoom-in" style={{
-            width: '100%',
-            maxWidth: '550px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            padding: '24px',
-            background: 'var(--bg-modal)',
-            border: '1px solid var(--border-color)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-            borderRadius: '16px',
-            position: 'relative'
-          }} onClick={(e) => e.stopPropagation()}>
-            
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={20} style={{ color: 'var(--color-turquoise)' }} />
-                Manage Account
-              </h3>
-              <button 
-                onClick={() => setIsUserModalOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontSize: '20px',
-                  lineHeight: 1,
-                  padding: '4px'
-                }}
-              >
-                &times;
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* USER EDIT MODAL (WP STYLE) */}
+        {isUserModalOpen && selectedUser && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }} onClick={() => setIsUserModalOpen(false)}>
+            <div className="wp-metabox" style={{
+              width: '100%',
+              maxWidth: '500px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#fff',
+              border: '1px solid #ccd0d4',
+              boxShadow: '0 5px 15px rgba(0,0,0,.7)'
+            }} onClick={(e) => e.stopPropagation()}>
               
-              {/* Account Quick Status */}
-              <div style={{ padding: '16px', background: 'var(--bg-recent-tx)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Current Balance</div>
-                  <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--color-turquoise)', marginTop: '4px' }}>{formatCost(selectedUser.wallet_balance)}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Joined Date</div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '4px' }}>{new Date(selectedUser.created_at).toLocaleDateString()}</div>
-                </div>
+              <div className="wp-metabox-header">
+                <h2>Manage User: {selectedUser.email}</h2>
+                <button onClick={() => setIsUserModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }}>&times;</button>
               </div>
 
-              {/* Form 1: Edit Profile Details */}
-              <div>
-                <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Profile Info</h4>
-                <form onSubmit={handleSaveProfileDetails} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="wp-metabox-content" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                
+                {/* User quick metrics */}
+                <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#646970' }}>Current Balance</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2271b1', marginTop: '2px' }}>{formatCost(selectedUser.wallet_balance)}</div>
+                </div>
+
+                {/* Edit Profile Form */}
+                <form onSubmit={handleSaveProfileDetails} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <h3 style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 5px 0', borderBottom: '1px solid #ccd0d4', paddingBottom: '3px' }}>Profile Details</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <label className="form-label">Full Name</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={editFullName} 
-                        onChange={(e) => setEditFullName(e.target.value)} 
-                        required 
-                      />
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Full Name</label>
+                      <input type="text" className="wp-input" value={editFullName} onChange={(e) => setEditFullName(e.target.value)} required />
                     </div>
                     <div>
-                      <label className="form-label">Username</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={editUsername} 
-                        onChange={(e) => setEditUsername(e.target.value)} 
-                      />
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Username</label>
+                      <input type="text" className="wp-input" value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
                     </div>
                   </div>
                   <div>
-                    <label className="form-label">Phone Number</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={editPhone} 
-                      onChange={(e) => setEditPhone(e.target.value)} 
-                    />
+                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Phone Number</label>
+                    <input type="text" className="wp-input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
                   </div>
-                  <div>
-                    <label className="form-label">Email Address (Read-only)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={selectedUser.email} 
-                      disabled 
-                      style={{ opacity: 0.6, cursor: 'not-allowed' }}
-                    />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '5px' }}>
+                    <input type="checkbox" id="wp-is-admin" checked={editIsAdmin} onChange={(e) => setEditIsAdmin(e.target.checked)} style={{ cursor: 'pointer' }} />
+                    <label htmlFor="wp-is-admin" style={{ fontSize: '12px', cursor: 'pointer' }}>Administrator Role</label>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                    <input 
-                      id="is-admin-checkbox"
-                      type="checkbox" 
-                      checked={editIsAdmin} 
-                      onChange={(e) => setEditIsAdmin(e.target.checked)}
-                      style={{ width: '16px', height: '16px', accentColor: 'var(--color-turquoise)' }}
-                    />
-                    <label htmlFor="is-admin-checkbox" style={{ fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                      Grant System Administrator Privileges
-                    </label>
-                  </div>
-                  
                   {editProfileResult && (
-                    <div style={{ fontSize: '12px', color: editProfileResult.includes('success') ? 'var(--color-green)' : '#ff453a', fontWeight: '600' }}>
-                      {editProfileResult}
+                    <div className={`wp-notice ${editProfileResult.includes('success') ? 'wp-notice-success' : 'wp-notice-error'}`}>
+                      <p>{editProfileResult}</p>
                     </div>
                   )}
-
-                  <button type="submit" className="btn btn-primary" style={{ padding: '10px', fontSize: '13px' }}>
-                    Save Profile Changes
-                  </button>
+                  <button type="submit" className="wp-button-primary" style={{ marginTop: '5px' }}>Save Profile Changes</button>
                 </form>
-              </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: 0 }} />
-
-              {/* Form 2: Adjust Balance */}
-              <div>
-                <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Adjust Wallet Balance</h4>
-                <form onSubmit={handleUserBalanceAdjust} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Adjust Wallet Balance */}
+                <form onSubmit={handleUserBalanceAdjust} style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #ccd0d4', paddingTop: '15px' }}>
+                  <h3 style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 5px 0', borderBottom: '1px solid #ccd0d4', paddingBottom: '3px' }}>Adjust Balance</h3>
                   <div>
-                    <label className="form-label">Adjustment Type</label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Type</label>
+                    <div style={{ display: 'flex', gap: '5px' }}>
                       {[['set', 'Set'], ['add', 'Add'], ['deduct', 'Deduct']].map(([type, label]) => (
                         <button
                           key={type}
                           type="button"
-                          className={`btn ${adjustType === type ? 'btn-primary' : 'btn-secondary'}`}
-                          style={{ flex: 1, padding: '6px 4px', fontSize: '12px' }}
+                          className={adjustType === type ? 'wp-button-primary' : 'wp-button-secondary'}
+                          style={{ flex: 1, height: '26px', fontSize: '12px' }}
                           onClick={() => setAdjustType(type)}
                         >
                           {label}
@@ -795,713 +1608,562 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="form-label" htmlFor="adjust-val">Amount (₦)</label>
-                    <input 
-                      id="adjust-val"
-                      type="number" 
-                      className="form-input" 
-                      placeholder="e.g. 5000"
-                      value={adjustAmount}
-                      onChange={(e) => setAdjustAmount(e.target.value)}
-                      required
-                    />
+                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Amount (₦)</label>
+                    <input type="number" className="wp-input" placeholder="Amount" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} required />
                   </div>
-
                   {adjustResult && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px', background: 'rgba(0,242,254,0.08)', border: '1px solid rgba(0,242,254,0.15)', borderRadius: '8px', color: 'var(--color-turquoise)', fontSize: '12px' }}>
-                      <CheckCircle size={14} />
-                      <span>{adjustResult}</span>
+                    <div className="wp-notice wp-notice-info">
+                      <p>{adjustResult}</p>
                     </div>
                   )}
-
-                  <button type="submit" className="btn btn-primary" style={{ background: 'var(--color-pink)', border: 'none', padding: '10px', fontSize: '13px' }}>
-                    Save Wallet Change
-                  </button>
+                  <button type="submit" className="wp-button-primary" style={{ background: '#d63638', borderColor: '#d63638' }}>Save Wallet Change</button>
                 </form>
-              </div>
 
-              <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: 0 }} />
-
-              {/* Form 3: Webhook Deposit Simulator */}
-              <div>
-                <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PocketFi Webhook Simulator</h4>
-                <form onSubmit={handleSimulateWebhookDeposit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Webhook deposit simulator */}
+                <form onSubmit={handleSimulateWebhookDeposit} style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #ccd0d4', paddingTop: '15px' }}>
+                  <h3 style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 5px 0', borderBottom: '1px solid #ccd0d4', paddingBottom: '3px' }}>Simulate Deposit Webhook</h3>
                   <div>
-                    <label className="form-label" htmlFor="webhook-sim-val">Simulated Transfer Amount (₦)</label>
-                    <input 
-                      id="webhook-sim-val"
-                      type="number" 
-                      className="form-input" 
-                      value={simDepositAmount}
-                      onChange={(e) => setSimDepositAmount(Number(e.target.value))}
-                      required
-                    />
+                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Amount (₦)</label>
+                    <input type="number" className="wp-input" value={simDepositAmount} onChange={(e) => setSimDepositAmount(Number(e.target.value))} required />
                   </div>
-
                   {simDepositSuccess && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px', background: 'rgba(59, 183, 94, 0.1)', border: '1px solid rgba(59, 183, 94, 0.25)', borderRadius: '8px', color: 'var(--color-green)', fontSize: '12px' }}>
-                      <CheckCircle size={14} />
-                      <span>Simulated webhook successfully processed!</span>
+                    <div className="wp-notice wp-notice-success">
+                      <p>webhook deposit simulated successfully.</p>
                     </div>
                   )}
-
-                  <button type="submit" className="btn btn-accent" style={{ padding: '10px', fontSize: '13px' }} onClick={() => setSimDepositSuccess(false)}>
-                    Trigger Webhook Deposit
-                  </button>
+                  <button type="submit" className="wp-button-secondary" onClick={() => setSimDepositSuccess(false)}>Trigger Webhook Deposit</button>
                 </form>
-              </div>
 
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Tab Panel: TRANSACTIONS */}
-      {adminTab === 'transactions' && (
-        <div className="glass-panel">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '16px', flexDirection: isMobile ? 'column' : 'row' }}>
-            <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={18} style={{ color: 'var(--color-turquoise)' }} /> Global Audit Transaction Ledger
-            </h3>
+        {/* TRANSACTIONS TAB */}
+        {adminTab === 'transactions' && (
+          <div>
+            {renderTabHeader('Transactions')}
 
-            {/* Filter controls */}
-            <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto' }}>
-              <select className="form-select" style={{ fontSize: '13px', padding: '6px 12px' }} value={filterTxType} onChange={(e) => setFilterTxType(e.target.value)}>
-                <option value="ALL">All Types</option>
-                <option value="Deposit">Deposits</option>
-                <option value="Purchase">Purchases</option>
-                <option value="Refund">Refunds</option>
-              </select>
-              
-              <div style={{ position: 'relative', width: isMobile ? '100%' : '180px' }}>
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', gap: '10px', flexDirection: isMobile ? 'column' : 'row' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select className="wp-select" value={filterTxType} onChange={(e) => setFilterTxType(e.target.value)}>
+                  <option value="ALL">All Types</option>
+                  <option value="Deposit">Deposits</option>
+                  <option value="Purchase">Purchases</option>
+                  <option value="Refund">Refunds</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                   type="text" 
-                  className="form-input" 
-                  placeholder="Search user..." 
-                  style={{ paddingLeft: '28px', fontSize: '13px', height: '34px' }} 
+                  className="wp-input" 
+                  placeholder="Search transactions..." 
+                  style={{ width: '200px' }} 
                   value={searchTx} 
                   onChange={(e) => setSearchTx(e.target.value)} 
                 />
               </div>
             </div>
+
+            <div className="wp-table-container">
+              <table className="wp-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>User</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Method</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const filteredTx = allTransactions
+                      .filter(tx => filterTxType === 'ALL' || tx.type === filterTxType)
+                      .filter(tx => (tx.user_name || '').toLowerCase().includes(searchTx.toLowerCase()) || (tx.id || '').toLowerCase().includes(searchTx.toLowerCase()));
+                    
+                    const totalTxPages = Math.max(1, Math.ceil(filteredTx.length / TX_PER_PAGE));
+                    const paginatedTx = filteredTx.slice((txPage - 1) * TX_PER_PAGE, txPage * TX_PER_PAGE);
+
+                    if (paginatedTx.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: '#646970' }}>No transactions found.</td>
+                        </tr>
+                      );
+                    }
+
+                    return (
+                      <>
+                        {paginatedTx.map((tx) => (
+                          <tr key={tx.id}>
+                            <td style={{ fontFamily: 'monospace' }}>{tx.id}</td>
+                            <td style={{ fontWeight: '500' }}>{tx.user_name}</td>
+                            <td>{tx.date || new Date(tx.created_at).toLocaleString()}</td>
+                            <td>
+                              <span className={`wp-badge ${
+                                tx.type === 'Deposit' ? 'wp-badge-success' : 
+                                tx.type === 'Refund' ? 'wp-badge-info' : 'wp-badge-error'
+                              }`}>
+                                {tx.type}
+                              </span>
+                            </td>
+                            <td>{tx.method}</td>
+                            <td style={{ fontWeight: 'bold', color: tx.type === 'Deposit' || tx.type === 'Refund' ? '#00a32a' : '#d63638' }}>
+                              {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn || tx.amount)}
+                            </td>
+                            <td>
+                              <span className="wp-badge wp-badge-success">{tx.status}</span>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredTx.length > TX_PER_PAGE && (
+                          <tr>
+                            <td colSpan="7">
+                              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                                <button className="wp-button-secondary" disabled={txPage === 1} onClick={() => setTxPage(p => p - 1)}>Prev</button>
+                                <span style={{ fontSize: '13px' }}>Page {txPage} of {totalTxPages}</span>
+                                <button className="wp-button-secondary" disabled={txPage === totalTxPages} onClick={() => setTxPage(p => p + 1)}>Next</button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
           </div>
+        )}
 
-          {/* Table */}
-          <div className="custom-table-container">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>TX Reference</th>
-                  <th>Client Name</th>
-                  <th>Timestamp</th>
-                  <th>Type</th>
-                  <th>Method</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const filteredTx = allTransactions
-                    .filter(tx => filterTxType === 'ALL' || tx.type === filterTxType)
-                    .filter(tx => (tx.user_name || '').toLowerCase().includes(searchTx.toLowerCase()) || (tx.id || '').toLowerCase().includes(searchTx.toLowerCase()));
-                  
-                  const totalTxPages = Math.max(1, Math.ceil(filteredTx.length / TX_PER_PAGE));
-                  const paginatedTx = filteredTx.slice((txPage - 1) * TX_PER_PAGE, txPage * TX_PER_PAGE);
-                  
-                  return (
-                    <>
-                      {paginatedTx.map((tx) => (
-                    <tr key={tx.id}>
-                      <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{tx.id}</td>
-                      <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{tx.user_name}</td>
-                      <td style={{ fontSize: '12px' }}>{tx.date || new Date(tx.created_at).toLocaleString()}</td>
-                      <td>
-                        <span className={`badge ${
-                          tx.type === 'Deposit' ? 'badge-success' : 
-                          tx.type === 'Refund' ? 'badge-info' : 'badge-danger'
-                        }`} style={{ fontSize: '9px' }}>
-                          {tx.type}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '13px' }}>{tx.method}</td>
-                      <td style={{ 
-                        fontFamily: 'var(--font-heading)', 
-                        fontWeight: '700', 
-                        color: tx.type === 'Deposit' || tx.type === 'Refund' ? 'var(--color-green)' : '#ff453a'
-                      }}>
-                        {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn || tx.amount)}
-                      </td>
-                      <td>
-                        <span className="badge badge-success" style={{ fontSize: '9px' }}>{tx.status}</span>
-                      </td>
-                      </tr>
-                    ))}
-                    {filteredTx.length > TX_PER_PAGE && (
-                      <tr>
-                        <td colSpan="7">
-                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
-                            <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === 1} onClick={() => setTxPage(p => p - 1)}>Prev</button>
-                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Page {txPage} of {totalTxPages}</span>
-                            <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} disabled={txPage === totalTxPages} onClick={() => setTxPage(p => p + 1)}>Next</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    </>
-                  );
-                })()}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        {/* OTP ORDERS TAB */}
+        {adminTab === 'otp_orders' && (
+          <div>
+            {renderTabHeader('OTP Orders')}
 
-      {/* Tab Panel: SMS CARRIER SIMULATOR */}
-      {adminTab === 'sms' && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr', gap: '24px' }}>
-          <div className="glass-panel">
-            <h3 style={{ fontSize: '18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <MessageSquare size={18} style={{ color: 'var(--color-pink)' }} /> Admin SMS Carrier Simulator
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
-              Dispatch simulated SMS codes directly to users who are waiting for temporary OTP verification numbers or rented numbers.
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <select className="wp-select" value={filterOtpServer} onChange={(e) => setFilterOtpServer(e.target.value)}>
+                  <option value="ALL">All Servers</option>
+                  <option value="server2">Server 2 (SMSPool)</option>
+                  <option value="server3">Server 3 (Textverified)</option>
+                  <option value="server4">Server 4 (HeroSMS)</option>
+                </select>
 
-            {allTargets.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', border: '1px dashed var(--border-color)', borderRadius: '10px', fontSize: '13px' }}>
-                No active mobile numbers (OTP waiting lines or Rented numbers) are currently provisioned. Open OTP or Rental view as a client to order a number first!
-              </div>
-            ) : (
-              <form onSubmit={handleSimulateSms} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label className="form-label">Target Mobile Line</label>
-                  <select 
-                    className="form-select" 
-                    value={selectedNumber}
-                    onChange={(e) => setSelectedNumber(e.target.value)}
-                  >
-                    {allTargets.map((t, idx) => (
-                      <option key={idx} value={t.number}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <select className="wp-select" value={filterOtpStatus} onChange={(e) => setFilterOtpStatus(e.target.value)}>
+                  <option value="ALL">All Statuses</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="EXPIRED">EXPIRED</option>
+                  <option value="REFUNDED">REFUNDED</option>
+                </select>
 
-                <div>
-                  <label className="form-label" htmlFor="sms-body">SMS Body Message</label>
-                  <textarea 
-                    id="sms-body"
-                    className="form-textarea" 
-                    rows="3"
-                    placeholder="Enter verification text (e.g. Your verification code is: 582910)"
-                    value={smsText}
-                    onChange={(e) => setSmsText(e.target.value)}
-                  />
-                </div>
-
-                {simResult.success !== null && (
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    padding: '10px', 
-                    background: simResult.success ? 'rgba(0, 255, 135, 0.1)' : 'rgba(255, 59, 48, 0.15)',
-                    border: simResult.success ? '1px solid rgba(0, 255, 135, 0.2)' : '1px solid rgba(255, 59, 48, 0.2)',
-                    borderRadius: '8px', 
-                    color: simResult.success ? 'var(--color-green)' : '#ff453a',
-                    fontSize: '13px'
-                  }}>
-                    {simResult.success ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-                    <span>{simResult.msg}</span>
-                  </div>
-                )}
-
-                <button type="submit" className="btn btn-primary" style={{ background: 'var(--color-pink)', border: 'none', width: '100%' }}>
-                  Simulate SMS Delivery
+                <button className="wp-button-secondary" onClick={handleExportOtpOrders}>
+                  <Download size={12} /> Export CSV
                 </button>
-              </form>
-            )}
-          </div>
+              </div>
 
-          <div className="glass-panel" style={{ height: 'fit-content' }}>
-            <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Carrier Routing Rules</h3>
-            <ul style={{ paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px', margin: 0 }}>
-              <li>Simulator checks both temporary OTP lists and active long-term rental lines.</li>
-              <li>A 4 to 8 digit code matching <code>\b\d{'{4,8}'}\b</code> will be automatically parsed and extracted to trigger instant OTP resolution on the client UI.</li>
-              <li>If no numbers show up in the simulator, go to <strong>SMS OTP (Temp)</strong> or <strong>Rent Number</strong> page to buy one first.</li>
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {/* Tab Panel: OTP ORDERS */}
-      {adminTab === 'otp_orders' && (
-        <div className="glass-panel animate-slide-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '16px', flexDirection: isMobile ? 'column' : 'row' }}>
-            <h3 style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={18} style={{ color: 'var(--color-pink)' }} /> OTP Number Orders Log
-            </h3>
-
-            {/* Filter controls */}
-            <div style={{ display: 'flex', gap: '8px', width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
-              <select className="form-select" style={{ fontSize: '13px', padding: '6px 12px' }} value={filterOtpServer} onChange={(e) => setFilterOtpServer(e.target.value)}>
-                <option value="ALL">All Servers</option>
-                <option value="server2">Server 2 (SMSPool)</option>
-                <option value="server3">Server 3 (Textverified)</option>
-                <option value="server4">Server 4 (HeroSMS)</option>
-              </select>
-
-              <select className="form-select" style={{ fontSize: '13px', padding: '6px 12px' }} value={filterOtpStatus} onChange={(e) => setFilterOtpStatus(e.target.value)}>
-                <option value="ALL">All Statuses</option>
-                <option value="PENDING">PENDING</option>
-                <option value="COMPLETED">COMPLETED</option>
-                <option value="EXPIRED">EXPIRED</option>
-                <option value="REFUNDED">REFUNDED</option>
-              </select>
-              
-              <div style={{ position: 'relative', width: isMobile ? '100%' : '180px' }}>
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                   type="text" 
-                  className="form-input" 
-                  placeholder="Search number/user..." 
-                  style={{ paddingLeft: '28px', fontSize: '13px', height: '34px' }} 
+                  className="wp-input" 
+                  placeholder="Search orders..." 
+                  style={{ width: '200px' }} 
                   value={searchOtp} 
                   onChange={(e) => setSearchOtp(e.target.value)} 
                 />
               </div>
-              <button 
-                className="btn btn-secondary" 
-                style={{ fontSize: '13px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', height: '34px', cursor: 'pointer' }}
-                onClick={handleExportOtpOrders}
-              >
-                <Download size={14} /> Export CSV
-              </button>
             </div>
-          </div>
 
-          {/* Table */}
-          <div className="custom-table-container">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Client</th>
-                  <th>Timestamp</th>
-                  <th>Server</th>
-                  <th>Platform</th>
-                  <th>Number</th>
-                  <th>Cost</th>
-                  <th>Code Given</th>
-                  <th>SMS Text</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const filtered = filteredOtpOrders;
-                  
-                  const totalPages = Math.max(1, Math.ceil(filtered.length / OTP_PER_PAGE));
-                  const paginated = filtered.slice((otpPage - 1) * OTP_PER_PAGE, otpPage * OTP_PER_PAGE);
-                  
-                  const serverNames = {
-                    server1: 'Server 1',
-                    server2: 'Server 2',
-                    server3: 'Server 3',
-                    server4: 'Server 4'
-                  };
+            <div className="wp-table-container">
+              <table className="wp-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Client / Phone</th>
+                    <th>Timestamp</th>
+                    <th>Server</th>
+                    <th>Platform</th>
+                    <th>Number</th>
+                    <th>Cost</th>
+                    <th>Code</th>
+                    <th>SMS Text</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const filtered = filteredOtpOrders;
+                    const totalPages = Math.max(1, Math.ceil(filtered.length / OTP_PER_PAGE));
+                    const paginated = filtered.slice((otpPage - 1) * OTP_PER_PAGE, otpPage * OTP_PER_PAGE);
+                    
+                    const serverNames = {
+                      server1: 'Server 1',
+                      server2: 'Server 2',
+                      server3: 'Server 3',
+                      server4: 'Server 4'
+                    };
 
-                  if (paginated.length === 0) {
-                    return (
-                      <tr>
-                        <td colSpan="10" style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-secondary)' }}>
-                          No OTP number orders found.
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  return (
-                    <>
-                      {paginated.map((order) => (
-                        <tr key={order.id}>
-                          <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{order.id}</td>
-                          <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span>{order.profiles?.full_name || 'N/A'}</span>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{order.profiles?.phone || 'N/A'}</span>
-                            </div>
-                          </td>
-                          <td style={{ fontSize: '12px' }}>{new Date(order.created_at).toLocaleString()}</td>
-                          <td style={{ fontSize: '13px', fontWeight: '500' }}>{serverNames[order.server] || order.server}</td>
-                          <td style={{ fontSize: '13px', fontWeight: '600' }}>{order.service}</td>
-                          <td style={{ fontFamily: 'var(--mono)', fontWeight: '700', color: 'var(--text-primary)' }}>{order.phone_number}</td>
-                          <td style={{ fontFamily: 'var(--font-heading)', fontWeight: '700' }}>{formatCost(order.price_ngn)}</td>
-                          <td style={{ fontFamily: 'var(--mono)', fontSize: '14px', fontWeight: '800', color: 'var(--color-green)' }}>
-                            {order.otp_code || <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 'normal' }}>-</span>}
-                          </td>
-                          <td style={{ fontSize: '12px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.sms_text || ''}>
-                            {order.sms_text || <span style={{ color: 'var(--text-muted)' }}>No SMS yet</span>}
-                          </td>
-                          <td>
-                            <span className={`badge ${
-                              order.status === 'COMPLETED' ? 'badge-success' : 
-                              order.status === 'PENDING' ? 'badge-warning' : 'badge-danger'
-                            }`} style={{ fontSize: '9px' }}>
-                              {order.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                      
-                      {/* Pagination Footer */}
-                      {totalPages > 1 && (
+                    if (paginated.length === 0) {
+                      return (
                         <tr>
-                          <td colSpan="10" style={{ padding: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}>
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '4px 10px', fontSize: '12px' }}
-                                disabled={otpPage === 1}
-                                onClick={() => setOtpPage(prev => Math.max(1, prev - 1))}
-                              >
-                                Prev
-                              </button>
-                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                Page {otpPage} of {totalPages}
-                              </span>
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '4px 10px', fontSize: '12px' }}
-                                disabled={otpPage === totalPages}
-                                onClick={() => setOtpPage(prev => Math.min(totalPages, prev + 1))}
-                              >
-                                Next
-                              </button>
-                            </div>
-                          </td>
+                          <td colSpan="10" style={{ textAlign: 'center', padding: '20px', color: '#646970' }}>No OTP orders found.</td>
                         </tr>
-                      )}
-                    </>
-                  );
-                })()}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                      );
+                    }
 
-      {/* Tab Panel: CARRIER ROUTING (formerly SMS Tools) */}
-      {adminTab === 'rates' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Global Exchange Rate */}
-          <div className="glass-panel" style={{ 
-            background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.03) 0%, rgba(255, 0, 127, 0.03) 100%)', 
-            border: '1px solid rgba(0, 242, 254, 0.15)',
-            padding: '20px',
-            borderRadius: '12px'
-          }}>
-            <h3 style={{ fontSize: '16px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <RefreshCw size={18} style={{ color: 'var(--color-green)' }} /> Global Dollar to Naira Exchange Rate
-            </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{ flex: 1, maxWidth: '300px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Current System Rate (1 USD = NGN)</span>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  value={exchangeRate}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    if (val > 0) setExchangeRate(val);
-                  }}
-                />
+                    return (
+                      <>
+                        {paginated.map((order) => (
+                          <tr key={order.id}>
+                            <td style={{ fontFamily: 'monospace' }}>{order.id}</td>
+                            <td>
+                              <div style={{ fontWeight: '500' }}>{order.profiles?.full_name || 'N/A'}</div>
+                              <div style={{ fontSize: '11px', color: '#646970' }}>{order.profiles?.phone || 'N/A'}</div>
+                            </td>
+                            <td>{new Date(order.created_at).toLocaleString()}</td>
+                            <td>{serverNames[order.server] || order.server}</td>
+                            <td style={{ fontWeight: '600' }}>{order.service}</td>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{order.phone_number}</td>
+                            <td style={{ fontWeight: 'bold' }}>{formatCost(order.price_ngn)}</td>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#00a32a', fontSize: '14px' }}>
+                              {order.otp_code || '-'}
+                            </td>
+                            <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.sms_text || ''}>
+                              {order.sms_text || <span style={{ color: '#8c8f94' }}>No SMS yet</span>}
+                            </td>
+                            <td>
+                              <span className={`wp-badge ${
+                                order.status === 'COMPLETED' ? 'wp-badge-success' : 
+                                order.status === 'PENDING' ? 'wp-badge-warning' : 'wp-badge-error'
+                              }`}>
+                                {order.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                        {totalPages > 1 && (
+                          <tr>
+                            <td colSpan="10">
+                              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                                <button className="wp-button-secondary" disabled={otpPage === 1} onClick={() => setOtpPage(prev => Math.max(1, prev - 1))}>Prev</button>
+                                <span style={{ fontSize: '13px' }}>Page {otpPage} of {totalPages}</span>
+                                <button className="wp-button-secondary" disabled={otpPage === totalPages} onClick={() => setOtpPage(prev => Math.min(totalPages, prev + 1))}>Next</button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        )}
+
+        {/* RATES & CONFIG TAB */}
+        {adminTab === 'rates' && (
+          <div>
+            {renderTabHeader('Rates & Config')}
+
+            {/* Exchange Rate Meta Box */}
+            <div className="wp-metabox">
+              <div className="wp-metabox-header">
+                <h2>Global Dollar to Naira Exchange Rate</h2>
               </div>
-              <button 
-                className="btn btn-primary" 
-                style={{ marginTop: '22px' }}
-                onClick={async () => {
-                  const res = await adminUpdateSystemConfig('exchange_rate', exchangeRate);
-                  if (res.success) {
-                    alert('Exchange rate updated across the system.');
-                  } else {
-                    alert('Failed to update exchange rate: ' + res.msg);
-                  }
-                }}
-              >
-                Save Rate
-              </button>
-            </div>
-          </div>
-
-          {/* Sliders for Profit markup percentage */}
-          <div className="glass-panel" style={{ 
-            background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.03) 0%, rgba(255, 0, 127, 0.03) 100%)', 
-            border: '1px solid rgba(0, 242, 254, 0.15)',
-            padding: '20px',
-            borderRadius: '12px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '16px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <TrendingUp size={18} style={{ color: 'var(--color-turquoise)' }} /> Category-specific Profit Markup (%)
-              </h3>
-              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={async () => {
-                const res = await adminUpdateSystemConfig('profit_markup', JSON.stringify(profitMarkup));
-                if (res.success) alert('Profit markup updated globally');
-              }}>
-                Save Global Config
-              </button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '20px' }}>
-              {[
-                ['subs', 'Shared Subscriptions', 'subs'],
-                ['otp', 'SMS Verification', 'otp'],
-                ['esim', 'eSIM Packages', 'esim'],
-                ['smm', 'SMM Booster Tasks', 'smm']
-              ].map(([key, label, cat]) => (
-                <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{label} Markup</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="wp-metabox-content">
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '15px', maxWidth: '400px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Rate (1 USD = NGN)</label>
                     <input 
-                      type="range" 
-                      min="5" 
-                      max="150" 
-                      step="5"
-                      value={profitMarkup[cat] || 0}
-                      onChange={(e) => updateProfitMarkup(cat, Number(e.target.value))}
-                      style={{ flex: 1, accentColor: 'var(--color-turquoise)' }}
+                      type="number" 
+                      className="wp-input" 
+                      value={exchangeRate}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (val > 0) setExchangeRate(val);
+                      }}
                     />
-                    <span style={{ fontSize: '13px', fontWeight: '800', minWidth: '40px', textAlign: 'right', color: 'var(--color-turquoise)' }}>
-                      {profitMarkup[cat]}%
-                    </span>
                   </div>
+                  <button 
+                    className="wp-button-primary" 
+                    onClick={async () => {
+                      const res = await adminUpdateSystemConfig('exchange_rate', exchangeRate);
+                      if (res.success) alert('Exchange rate updated successfully.');
+                      else alert('Failed to update rate: ' + res.msg);
+                    }}
+                  >
+                    Save Rate
+                  </button>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 3fr', gap: '24px' }}>
-            {/* Category Selectors */}
-            <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: 'fit-content' }}>
-              <h3 style={{ fontSize: '14px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Catalogs</h3>
-              {[
-                ['subs', 'Subscriptions'],
-                ['otp', 'OTP verifications'],
-                ['esim', 'eSIM Regions'],
-                ['smm', 'SMM Refillers']
-              ].map(([cat, label]) => (
-                <button
-                  key={cat}
-                  type="button"
-                  className={`btn ${pricingCategory === cat ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '10px 14px' }}
-                  onClick={() => setPricingCategory(cat)}
-                >
-                  {label}
+            {/* Markups Meta Box */}
+            <div className="wp-metabox">
+              <div className="wp-metabox-header">
+                <h2>Category Profit Markup (%)</h2>
+                <button className="wp-button-secondary" style={{ height: '24px', padding: '0 8px', fontSize: '11px' }} onClick={async () => {
+                  const res = await adminUpdateSystemConfig('profit_markup', JSON.stringify(profitMarkup));
+                  if (res.success) alert('Profit markup updated globally.');
+                }}>
+                  Save All Markups
                 </button>
-              ))}
+              </div>
+              <div className="wp-metabox-content" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '15px' }}>
+                {[
+                  ['subs', 'Shared Subscriptions', 'subs'],
+                  ['otp', 'SMS Verification', 'otp'],
+                  ['esim', 'eSIM Packages', 'esim'],
+                  ['smm', 'SMM Booster Tasks', 'smm']
+                ].map(([key, label, cat]) => (
+                  <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '12px', color: '#646970' }}>{label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input 
+                        type="range" 
+                        min="5" 
+                        max="150" 
+                        step="5"
+                        value={profitMarkup[cat] || 0}
+                        onChange={(e) => updateProfitMarkup(cat, Number(e.target.value))}
+                        style={{ flex: 1, accentColor: '#2271b1' }}
+                      />
+                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#2271b1', minWidth: '35px', textAlign: 'right' }}>
+                        {profitMarkup[cat]}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Pricing Manager details */}
-            <div className="glass-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '18px', margin: 0 }}>Adjust {pricingCategory === 'subs' ? 'Subscriptions' : pricingCategory === 'otp' ? 'OTP Services' : pricingCategory === 'esim' ? 'eSIM Packages' : 'SMM Booster'} Rates</h3>
-                {savePriceResult && (
-                  <span style={{ fontSize: '12px', color: 'var(--color-green)', fontWeight: 'bold' }}>{savePriceResult}</span>
-                )}
+            {/* Catalog Rate Override Metaboax */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 3fr', gap: '20px' }}>
+              <div className="wp-metabox" style={{ height: 'fit-content' }}>
+                <div className="wp-metabox-header">
+                  <h2>Catalogs</h2>
+                </div>
+                <div className="wp-metabox-content" style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: '5px', overflowX: 'auto', padding: '10px' }}>
+                  {[
+                    ['subs', 'Subscriptions'],
+                    ['otp', 'OTP Services'],
+                    ['esim', 'eSIM Regions'],
+                    ['smm', 'SMM Booster']
+                  ].map(([cat, label]) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className={pricingCategory === cat ? 'wp-button-primary' : 'wp-button-secondary'}
+                      style={{ justifyContent: 'flex-start', textAlign: 'left', width: isMobile ? 'auto' : '100%', height: '32px', whiteSpace: 'nowrap' }}
+                      onClick={() => setPricingCategory(cat)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Subscriptions Rate Manager */}
-              {pricingCategory === 'subs' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {subscriptions.map((sub) => {
-                    const mapKey = `subs-${sub.id}`;
-                    const val = pricesList[mapKey] !== undefined ? pricesList[mapKey] : sub.priceNgn;
-                    const markupVal = profitMarkup.subs || 0;
-                    const baseCost = Math.round(sub.priceNgn / (1 + markupVal / 100));
-                    return (
-                      <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{sub.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>Base Cost: {formatCost(baseCost)} (+{markupVal}% profit)</div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>₦</span>
-                          <input 
-                            type="number" 
-                            className="form-input" 
-                            style={{ width: '100px', padding: '6px 10px', fontSize: '13px' }}
-                            value={val}
-                            onChange={(e) => handlePriceChange('subs', sub.id, e.target.value)}
-                          />
-                          <button className="btn btn-secondary" style={{ padding: '6px' }} onClick={() => handleSavePrice('subs', sub.id)} title="Save Override Rate">
-                            <Save size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="wp-metabox">
+                <div className="wp-metabox-header">
+                  <h2>Adjust pricing for: {pricingCategory.toUpperCase()}</h2>
+                  {savePriceResult && (
+                    <span style={{ fontSize: '12px', color: '#00a32a', fontWeight: 'bold' }}>{savePriceResult}</span>
+                  )}
                 </div>
-              )}
+                <div className="wp-metabox-content" style={{ maxHeight: '450px', overflowY: 'auto' }}>
+                  
+                  {pricingCategory === 'subs' && (
+                    <table className="wp-table">
+                      <thead>
+                        <tr>
+                          <th>Item Name</th>
+                          <th>Wholesale Base</th>
+                          <th>Override Price (₦)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subscriptions.map((sub) => {
+                          const mapKey = `subs-${sub.id}`;
+                          const val = pricesList[mapKey] !== undefined ? pricesList[mapKey] : sub.priceNgn;
+                          const markupVal = profitMarkup.subs || 0;
+                          const baseCost = Math.round(sub.priceNgn / (1 + markupVal / 100));
+                          return (
+                            <tr key={sub.id}>
+                              <td style={{ fontWeight: '500' }}>{sub.name}</td>
+                              <td>{formatCost(baseCost)}</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <input type="number" className="wp-input" style={{ width: '90px' }} value={val} onChange={(e) => handlePriceChange('subs', sub.id, e.target.value)} />
+                                  <button className="wp-button-secondary" style={{ padding: '0 6px', height: '24px' }} onClick={() => handleSavePrice('subs', sub.id)}><Save size={12} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
 
-              {/* OTP Services Rate Manager */}
-              {pricingCategory === 'otp' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {otpServices.map((otp) => {
-                    const mapKey = `otp-${otp.id}`;
-                    const val = pricesList[mapKey] !== undefined ? pricesList[mapKey] : otp.priceNgn;
-                    const markupVal = profitMarkup.otp || 0;
-                    const baseCost = Math.round(otp.priceNgn / (1 + markupVal / 100));
-                    return (
-                      <div key={otp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{otp.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>Base Cost: {formatCost(baseCost)} (+{markupVal}% profit)</div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>₦</span>
-                          <input 
-                            type="number" 
-                            className="form-input" 
-                            style={{ width: '100px', padding: '6px 10px', fontSize: '13px' }}
-                            value={val}
-                            onChange={(e) => handlePriceChange('otp', otp.id, e.target.value)}
-                          />
-                          <button className="btn btn-secondary" style={{ padding: '6px' }} onClick={() => handleSavePrice('otp', otp.id)} title="Save Override Rate">
-                            <Save size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                  {pricingCategory === 'otp' && (
+                    <table className="wp-table">
+                      <thead>
+                        <tr>
+                          <th>Service Name</th>
+                          <th>Wholesale Base</th>
+                          <th>Override Price (₦)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {otpServices.map((otp) => {
+                          const mapKey = `otp-${otp.id}`;
+                          const val = pricesList[mapKey] !== undefined ? pricesList[mapKey] : otp.priceNgn;
+                          const markupVal = profitMarkup.otp || 0;
+                          const baseCost = Math.round(otp.priceNgn / (1 + markupVal / 100));
+                          return (
+                            <tr key={otp.id}>
+                              <td style={{ fontWeight: '500' }}>{otp.name}</td>
+                              <td>{formatCost(baseCost)}</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <input type="number" className="wp-input" style={{ width: '90px' }} value={val} onChange={(e) => handlePriceChange('otp', otp.id, e.target.value)} />
+                                  <button className="wp-button-secondary" style={{ padding: '0 6px', height: '24px' }} onClick={() => handleSavePrice('otp', otp.id)}><Save size={12} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
 
-              {/* eSIM Packages Rate Manager */}
-              {pricingCategory === 'esim' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {esimPackages.map((pkg) => {
-                    const mapKey = `esim-${pkg.id}`;
-                    const val = pricesList[mapKey] !== undefined ? pricesList[mapKey] : pkg.priceNgn;
-                    const markupVal = profitMarkup.esim || 0;
-                    const baseCost = Math.round(pkg.priceNgn / (1 + markupVal / 100));
-                    return (
-                      <div key={pkg.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>{pkg.country} ({pkg.dataGb === 999 ? 'Unlimited' : `${pkg.dataGb}GB`})</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>Base Cost: {formatCost(baseCost)} (+{markupVal}% profit)</div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>₦</span>
-                          <input 
-                            type="number" 
-                            className="form-input" 
-                            style={{ width: '100px', padding: '6px 10px', fontSize: '13px' }}
-                            value={val}
-                            onChange={(e) => handlePriceChange('esim', pkg.id, e.target.value)}
-                          />
-                          <button className="btn btn-secondary" style={{ padding: '6px' }} onClick={() => handleSavePrice('esim', pkg.id)} title="Save Override Rate">
-                            <Save size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                  {pricingCategory === 'esim' && (
+                    <table className="wp-table">
+                      <thead>
+                        <tr>
+                          <th>Country / Region</th>
+                          <th>Wholesale Base</th>
+                          <th>Override Price (₦)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {esimPackages.map((pkg) => {
+                          const mapKey = `esim-${pkg.id}`;
+                          const val = pricesList[mapKey] !== undefined ? pricesList[mapKey] : pkg.priceNgn;
+                          const markupVal = profitMarkup.esim || 0;
+                          const baseCost = Math.round(pkg.priceNgn / (1 + markupVal / 100));
+                          return (
+                            <tr key={pkg.id}>
+                              <td style={{ fontWeight: '500' }}>{pkg.country} ({pkg.dataGb === 999 ? 'Unlimited' : `${pkg.dataGb}GB`})</td>
+                              <td>{formatCost(baseCost)}</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <input type="number" className="wp-input" style={{ width: '90px' }} value={val} onChange={(e) => handlePriceChange('esim', pkg.id, e.target.value)} />
+                                  <button className="wp-button-secondary" style={{ padding: '0 6px', height: '24px' }} onClick={() => handleSavePrice('esim', pkg.id)}><Save size={12} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
 
-              {/* SMM Booster Rate Manager */}
-              {pricingCategory === 'smm' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {smmServices.map((smm) => {
-                    const mapKey = `smm-${smm.id}`;
-                    const val = pricesList[mapKey] !== undefined ? pricesList[mapKey] : smm.pricePerThousandNgn;
-                    const markupVal = profitMarkup.smm || 0;
-                    const baseCost = Math.round(smm.pricePerThousandNgn / (1 + markupVal / 100));
-                    return (
-                      <div key={smm.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}>
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: isMobile ? '150px' : '350px' }} title={smm.name}>{smm.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>Base API Cost: {formatCost(baseCost)}/k (+{markupVal}% profit)</div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>₦</span>
-                          <input 
-                            type="number" 
-                            className="form-input" 
-                            style={{ width: '100px', padding: '6px 10px', fontSize: '13px' }}
-                            value={val}
-                            onChange={(e) => handlePriceChange('smm', smm.id, e.target.value)}
-                          />
-                          <button className="btn btn-secondary" style={{ padding: '6px' }} onClick={() => handleSavePrice('smm', smm.id)} title="Save Override Rate">
-                            <Save size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {pricingCategory === 'smm' && (
+                    <table className="wp-table">
+                      <thead>
+                        <tr>
+                          <th>Task Name</th>
+                          <th>Base API Cost</th>
+                          <th>Override Price (₦)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {smmServices.map((smm) => {
+                          const mapKey = `smm-${smm.id}`;
+                          const val = pricesList[mapKey] !== undefined ? pricesList[mapKey] : smm.pricePerThousandNgn;
+                          const markupVal = profitMarkup.smm || 0;
+                          const baseCost = Math.round(smm.pricePerThousandNgn / (1 + markupVal / 100));
+                          return (
+                            <tr key={smm.id}>
+                              <td style={{ fontWeight: '500', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={smm.name}>{smm.name}</td>
+                              <td>{formatCost(baseCost)}/k</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <input type="number" className="wp-input" style={{ width: '90px' }} value={val} onChange={(e) => handlePriceChange('smm', smm.id, e.target.value)} />
+                                  <button className="wp-button-secondary" style={{ padding: '0 6px', height: '24px' }} onClick={() => handleSavePrice('smm', smm.id)}><Save size={12} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+
                 </div>
-              )}
+              </div>
             </div>
+
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Tab Panel: ADMIN PROFILE */}
-      {adminTab === 'profile' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="glass-panel" style={{ background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.05) 0%, rgba(255, 0, 127, 0.05) 100%)' }}>
-            <h3 style={{ fontSize: '18px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldCheck size={20} style={{ color: 'var(--color-turquoise)' }} /> Administrator Profile
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '30px' }}>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Full Name</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{profile?.full_name || 'Admin'}</div>
-                </div>
-                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Email Address</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{user?.email || 'N/A'}</div>
-                </div>
-                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Registered Phone Number</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', marginTop: '4px' }}>{profile?.phone || 'N/A'}</div>
-                </div>
+
+        {/* PROFILE TAB */}
+        {adminTab === 'profile' && (
+          <div>
+            {renderTabHeader('Profile')}
+
+            <div className="wp-metabox">
+              <div className="wp-metabox-header">
+                <h2>Administrator Profile Information</h2>
               </div>
+              <div className="wp-metabox-content" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '10px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970' }}>Full Name</div>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1d2327', marginTop: '2px' }}>{profile?.full_name || 'Admin'}</div>
+                  </div>
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '10px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970' }}>Email Address</div>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1d2327', marginTop: '2px' }}>{user?.email || 'N/A'}</div>
+                  </div>
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '10px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970' }}>Registered Phone Number</div>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1d2327', marginTop: '2px' }}>{profile?.phone || 'N/A'}</div>
+                  </div>
+                </div>
 
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Admin Access Level</div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-green)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CheckCircle size={16} /> Super Administrator
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '10px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970' }}>Access Level</div>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#00a32a', marginTop: '2px' }}>Super Administrator</div>
                   </div>
-                </div>
-                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Personal Wallet Balance</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-turquoise)', marginTop: '4px' }}>
-                    {formatCost(walletBalance)}
+                  <div style={{ background: '#f6f7f7', border: '1px solid #ccd0d4', padding: '10px' }}>
+                    <div style={{ fontSize: '12px', color: '#646970' }}>Personal Wallet Balance</div>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2271b1', marginTop: '2px' }}>{formatCost(walletBalance)}</div>
                   </div>
-                </div>
-                <div style={{ padding: '16px', background: 'rgba(255, 0, 127, 0.05)', borderRadius: '12px', border: '1px solid rgba(255, 0, 127, 0.2)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <AlertCircle size={16} style={{ color: 'var(--color-pink)' }} /> System Support Contact
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                    Email: Support@discountzar.com<br/>
-                    WhatsApp: +234 707 972 2993
+                  <div style={{ background: '#f8d7da', border: '1px solid #f5c2c7', padding: '10px', color: '#842029' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '13px' }}>System Support Contact</div>
+                    <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                      Email: Support@discountzar.com<br/>
+                      WhatsApp: +234 707 972 2993
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
+          </div>
+        )}
+
+      </div>
     </div>
   );
 };

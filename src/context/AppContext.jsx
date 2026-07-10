@@ -489,8 +489,8 @@ export const AppProvider = ({ children }) => {
       } else {
         setIsLoggedIn(false);
         setUser(null);
+        setIsAuthLoading(false);
       }
-      setIsAuthLoading(false);
     });
 
     // 2. Listen to auth changes
@@ -501,8 +501,8 @@ export const AppProvider = ({ children }) => {
       } else {
         setIsLoggedIn(false);
         setUser(null);
+        setIsAuthLoading(false);
       }
-      setIsAuthLoading(false);
     });
 
     return () => {
@@ -564,6 +564,8 @@ export const AppProvider = ({ children }) => {
       setTransactions([]);
       setVirtualWallet(null);
       setProfile({ full_name: '', phone: '' });
+      setIsAdmin(false);
+      setDbIsAdmin(false);
       // Clear user-scoped local data so the next user starts fresh
       setActiveOtps([]);
       setRentedNumbers([]);
@@ -571,8 +573,12 @@ export const AppProvider = ({ children }) => {
       setSmmOrders([]);
       setAccountSubscriptions([]);
       setSocialMediaOrders([]);
+      setIsAuthLoading(false);
       return;
     }
+
+    // Ensure loader spinner remains active during initial DB sync
+    setIsAuthLoading(true);
 
     // A. Fetch initial profile data (balance, full_name, phone)
     const fetchProfileData = async () => {
@@ -666,10 +672,22 @@ export const AppProvider = ({ children }) => {
       }
     };
 
-    fetchProfileData();
-    fetchTransactions();
-    fetchVirtualWallet();
-    fetchSocialMediaOrdersFromDB();
+    const loadAllUserData = async () => {
+      try {
+        await fetchProfileData();
+        await Promise.all([
+          fetchTransactions(),
+          fetchVirtualWallet(),
+          fetchSocialMediaOrdersFromDB()
+        ]);
+      } catch (e) {
+        console.error("Error fetching user data:", e);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+
+    loadAllUserData();
 
     // D. Listen to realtime DB notifications
     // Listen for updates on Profiles
@@ -2323,6 +2341,18 @@ export const AppProvider = ({ children }) => {
         .select('id, amount, type, method, status, created_at, user_id, profiles(full_name, phone)')
         .order('created_at', { ascending: false });
       if (error) throw error;
+
+      // If RLS filtered the select query, we might only see own transactions
+      const onlyHasOwnTxs = data.every(tx => tx.user_id === user?.id);
+      if (data && (data.length === 0 || onlyHasOwnTxs)) {
+        console.warn("Direct transactions query was filtered by RLS. Attempting Edge Function bypass...");
+        const fallback = await supabase.functions.invoke('sms-gateway', {
+          body: { action: 'admin-get-transactions' }
+        });
+        if (!fallback.error && fallback.data?.status && fallback.data?.data) {
+          return { success: true, data: fallback.data.data };
+        }
+      }
       
       const formatted = data.map(tx => ({
         id: tx.id,
@@ -2357,9 +2387,21 @@ export const AppProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, username, email, phone, wallet_balance, updated_at, created_at')
+        .select('id, full_name, username, email, phone, wallet_balance, is_admin, updated_at, created_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
+
+      // If RLS filtered the select query, we might only see own profile row
+      if (data && data.length <= 1) {
+        console.warn("Direct profiles query was filtered by RLS. Attempting Edge Function bypass...");
+        const fallback = await supabase.functions.invoke('sms-gateway', {
+          body: { action: 'admin-get-profiles' }
+        });
+        if (!fallback.error && fallback.data?.status && fallback.data?.data) {
+          return { success: true, data: fallback.data.data };
+        }
+      }
+      
       return { success: true, data };
     } catch (e) {
       console.warn("Direct profiles fetch failed, attempting Edge Function fallback...", e.message);
