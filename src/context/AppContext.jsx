@@ -817,6 +817,93 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('zp_transactions', JSON.stringify(transactions));
   }, [transactions]);
 
+  const getCountryFromNumber = (phone) => {
+    if (!phone) return null;
+    const cleanPhone = phone.replace('+', '').trim();
+    const prefixes = [
+      { code: '234', name: 'Nigeria', flag: '🇳🇬' },
+      { code: '1', name: 'United States', flag: '🇺🇸' },
+      { code: '44', name: 'United Kingdom', flag: '🇬🇧' },
+      { code: '7', name: 'Russia', flag: '🇷🇺' },
+      { code: '27', name: 'South Africa', flag: '🇿🇦' },
+      { code: '49', name: 'Germany', flag: '🇩🇪' },
+      { code: '33', name: 'France', flag: '🇫🇷' },
+      { code: '91', name: 'India', flag: '🇮🇳' },
+      { code: '55', name: 'Brazil', flag: '🇧🇷' },
+      { code: '380', name: 'Ukraine', flag: '🇺🇦' },
+      { code: '62', name: 'Indonesia', flag: '🇮🇩' },
+      { code: '60', name: 'Malaysia', flag: '🇲🇾' },
+      { code: '63', name: 'Philippines', flag: '🇵🇭' },
+      { code: '95', name: 'Myanmar', flag: '🇲🇲' },
+      { code: '84', name: 'Vietnam', flag: '🇻🇳' },
+      { code: '996', name: 'Kyrgyzstan', flag: '🇰🇬' },
+      { code: '20', name: 'Egypt', flag: '🇪🇬' },
+      { code: '212', name: 'Morocco', flag: '🇲🇦' },
+      { code: '90', name: 'Turkey', flag: '🇹🇷' },
+      { code: '57', name: 'Colombia', flag: '🇨🇴' },
+      { code: '52', name: 'Mexico', flag: '🇲🇽' },
+      { code: '54', name: 'Argentina', flag: '🇦🇷' },
+      { code: '40', name: 'Romania', flag: '🇷🇴' },
+      { code: '92', name: 'Pakistan', flag: '🇵🇰' },
+      { code: '880', name: 'Bangladesh', flag: '🇧🇩' },
+      { code: '66', name: 'Thailand', flag: '🇹🇭' },
+      { code: '998', name: 'Uzbekistan', flag: '🇺🇿' },
+      { code: '992', name: 'Tajikistan', flag: '🇹🇯' },
+      { code: '993', name: 'Turkmenistan', flag: '🇹🇲' },
+      { code: '994', name: 'Azerbaijan', flag: '🇦🇿' },
+      { code: '374', name: 'Armenia', flag: '🇦🇲' },
+      { code: '995', name: 'Georgia', flag: '🇬🇪' },
+      { code: '375', name: 'Belarus', flag: '🇧🇾' },
+      { code: '373', name: 'Moldova', flag: '🇲🇩' },
+      { code: '371', name: 'Latvia', flag: '🇱🇻' },
+      { code: '370', name: 'Lithuania', flag: '🇱🇹' },
+      { code: '372', name: 'Estonia', flag: '🇪🇪' },
+      { code: '34', name: 'Spain', flag: '🇪🇸' },
+      { code: '39', name: 'Italy', flag: '🇮🇹' },
+      { code: '31', name: 'Netherlands', flag: '🇳🇱' },
+      { code: '32', name: 'Belgium', flag: '🇧🇪' },
+      { code: '41', name: 'Switzerland', flag: '🇨🇭' },
+      { code: '46', name: 'Sweden', flag: '🇸🇪' },
+      { code: '47', name: 'Norway', flag: '🇳🇴' },
+      { code: '358', name: 'Finland', flag: '🇫🇮' },
+      { code: '45', name: 'Denmark', flag: '🇩🇰' },
+      { code: '43', name: 'Austria', flag: '🇦🇹' },
+      { code: '351', name: 'Portugal', flag: '🇵🇹' },
+      { code: '30', name: 'Greece', flag: '🇬🇷' },
+      { code: '353', name: 'Ireland', flag: '🇮🇪' },
+      { code: '420', name: 'Czech Republic', flag: '🇨🇿' },
+      { code: '421', name: 'Slovakia', flag: '🇸🇰' },
+      { code: '36', name: 'Hungary', flag: '🇭🇺' },
+      { code: '359', name: 'Bulgaria', flag: '🇧🇬' },
+      { code: '385', name: 'Croatia', flag: '🇭🇷' },
+      { code: '386', name: 'Slovenia', flag: '🇸🇮' },
+      { code: '381', name: 'Serbia', flag: '🇷🇸' },
+      { code: '81', name: 'Japan', flag: '🇯🇵' },
+      { code: '82', name: 'South Korea', flag: '🇰🇷' },
+      { code: '886', name: 'Taiwan', flag: '🇹🇼' },
+      { code: '852', name: 'Hong Kong', flag: '🇭🇰' },
+      { code: '65', name: 'Singapore', flag: '🇸🇬' },
+      { code: '61', name: 'Australia', flag: '🇦🇺' },
+      { code: '64', name: 'New Zealand', flag: '🇳🇿' },
+      { code: '972', name: 'Israel', flag: '🇮🇱' },
+      { code: '966', name: 'Saudi Arabia', flag: '🇸🇦' },
+      { code: '971', name: 'UAE', flag: '🇦🇪' },
+      { code: '233', name: 'Ghana', flag: '🇬🇭' },
+      { code: '221', name: 'Senegal', flag: '🇸🇳' },
+      { code: '256', name: 'Uganda', flag: '🇺🇬' },
+      { code: '255', name: 'Tanzania', flag: '🇹🇿' },
+      { code: '237', name: 'Cameroon', flag: '🇨🇲' },
+      { code: '225', name: 'Ivory Coast', flag: '🇨🇮' }
+    ];
+    prefixes.sort((a, b) => b.code.length - a.code.length);
+    for (const p of prefixes) {
+      if (cleanPhone.startsWith(p.code)) {
+        return p;
+      }
+    }
+    return null;
+  };
+
   const syncOtpOrdersFromDB = async (uid) => {
     try {
       const { data, error } = await supabase
@@ -828,6 +915,20 @@ export const AppProvider = ({ children }) => {
       if (!error && data) {
         const mapped = data.map(dbOtp => {
           const createdTime = new Date(dbOtp.created_at).getTime();
+          
+          let cleanOrderId = dbOtp.id;
+          if (dbOtp.server === 'server1' && typeof dbOtp.id === 'string') {
+            cleanOrderId = dbOtp.id.replace('otp-', '');
+          } else if (dbOtp.server === 'server2' && typeof dbOtp.id === 'string') {
+            cleanOrderId = dbOtp.id.replace('sp-', '');
+          } else if (dbOtp.server === 'server3' && typeof dbOtp.id === 'string') {
+            cleanOrderId = dbOtp.id.replace('tv-', '');
+          } else if (dbOtp.server === 'server4' && typeof dbOtp.id === 'string') {
+            cleanOrderId = dbOtp.id.replace('hero-', '');
+          }
+
+          const autoCountry = getCountryFromNumber(dbOtp.phone_number);
+
           return {
             id: dbOtp.id,
             phoneNumber: dbOtp.phone_number,
@@ -838,8 +939,10 @@ export const AppProvider = ({ children }) => {
             otpCode: dbOtp.otp_code,
             smsText: dbOtp.sms_text,
             created_at: dbOtp.created_at,
-            fivesimOrderId: dbOtp.server === 'server1' ? Number(dbOtp.id) : null,
-            orderId: dbOtp.id,
+            country: autoCountry ? autoCountry.name : 'Unknown',
+            flag: autoCountry ? autoCountry.flag : '🏳️',
+            fivesimOrderId: dbOtp.server === 'server1' ? Number(cleanOrderId) : null,
+            orderId: cleanOrderId,
             expiresAt: createdTime + 15 * 60 * 1000
           };
         });
@@ -1229,12 +1332,14 @@ export const AppProvider = ({ children }) => {
         const phone = detail.number;
         const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
+        const autoCountry = getCountryFromNumber(formattedPhone);
+
         const newOtp = {
           id: `tv-${detail.id}`,
           orderId: detail.id,
           phoneNumber: formattedPhone,
-          country: 'United States',
-          flag: '🇺🇸',
+          country: autoCountry ? autoCountry.name : 'United States',
+          flag: autoCountry ? autoCountry.flag : '🇺🇸',
           service: serviceId,
           priceNgn,
           status: 'PENDING',
@@ -1281,9 +1386,10 @@ export const AppProvider = ({ children }) => {
         const phone = detail.number;
         const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
+        const autoCountry = getCountryFromNumber(formattedPhone);
         const country = heroSmsCountries.find(c => Number(c.id) === Number(countryId));
-        const countryName = country ? country.name : 'Unknown Country';
-        const countryFlag = country ? country.flag : '🏳️';
+        const countryName = autoCountry ? autoCountry.name : (country ? country.name : 'Unknown Country');
+        const countryFlag = autoCountry ? autoCountry.flag : (country ? country.flag : '🏳️');
 
         const newOtp = {
           id: `hero-${detail.id}`,
@@ -1343,12 +1449,16 @@ export const AppProvider = ({ children }) => {
         const phone = orderData.phonenumber || orderData.number || orderData.cc_and_number;
         const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
+        const autoCountry = getCountryFromNumber(formattedPhone);
+        const countryName = autoCountry ? autoCountry.name : country.name;
+        const countryFlag = autoCountry ? autoCountry.flag : (country.flag || '🏳️');
+
         const newOtp = {
           id: `sp-${orderData.order_id}`,
           orderId: orderData.order_id,
           phoneNumber: formattedPhone,
-          country: country.name,
-          flag: country.flag || '🏳️',
+          country: countryName,
+          flag: countryFlag,
           service: service.name,
           priceNgn,
           status: 'PENDING',
@@ -1402,12 +1512,16 @@ export const AppProvider = ({ children }) => {
       const order = data.data;
       const formattedPhone = String(order.phone).startsWith('+') ? String(order.phone) : '+' + order.phone;
 
+      const autoCountry = getCountryFromNumber(formattedPhone);
+      const countryName = autoCountry ? autoCountry.name : country.name;
+      const countryFlag = autoCountry ? autoCountry.flag : country.flag;
+
       const newOtp = {
         id: `otp-${order.id}`,
         fivesimOrderId: order.id,
         phoneNumber: formattedPhone,
-        country: country.name,
-        flag: country.flag,
+        country: countryName,
+        flag: countryFlag,
         service: service.name,
         priceNgn: price,
         status: 'PENDING',
@@ -1589,12 +1703,14 @@ export const AppProvider = ({ children }) => {
       const order = data.data;
       const formattedPhone = String(order.phone).startsWith('+') ? String(order.phone) : '+' + order.phone;
 
+      const autoCountry = getCountryFromNumber(formattedPhone);
+
       const newOtp = {
         id: `otp-${order.id}`,
         fivesimOrderId: order.id,
         phoneNumber: formattedPhone,
-        country: countryName || 'Reused',
-        flag: flag || '🔄',
+        country: autoCountry ? autoCountry.name : (countryName || 'Reused'),
+        flag: autoCountry ? autoCountry.flag : (flag || '🔄'),
         service: service.name,
         priceNgn: price,
         status: 'PENDING',
@@ -1978,8 +2094,7 @@ export const AppProvider = ({ children }) => {
       const sRes = await supabase.functions.invoke('smspool-gateway', { body: { action: 'get_services' } });
       if (!sRes.error && sRes.data?.status) {
         const services = sRes.data.data || [];
-        const filtered = services.filter(s => !s.name.toLowerCase().includes('whatsapp'));
-        setSmsPoolShortTermServices(filtered);
+        setSmsPoolShortTermServices(services);
       }
     } catch (e) {
       console.error("fetchSmsPoolShortTermData Error:", e);

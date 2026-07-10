@@ -851,7 +851,7 @@ const AdminDashboard = () => {
                 {(() => {
                   const filteredTx = allTransactions
                     .filter(tx => filterTxType === 'ALL' || tx.type === filterTxType)
-                    .filter(tx => tx.user_name.toLowerCase().includes(searchTx.toLowerCase()) || tx.id.toLowerCase().includes(searchTx.toLowerCase()));
+                    .filter(tx => (tx.user_name || '').toLowerCase().includes(searchTx.toLowerCase()) || (tx.id || '').toLowerCase().includes(searchTx.toLowerCase()));
                   
                   const totalTxPages = Math.max(1, Math.ceil(filteredTx.length / TX_PER_PAGE));
                   const paginatedTx = filteredTx.slice((txPage - 1) * TX_PER_PAGE, txPage * TX_PER_PAGE);
@@ -1050,11 +1050,11 @@ const AdminDashboard = () => {
                       const clientName = order.profiles?.full_name || 'N/A';
                       const clientPhone = order.profiles?.phone || 'N/A';
                       return (
-                        order.id.toLowerCase().includes(q) ||
-                        order.phone_number.includes(q) ||
-                        order.service.toLowerCase().includes(q) ||
-                        clientName.toLowerCase().includes(q) ||
-                        clientPhone.toLowerCase().includes(q)
+                        (order.id || '').toLowerCase().includes(q) ||
+                        (order.phone_number || '').includes(q) ||
+                        (order.service || '').toLowerCase().includes(q) ||
+                        (clientName || '').toLowerCase().includes(q) ||
+                        (clientPhone || '').toLowerCase().includes(q)
                       );
                     });
                   

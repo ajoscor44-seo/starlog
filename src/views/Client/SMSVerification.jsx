@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { supabase } from '../../supabase';
@@ -282,18 +282,37 @@ const SMSVerification = () => {
     ? countries 
     : (server === 'server2' ? smsPoolShortTermCountries : heroSmsCountries);
 
-  const filteredCountries = activeCountriesList.filter(c =>
-    (c.name || '').toLowerCase().includes(searchCountry.toLowerCase())
-  );
+  const filteredCountries = useMemo(() => {
+    return activeCountriesList.filter(c =>
+      (c.name || '').toLowerCase().includes(searchCountry.toLowerCase())
+    );
+  }, [activeCountriesList, searchCountry]);
 
   const activeServicesList = (server === 'server1' || server === 'server4')
     ? (dynamicServices.length > 0 ? dynamicServices : otpServices)
     : (server === 'server2' ? smsPoolDynamicServices : textVerifiedServices);
 
-  const filteredServices = activeServicesList.filter(s => {
-    const name = s.description || s.name || s.serviceName || s.code || '';
-    return name.toLowerCase().includes(searchService.toLowerCase());
-  });
+  const filteredServices = useMemo(() => {
+    return activeServicesList.filter(s => {
+      const name = s.description || s.name || s.serviceName || s.code || '';
+      return name.toLowerCase().includes(searchService.toLowerCase());
+    });
+  }, [activeServicesList, searchService]);
+
+  // Auto-select first matching service when search results change and currently selected is not visible
+  useEffect(() => {
+    if (searchService && filteredServices.length > 0) {
+      const isStillVisible = filteredServices.some(s => {
+        const serviceId = server === 'server3' ? s.serviceName : (server === 'server4' ? s.code : (s.id || s.ID));
+        return serviceId === selectedService;
+      });
+      if (!isStillVisible) {
+        const firstService = filteredServices[0];
+        const serviceId = server === 'server3' ? firstService.serviceName : (server === 'server4' ? firstService.code : (firstService.id || firstService.ID));
+        setSelectedService(serviceId);
+      }
+    }
+  }, [searchService, filteredServices, selectedService, server]);
 
   const selectedCountryObj = server === 'server3'
     ? { flag: '🇺🇸', name: 'United States', code: '1' }
@@ -484,9 +503,36 @@ const SMSVerification = () => {
             </div>
           </div>
         ) : (
-          <div style={{ color: '#ff453a', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <XCircle size={16} />
-            <span>Session {activeSession.status}. Wallet refunded.</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+            <div style={{ color: '#ff453a', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontWeight: '700' }}>
+              <XCircle size={16} />
+              <span>Session {activeSession.status === 'EXPIRED' ? 'Expired' : activeSession.status}. Wallet refunded.</span>
+            </div>
+            
+            {activeSession.status === 'EXPIRED' && (
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: 10, 
+                  padding: '12px 14px', 
+                  background: 'rgba(255, 69, 58, 0.08)', 
+                  border: '1px dashed rgba(255, 69, 58, 0.3)', 
+                  borderRadius: 10, 
+                  color: 'var(--text-primary)', 
+                  fontSize: 12.5,
+                  lineHeight: '1.5',
+                  textAlign: 'left'
+                }}
+              >
+                <AlertCircle size={16} style={{ color: '#ff453a', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <strong style={{ color: '#ff453a', display: 'block', marginBottom: '3px' }}>Suggestion:</strong>
+                  The duration for this session elapsed without getting a code. This prefix might currently be dry or blocked on this app.
+                  We recommend that you <strong>try ordering using another server</strong> (e.g. Server 1, Server 2, Server 4) or select a different country.
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

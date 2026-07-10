@@ -1,10 +1,10 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import {
   CreditCard, Smartphone, Key, RefreshCw, Share2, User, ShieldCheck,
-  Clock, TrendingUp, Zap, ClipboardList, ArrowRight
+  Clock, TrendingUp, Zap, ClipboardList, ArrowRight, Copy, Check
 } from 'lucide-react';
 
 const DashboardOverview = () => {
@@ -21,6 +21,15 @@ const DashboardOverview = () => {
   } = context;
 
   const isMobile = useIsMobile();
+
+  const [copiedId, setCopiedId] = useState(null);
+  const handleCopy = (text, id) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const recentOtps = activeOtps.slice(0, 5);
 
   const activeEsimsCount = activeEsims.filter(e => e?.status === 'ACTIVE').length;
   const pendingSmmCount = smmOrders.filter(o => o?.status === 'In Progress').length;
@@ -173,6 +182,82 @@ const DashboardOverview = () => {
           </div>
         </div>
 
+        {/* Recent SMS Verifications */}
+        <div className="glass-panel" style={{ padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Key size={14} style={{ color: 'var(--color-turquoise)' }} />
+              Recent OTP Verifications
+            </div>
+            <button
+              onClick={() => navigate('/dashboard/otp')}
+              style={{ background: 'none', border: 'none', color: 'var(--color-turquoise)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              Get New Code <ArrowRight size={12} />
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {recentOtps.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 13 }}>No OTP orders yet</div>
+            ) : recentOtps.map(otp => (
+              <div key={otp.id} style={{
+                padding: '12px', borderRadius: 12,
+                background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)',
+                display: 'flex', flexDirection: 'column', gap: 8
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: '14px' }}>{otp.flag || '🏳️'}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{otp.service}</span>
+                  </div>
+                  <span className={`badge ${
+                    otp.status === 'COMPLETED' ? 'badge-success' : 
+                    otp.status === 'PENDING' ? 'badge-warning' : 'badge-danger'
+                  }`} style={{ fontSize: '9px' }}>
+                    {otp.status}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {otp.phoneNumber}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {otp.otpCode ? (
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8, 
+                        background: 'rgba(0, 255, 135, 0.08)', 
+                        border: '1px dashed var(--color-green)', 
+                        padding: '2px 8px', 
+                        borderRadius: '6px' 
+                      }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: '800', color: 'var(--color-green)' }}>
+                          {otp.otpCode}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopy(otp.otpCode, otp.id);
+                          }}
+                          style={{ background: 'none', border: 'none', padding: 0, color: 'var(--color-green)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                          title="Copy Code"
+                        >
+                          {copiedId === otp.id ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {otp.status === 'PENDING' ? 'Waiting for SMS...' : 'No code'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Active Assets */}
         {activeEsims.length > 0 && (
           <div className="glass-panel" style={{ padding: 16 }}>
@@ -300,6 +385,84 @@ const DashboardOverview = () => {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* ── Recent OTP Verifications Section (Desktop) ── */}
+      <div className="glass-panel" style={{ marginTop: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Key size={18} style={{ color: 'var(--color-turquoise)' }} />
+            Recent OTP Verifications
+          </h3>
+          <button className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => navigate('/dashboard/otp')}>
+            Get New Code
+          </button>
+        </div>
+        <div className="custom-table-container">
+          <table className="custom-table">
+            <thead>
+              <tr>
+                <th>Service</th>
+                <th>Phone Number</th>
+                <th>Country</th>
+                <th>Status</th>
+                <th>Verification Code</th>
+                <th>SMS Message</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentOtps.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-secondary)' }}>
+                    No OTP verifications found.
+                  </td>
+                </tr>
+              ) : (
+                recentOtps.map((otp) => (
+                  <tr key={otp.id}>
+                    <td style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{otp.service}</td>
+                    <td style={{ fontFamily: 'var(--mono)', fontSize: '13px' }}>{otp.phoneNumber}</td>
+                    <td>
+                      <span style={{ marginRight: '6px' }}>{otp.flag}</span>
+                      <span>{otp.country}</span>
+                    </td>
+                    <td>
+                      <span className={`badge ${
+                        otp.status === 'COMPLETED' ? 'badge-success' : 
+                        otp.status === 'PENDING' ? 'badge-warning' : 'badge-danger'
+                      }`} style={{ fontSize: '9px' }}>
+                        {otp.status}
+                      </span>
+                    </td>
+                    <td>
+                      {otp.otpCode ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0, 255, 135, 0.08)', border: '1px dashed var(--color-green)', padding: '2px 8px', borderRadius: '6px' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: '800', color: 'var(--color-green)' }}>{otp.otpCode}</span>
+                          <button
+                            onClick={() => handleCopy(otp.otpCode, otp.id)}
+                            style={{ background: 'none', border: 'none', color: 'var(--color-green)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                            title="Copy Code"
+                          >
+                            {copiedId === otp.id ? <Check size={12} /> : <Copy size={12} />}
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                          {otp.status === 'PENDING' ? 'Waiting for SMS...' : '—'}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ fontSize: '12px', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={otp.smsText || ''}>
+                      {otp.smsText || <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
+                    <td style={{ fontSize: '12px' }}>{otp.date}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
