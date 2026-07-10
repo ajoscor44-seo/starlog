@@ -5,7 +5,7 @@ import { supabase } from '../../supabase';
 import { 
   ShieldCheck, MessageSquare, Plus, Save, DollarSign, Wallet, 
   CheckCircle, AlertCircle, Users, List, BarChart3, Settings, 
-  TrendingUp, RefreshCw, Send, ArrowUpRight, Search, FileText 
+  TrendingUp, RefreshCw, Send, ArrowUpRight, Search, FileText, Download 
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -168,6 +168,50 @@ const AdminDashboard = () => {
 
   useEffect(() => { setTxPage(1); }, [searchTx, filterTxType]);
   useEffect(() => { setOtpPage(1); }, [searchOtp, filterOtpServer, filterOtpStatus]);
+
+  const filteredOtpOrders = (dbOtpOrders || [])
+    .filter(order => filterOtpServer === 'ALL' || order.server === filterOtpServer)
+    .filter(order => filterOtpStatus === 'ALL' || order.status === filterOtpStatus)
+    .filter(order => {
+      const q = searchOtp.toLowerCase();
+      const clientName = order.profiles?.full_name || 'N/A';
+      const clientPhone = order.profiles?.phone || 'N/A';
+      return (
+        (order.id || '').toLowerCase().includes(q) ||
+        (order.phone_number || '').includes(q) ||
+        (order.service || '').toLowerCase().includes(q) ||
+        (clientName || '').toLowerCase().includes(q) ||
+        (clientPhone || '').toLowerCase().includes(q)
+      );
+    });
+
+  const handleExportOtpOrders = () => {
+    const rows = [
+      ['Order ID', 'Client Name', 'Client Email', 'Client Phone', 'Created At', 'Server', 'Service', 'Phone Number', 'Price (₦)', 'OTP Code', 'SMS Text', 'Status'],
+      ...filteredOtpOrders.map(o => [
+        o.id,
+        o.profiles?.full_name || 'N/A',
+        o.profiles?.email || 'N/A',
+        o.profiles?.phone || 'N/A',
+        new Date(o.created_at).toLocaleString(),
+        o.server,
+        o.service,
+        o.phone_number,
+        o.price_ngn,
+        o.otp_code || '',
+        o.sms_text || '',
+        o.status
+      ])
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `discountzar_admin_otp_orders_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const allTransactions = [
     ...(dbTransactions || []).map(t => ({
@@ -1020,6 +1064,13 @@ const AdminDashboard = () => {
                   onChange={(e) => setSearchOtp(e.target.value)} 
                 />
               </div>
+              <button 
+                className="btn btn-secondary" 
+                style={{ fontSize: '13px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', height: '34px', cursor: 'pointer' }}
+                onClick={handleExportOtpOrders}
+              >
+                <Download size={14} /> Export CSV
+              </button>
             </div>
           </div>
 
@@ -1042,21 +1093,7 @@ const AdminDashboard = () => {
               </thead>
               <tbody>
                 {(() => {
-                  const filtered = (dbOtpOrders || [])
-                    .filter(order => filterOtpServer === 'ALL' || order.server === filterOtpServer)
-                    .filter(order => filterOtpStatus === 'ALL' || order.status === filterOtpStatus)
-                    .filter(order => {
-                      const q = searchOtp.toLowerCase();
-                      const clientName = order.profiles?.full_name || 'N/A';
-                      const clientPhone = order.profiles?.phone || 'N/A';
-                      return (
-                        (order.id || '').toLowerCase().includes(q) ||
-                        (order.phone_number || '').includes(q) ||
-                        (order.service || '').toLowerCase().includes(q) ||
-                        (clientName || '').toLowerCase().includes(q) ||
-                        (clientPhone || '').toLowerCase().includes(q)
-                      );
-                    });
+                  const filtered = filteredOtpOrders;
                   
                   const totalPages = Math.max(1, Math.ceil(filtered.length / OTP_PER_PAGE));
                   const paginated = filtered.slice((otpPage - 1) * OTP_PER_PAGE, otpPage * OTP_PER_PAGE);
