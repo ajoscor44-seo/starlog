@@ -1600,7 +1600,63 @@ export const AppProvider = ({ children }) => {
       return purchaseRes;
     }
 
-    return { success: false, msg: 'Number reuse is only supported on Server 1, which is currently disabled.' };
+    try {
+      const cleanNum = number.replace(/\+/g, '').trim();
+      const { data, error } = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'reuse', product: service.id, number: cleanNum }
+      });
+
+      if (error || !data || !data.status) {
+        // Refund if fail
+        const ref = `dep-ref-${Math.floor(100000 + Math.random() * 900000)}`;
+        await supabase.rpc('process_deposit', {
+          p_tx_id: ref, p_user_id: user.id, p_amount: price, p_method: `OTP Reuse Failed Refund (${service.name} - ${number})`
+        });
+        return { success: false, msg: data?.msg || error?.message || 'Number is no longer active in carrier gateway.' };
+      }
+
+      const resData = data.data; // 5sim order object
+      const newOtp = {
+        id: `otp-reuse-${resData.id}`,
+        phoneNumber: resData.phone,
+        server: 'server1',
+        service: service.name,
+        priceNgn: price,
+        status: 'PENDING',
+        otpCode: null,
+        smsText: null,
+        created_at: new Date().toISOString(),
+        country: countryName || 'Unknown',
+        flag: flag || '🏳️',
+        fivesimOrderId: resData.id,
+        orderId: String(resData.id),
+        expiresAt: Date.now() + 15 * 60 * 1000
+      };
+
+      // Save to DB
+      await supabase.from('otp_orders').insert({
+        id: newOtp.id,
+        user_id: user.id,
+        phone_number: newOtp.phoneNumber,
+        server: 'server1',
+        service: newOtp.service,
+        price_ngn: newOtp.priceNgn,
+        status: 'PENDING',
+        created_at: newOtp.created_at,
+        otp_code: null,
+        sms_text: null
+      });
+
+      setActiveOtps(prev => [newOtp, ...prev]);
+      return { success: true };
+    } catch (e) {
+      // Refund if error
+      const ref = `dep-ref-${Math.floor(100000 + Math.random() * 900000)}`;
+      await supabase.rpc('process_deposit', {
+        p_tx_id: ref, p_user_id: user.id, p_amount: price, p_method: `OTP Reuse Error Refund (${service.name} - ${number})`
+      });
+      return { success: false, msg: e.message };
+    }
   };
 
 
