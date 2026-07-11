@@ -78,7 +78,9 @@ const AdminDashboard = () => {
   const [dbProfiles, setDbProfiles] = useState([]);
   const [dbTransactions, setDbTransactions] = useState([]);
   const [dbOtpOrders, setDbOtpOrders] = useState([]);
+  const [dbTickets, setDbTickets] = useState([]);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
+  const [updatingTicketId, setUpdatingTicketId] = useState(null);
 
   const fetchAdminData = async () => {
     setIsLoadingDb(true);
@@ -101,10 +103,54 @@ const AdminDashboard = () => {
       } else {
         console.error("AdminDashboard - Failed to fetch OTP orders:", otpOrdersRes.msg);
       }
+      // Fetch support tickets live from DB
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!ticketsError && ticketsData) {
+        setDbTickets(ticketsData);
+      }
     } catch (e) {
       console.error("Failed to load admin db data:", e);
     } finally {
       setIsLoadingDb(false);
+    }
+  };
+
+  const handleUpdateTicketStatus = async (ticketId, nextStatus) => {
+    setUpdatingTicketId(ticketId);
+    try {
+      const { error } = await supabase
+        .from('support_tickets')
+        .update({ status: nextStatus })
+        .eq('id', ticketId);
+      if (error) {
+        alert(`Failed to update ticket status: ${error.message}`);
+      } else {
+        await fetchAdminData();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingTicketId(null);
+    }
+  };
+
+  const handleDeleteTicket = async (ticketId) => {
+    if (!window.confirm("Are you sure you want to delete this ticket?")) return;
+    try {
+      const { error } = await supabase
+        .from('support_tickets')
+        .delete()
+        .eq('id', ticketId);
+      if (error) {
+        alert(`Failed to delete ticket: ${error.message}`);
+      } else {
+        await fetchAdminData();
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -1117,6 +1163,9 @@ const AdminDashboard = () => {
         </button>
         <button className={`wp-sidebar-item ${adminTab === 'profile' ? 'active' : ''}`} onClick={() => setAdminTab('profile')}>
           <ShieldCheck size={16} /> Profile
+        </button>
+        <button className={`wp-sidebar-item ${adminTab === 'tickets' ? 'active' : ''}`} onClick={() => setAdminTab('tickets')}>
+          <MessageSquare size={16} /> Support Tickets
         </button>
       </div>
 
@@ -2160,6 +2209,118 @@ const AdminDashboard = () => {
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* SUPPORT TICKETS TAB */}
+        {adminTab === 'tickets' && (
+          <div>
+            {renderTabHeader('Support Tickets')}
+
+            <div className="wp-metabox">
+              <div className="wp-metabox-header">
+                <h2>Submitted Support Inquiries ({dbTickets.length})</h2>
+              </div>
+              <div className="wp-metabox-content" style={{ padding: 0 }}>
+                {dbTickets.length === 0 ? (
+                  <div style={{ padding: '20px', color: '#64748b', textAlign: 'center' }}>No support tickets found in the database.</div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="wp-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '100px' }}>ID</th>
+                          <th>Customer</th>
+                          <th>Subject</th>
+                          <th style={{ width: '150px' }}>Date</th>
+                          <th style={{ width: '100px' }}>Status</th>
+                          <th style={{ width: '220px', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dbTickets.map((ticket) => {
+                          const isPending = ticket.status === 'PENDING';
+                          const isResolved = ticket.status === 'RESOLVED';
+                          
+                          return (
+                            <React.Fragment key={ticket.id}>
+                              <tr>
+                                <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{ticket.id}</td>
+                                <td>
+                                  <div style={{ fontWeight: '600' }}>{ticket.name}</div>
+                                  <div style={{ fontSize: '11px', color: '#646970' }}>{ticket.email}</div>
+                                </td>
+                                <td>
+                                  <div style={{ fontWeight: '600', color: '#1d2327' }}>{ticket.subject || 'No Subject'}</div>
+                                  <div style={{ fontSize: '12px', color: '#646970', marginTop: '4px', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '280px' }}>
+                                    {ticket.message}
+                                  </div>
+                                </td>
+                                <td style={{ fontSize: '12px' }}>{new Date(ticket.created_at).toLocaleString()}</td>
+                                <td>
+                                  <span className={`wp-badge ${isPending ? 'wp-badge-warning' : isResolved ? 'wp-badge-success' : 'wp-badge-error'}`} style={{ color: '#fff' }}>
+                                    {ticket.status}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <div style={{ display: 'inline-flex', gap: '5px' }}>
+                                    {isPending ? (
+                                      <>
+                                        <button 
+                                          className="wp-button-primary" 
+                                          style={{ background: '#00a32a', borderColor: '#00a32a', fontSize: '11px', padding: '0 8px', height: '24px', borderRadius: '3px' }}
+                                          onClick={() => handleUpdateTicketStatus(ticket.id, 'RESOLVED')}
+                                          disabled={updatingTicketId === ticket.id}
+                                        >
+                                          Resolve
+                                        </button>
+                                        <button 
+                                          className="wp-button-secondary" 
+                                          style={{ fontSize: '11px', padding: '0 8px', height: '24px', borderRadius: '3px' }}
+                                          onClick={() => handleUpdateTicketStatus(ticket.id, 'CLOSED')}
+                                          disabled={updatingTicketId === ticket.id}
+                                        >
+                                          Close
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button 
+                                        className="wp-button-secondary" 
+                                        style={{ fontSize: '11px', padding: '0 8px', height: '24px', borderRadius: '3px' }}
+                                        onClick={() => handleUpdateTicketStatus(ticket.id, 'PENDING')}
+                                        disabled={updatingTicketId === ticket.id}
+                                      >
+                                        Reopen
+                                      </button>
+                                    )}
+                                    <button 
+                                      className="wp-button-secondary" 
+                                      style={{ color: '#d63638', borderColor: '#d63638', fontSize: '11px', padding: '0 8px', height: '24px', borderRadius: '3px' }}
+                                      onClick={() => handleDeleteTicket(ticket.id)}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                              {/* Message body row */}
+                              <tr>
+                                <td colSpan="6" style={{ background: '#f6f7f7', padding: '10px 15px', borderBottom: '1px solid #ccd0d4' }}>
+                                  <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#646970', marginBottom: '4px' }}>Ticket Description:</div>
+                                  <div style={{ fontSize: '13px', color: '#2c3338', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                                    {ticket.message}
+                                  </div>
+                                </td>
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

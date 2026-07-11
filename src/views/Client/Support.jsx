@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { Mail, Phone, MapPin, Send, MessageSquare, CheckCircle, ChevronDown, ChevronUp, Copy, Check, Shield } from 'lucide-react';
+import { supabase } from '../../supabase';
 
 const Support = () => {
   const { user, profile } = useContext(AppContext);
@@ -33,19 +34,40 @@ const Support = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name || !email || !message) return;
     setSubmitting(true);
     
-    // Simulate support ticket creation
-    setTimeout(() => {
+    const genTicketId = `DZ-${Math.floor(10000 + Math.random() * 90000)}`;
+    
+    try {
+      const { error } = await supabase
+        .from('support_tickets')
+        .insert({
+          id: genTicketId,
+          user_id: user?.id || null,
+          name,
+          email,
+          subject: subject || 'No Subject',
+          message,
+          status: 'PENDING'
+        });
+        
+      if (error) {
+        alert(`Failed to submit ticket: ${error.message}`);
+      } else {
+        setSuccess(true);
+        setTicketId(genTicketId);
+        setSubject('');
+        setMessage('');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An unexpected error occurred while submitting your ticket.');
+    } finally {
       setSubmitting(false);
-      setSuccess(true);
-      setTicketId(`DZ-${Math.floor(10000 + Math.random() * 90000)}`);
-      setSubject('');
-      setMessage('');
-    }, 1500);
+    }
   };
 
   const faqs = [
