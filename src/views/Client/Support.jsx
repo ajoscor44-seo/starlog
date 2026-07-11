@@ -21,6 +21,33 @@ const Support = () => {
   // FAQ accordion open states
   const [openFaq, setOpenFaq] = useState({});
 
+  // User tickets list states
+  const [userTickets, setUserTickets] = useState([]);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
+
+  const fetchUserTickets = async () => {
+    if (!user?.id) return;
+    setIsLoadingTickets(true);
+    try {
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setUserTickets(data);
+      }
+    } catch (err) {
+      console.error("Error fetching user tickets:", err);
+    } finally {
+      setIsLoadingTickets(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserTickets();
+  }, [user]);
+
   const handleCopyEmail = () => {
     navigator.clipboard.writeText('Support@discountzar.com');
     setCopiedEmail(true);
@@ -61,6 +88,7 @@ const Support = () => {
         setTicketId(genTicketId);
         setSubject('');
         setMessage('');
+        fetchUserTickets();
       }
     } catch (err) {
       console.error(err);
@@ -218,6 +246,55 @@ const Support = () => {
               </form>
             )}
           </div>
+
+          {/* User's Opened Tickets */}
+          {user && (
+            <div className="glass-panel" style={{ padding: isMobile ? '20px 16px' : '24px' }}>
+              <h3 style={{ fontSize: '18px', marginBottom: '16px', fontFamily: 'var(--font-heading)' }}>My Support Tickets</h3>
+              {isLoadingTickets ? (
+                <div style={{ padding: '20px', color: 'var(--text-secondary)', textAlign: 'center', fontSize: '13px' }}>Loading tickets...</div>
+              ) : userTickets.length === 0 ? (
+                <div style={{ padding: '20px', color: 'var(--text-secondary)', fontSize: '13px', textAlign: 'center' }}>You have not opened any support tickets yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {userTickets.map((t) => {
+                    const isPending = t.status === 'PENDING';
+                    const isResolved = t.status === 'RESOLVED';
+                    return (
+                      <div 
+                        key={t.id} 
+                        style={{ 
+                          border: '1px solid var(--border-color)', 
+                          borderRadius: '10px', 
+                          padding: '14px 16px', 
+                          background: 'rgba(255, 255, 255, 0.01)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-turquoise)', fontFamily: 'monospace' }}>{t.id}</span>
+                          <span 
+                            style={{ 
+                              fontSize: '10px', 
+                              fontWeight: 'bold', 
+                              padding: '2px 6px', 
+                              borderRadius: '4px',
+                              background: isPending ? 'rgba(219, 166, 23, 0.2)' : isResolved ? 'rgba(0, 163, 42, 0.2)' : 'rgba(214, 54, 56, 0.2)',
+                              color: isPending ? '#dba617' : isResolved ? '#00a32a' : '#d63638'
+                            }}
+                          >
+                            {t.status}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>{t.subject}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '8px', wordBreak: 'break-word' }}>{t.message}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Opened on: {new Date(t.created_at).toLocaleString()}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* FAQs Accordion */}
           <div className="glass-panel" style={{ padding: isMobile ? '20px 16px' : '24px' }}>
