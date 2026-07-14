@@ -234,8 +234,8 @@ const SMSVerification = () => {
                 priceNgn
               };
             });
-            // We only keep services that have a price for this country
-            const availableServices = merged.filter(s => s.priceNgn > 0);
+            // We only keep services that have a price for this country and filter out WhatsApp
+            const availableServices = merged.filter(s => s.priceNgn > 0 && !(s.name || '').toLowerCase().includes('whatsapp'));
             setSmsPoolDynamicServices(availableServices);
             if (availableServices.length > 0) {
               setSelectedService(availableServices[0].ID);
@@ -619,7 +619,7 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 2</span>
-                    <span style={{ fontSize: 8, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>SUCCESS</span>
+                    <span style={{ fontSize: 8, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>NO WHATSAPP</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>High success rate</span>
                 </div>
@@ -636,7 +636,7 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3</span>
-                    <span style={{ fontSize: 8, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US ONLY</span>
+                    <span style={{ fontSize: 7, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US ONLY + WHATSAPP</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Physical lines only</span>
                 </div>
@@ -653,7 +653,7 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
-                    <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>STABLE</span>
+                    <span style={{ fontSize: 7, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>ALL COUNTRIES + WHATSAPP</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Stable gateways</span>
                 </div>
@@ -919,7 +919,7 @@ const SMSVerification = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server2' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 2</span>
-                      <span style={{ fontSize: 9, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>SUCCESS</span>
+                      <span style={{ fontSize: 9, background: 'rgba(255,0,127,0.15)', color: 'var(--color-pink)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>NO WHATSAPP</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Best success rates for secure apps (No WA)</span>
                   </div>
@@ -942,7 +942,7 @@ const SMSVerification = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3</span>
-                      <span style={{ fontSize: 9, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US ONLY</span>
+                      <span style={{ fontSize: 8, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US ONLY + WHATSAPP</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Premium US physical non-VOIP real lines</span>
                   </div>
@@ -965,7 +965,7 @@ const SMSVerification = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
-                      <span style={{ fontSize: 9, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>STABLE</span>
+                      <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>ALL COUNTRIES + WHATSAPP</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Reliable gateway and stable connections</span>
                   </div>

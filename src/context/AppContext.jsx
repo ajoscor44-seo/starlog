@@ -1413,6 +1413,9 @@ export const AppProvider = ({ children }) => {
       const country = smsPoolShortTermCountries.find(c => c.ID == countryId);
       const service = smsPoolShortTermServices.find(s => s.ID == serviceId);
       if (!country || !service) return { success: false, msg: 'Invalid parameters selected for Server 2' };
+      if ((service.name || '').toLowerCase().includes('whatsapp')) {
+        return { success: false, msg: 'WhatsApp is not supported on Server 2. Please select Server 3 or Server 4.' };
+      }
 
       // SMSPool prices are in USD. 
       // Since SMSPool short term price isn't explicitly given in /service/retrieve_all (we only get ID and name usually),
