@@ -896,7 +896,7 @@ const OrderHistory = () => {
               </div>
             </div>
 
-            {selectedOrder.type === 'OTP' && selectedOrder.raw && (
+            {selectedOrder.type === 'OTP' && selectedOrder.raw && selectedOrder.raw.server === 'server3' && (
               <button
                 className="btn btn-accent"
                 style={{ width: '100%', padding: '12px', fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}

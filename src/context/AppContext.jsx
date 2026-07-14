@@ -89,7 +89,7 @@ const SMM_SERVICE_MAPPING = {
 const initialSmmServices = [
   // ── Instagram (Real API) ──
   {
-    id: 'smm-ig-fol-std', platform: 'Instagram', category: 'Followers',
+    id: 'smm-ig-fol-std', apiServiceId: 7336, platform: 'Instagram', category: 'Followers',
     name: 'Instagram Followers (Standard)',
     pricePerThousandNgn: 2000, pricePerThousandUsd: 2.6, min: 100, max: 50000,
     description: 'Real-looking standard followers delivered at a safe organic drip-feed rate. Ideal for growing a new account without triggering algorithmic penalties.',
@@ -97,7 +97,7 @@ const initialSmmServices = [
     logo: 'Instagram'
   },
   {
-    id: 'smm-ig-fol-hq', platform: 'Instagram', category: 'Followers',
+    id: 'smm-ig-fol-hq', apiServiceId: 6453, platform: 'Instagram', category: 'Followers',
     name: 'Instagram Followers (High Quality)',
     pricePerThousandNgn: 3000, pricePerThousandUsd: 4.0, min: 50, max: 20000,
     description: 'Premium high-retention followers from established accounts. Best for influencers and brands who need stable numbers that sustain long-term.',
@@ -105,7 +105,7 @@ const initialSmmServices = [
     logo: 'Instagram'
   },
   {
-    id: 'smm-ig-lik-hq', platform: 'Instagram', category: 'Likes',
+    id: 'smm-ig-lik-hq', apiServiceId: 6454, platform: 'Instagram', category: 'Likes',
     name: 'Instagram Likes (Instant)',
     pricePerThousandNgn: 600, pricePerThousandUsd: 0.8, min: 50, max: 100000,
     description: 'High-quality instant likes from active Instagram profiles. Boosts your post into the explore feed algorithm and increases organic reach.',
@@ -114,7 +114,7 @@ const initialSmmServices = [
   },
   // ── TikTok (Real API) ──
   {
-    id: 'smm-tt-fol-hq', platform: 'TikTok', category: 'Followers',
+    id: 'smm-tt-fol-hq', apiServiceId: 6517, platform: 'TikTok', category: 'Followers',
     name: 'TikTok Followers (Stable)',
     pricePerThousandNgn: 10500, pricePerThousandUsd: 14.0, min: 50, max: 10000,
     description: 'High-retention TikTok followers from real profiles. Excellent for reaching the 1K follower milestone for TikTok Live access and monetization.',
@@ -122,7 +122,7 @@ const initialSmmServices = [
     logo: 'TikTok'
   },
   {
-    id: 'smm-tt-lik-fast', platform: 'TikTok', category: 'Likes',
+    id: 'smm-tt-lik-fast', apiServiceId: 6527, platform: 'TikTok', category: 'Likes',
     name: 'TikTok Video Likes (Fast)',
     pricePerThousandNgn: 800, pricePerThousandUsd: 1.0, min: 100, max: 500000,
     description: 'Fast-delivery TikTok likes that trigger the "For You Page" algorithm for viral momentum.',
@@ -131,7 +131,7 @@ const initialSmmServices = [
   },
   // ── Telegram (Real API) ──
   {
-    id: 'smm-tg-mem-hq', platform: 'Telegram', category: 'Members',
+    id: 'smm-tg-mem-hq', apiServiceId: 6172, platform: 'Telegram', category: 'Members',
     name: 'Telegram Channel Members',
     pricePerThousandNgn: 1800, pricePerThousandUsd: 2.4, min: 100, max: 100000,
     description: 'Genuine-looking Telegram channel members with profile photos and usernames. Zero-drop guarantee.',
@@ -140,7 +140,7 @@ const initialSmmServices = [
   },
   // ── YouTube (Real API) ──
   {
-    id: 'smm-yt-sub-real', platform: 'YouTube', category: 'Subscribers',
+    id: 'smm-yt-sub-real', apiServiceId: 7537, platform: 'YouTube', category: 'Subscribers',
     name: 'YouTube Subscribers (Active)',
     pricePerThousandNgn: 65000, pricePerThousandUsd: 86.0, min: 10, max: 5000,
     description: 'YouTube subscribers from active accounts. Helps cross the 1,000 sub threshold for partner program onboarding.',
@@ -148,7 +148,7 @@ const initialSmmServices = [
     logo: 'YouTube'
   },
   {
-    id: 'smm-yt-vw-ads', platform: 'YouTube', category: 'Views',
+    id: 'smm-yt-vw-ads', apiServiceId: 6498, platform: 'YouTube', category: 'Views',
     name: 'YouTube High-Retention Views',
     pricePerThousandNgn: 5500, pricePerThousandUsd: 7.3, min: 1000, max: 500000,
     description: 'Ad-safe YouTube views delivered from diverse IPs and devices with realistic watch time patterns.',
@@ -380,7 +380,21 @@ export const AppProvider = ({ children }) => {
 
   const [smmServices, setSmmServices] = useState(() => {
     const saved = localStorage.getItem('zp_catalog_smm');
-    return saved ? JSON.parse(saved) : initialSmmServices;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map(item => {
+          const initial = initialSmmServices.find(i => i.id === item.id);
+          if (initial && initial.apiServiceId && !item.apiServiceId) {
+            return { ...item, apiServiceId: initial.apiServiceId };
+          }
+          return item;
+        });
+      } catch (e) {
+        return initialSmmServices;
+      }
+    }
+    return initialSmmServices;
   });
 
   const calculatePrice = (id, defaultPrice, category) => {
@@ -1597,6 +1611,54 @@ export const AppProvider = ({ children }) => {
     const service = otpServices.find(s => s.name.toLowerCase() === serviceName.toLowerCase() || s.id === serviceName);
     if (!service) return { success: false, msg: 'Invalid service selected' };
 
+    const cleanNum = number.replace(/\+/g, '').trim();
+
+    // 1. Locate original order and verification ID
+    let targetServer = null;
+    let originalOrderId = null;
+
+    // Find in activeOtps memory state first
+    const originalOrder = activeOtps.find(otp => otp.phoneNumber && otp.phoneNumber.replace(/\+/g, '').trim() === cleanNum);
+    if (originalOrder) {
+      targetServer = originalOrder.server;
+      originalOrderId = originalOrder.orderId;
+    } else {
+      // Find in DB history
+      const formattedNumWithPlus = '+' + cleanNum;
+      try {
+        const { data: dbOrders } = await supabase
+          .from('otp_orders')
+          .select('*')
+          .or(`phone_number.eq.${formattedNumWithPlus},phone_number.eq.${cleanNum}`)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (dbOrders && dbOrders.length > 0) {
+          const dbOtp = dbOrders[0];
+          targetServer = dbOtp.server;
+          
+          let cleanOrderId = dbOtp.id;
+          if (dbOtp.server === 'server3' && typeof dbOtp.id === 'string') {
+            cleanOrderId = dbOtp.id.replace('tv-', '');
+          } else if (dbOtp.server === 'server1' && typeof dbOtp.id === 'string') {
+            cleanOrderId = dbOtp.id.replace('otp-', '');
+          } else if (dbOtp.server === 'server2' && typeof dbOtp.id === 'string') {
+            cleanOrderId = dbOtp.id.replace('sp-', '');
+          } else if (dbOtp.server === 'server4' && typeof dbOtp.id === 'string') {
+            cleanOrderId = dbOtp.id.replace('hero-', '');
+          }
+          originalOrderId = cleanOrderId;
+        }
+      } catch (dbErr) {
+        console.error("Failed to query DB for reuse: ", dbErr);
+      }
+    }
+
+    if (!originalOrderId || targetServer !== 'server3') {
+      return { success: false, msg: 'Only Server 3 (Textverified) numbers previously purchased can be reused.' };
+    }
+
+    // 2. Charge the wallet
     const price = service.priceNgn;
     const purchaseRes = await executePurchase(price, 'Purchase', `OTP Reuse (${service.name} - ${number})`);
     if (!purchaseRes.success) {
@@ -1604,9 +1666,9 @@ export const AppProvider = ({ children }) => {
     }
 
     try {
-      const cleanNum = number.replace(/\+/g, '').trim();
-      const { data, error } = await supabase.functions.invoke('sms-gateway', {
-        body: { action: 'reuse', product: service.id, number: cleanNum }
+      // Invoke textverified-gateway for reuse
+      const { data, error } = await supabase.functions.invoke('textverified-gateway', {
+        body: { action: 'reuse', id: originalOrderId }
       });
 
       if (error || !data || !data.status) {
@@ -1615,25 +1677,28 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: price, p_method: `OTP Reuse Failed Refund (${service.name} - ${number})`
         });
-        return { success: false, msg: data?.msg || error?.message || 'Number is no longer active in carrier gateway.' };
+        return { success: false, msg: data?.error || error?.message || 'Number is no longer available for reuse on Server 3.' };
       }
 
-      const resData = data.data; // 5sim order object
+      const resData = data.data; // Textverified verification object
+      const formattedPhone = String(resData.number).startsWith('+') ? String(resData.number) : '+' + resData.number;
+      const autoCountry = getCountryFromNumber(formattedPhone);
+
       const newOtp = {
-        id: `otp-reuse-${resData.id}`,
-        phoneNumber: resData.phone,
-        server: 'server1',
+        id: `tv-${resData.id}`,
+        orderId: resData.id,
+        phoneNumber: formattedPhone,
+        server: 'server3',
         service: service.name,
         priceNgn: price,
         status: 'PENDING',
         otpCode: null,
         smsText: null,
         created_at: new Date().toISOString(),
-        country: countryName || 'Unknown',
-        flag: flag || '🏳️',
-        fivesimOrderId: resData.id,
-        orderId: String(resData.id),
-        expiresAt: Date.now() + 15 * 60 * 1000
+        country: autoCountry ? autoCountry.name : (countryName || 'United States'),
+        flag: autoCountry ? autoCountry.flag : (flag || '🇺🇸'),
+        expiresAt: new Date(resData.endsAt).getTime(),
+        date: new Date().toLocaleString()
       };
 
       // Save to DB
@@ -1641,16 +1706,17 @@ export const AppProvider = ({ children }) => {
         id: newOtp.id,
         user_id: user.id,
         phone_number: newOtp.phoneNumber,
-        server: 'server1',
+        server: 'server3',
         service: newOtp.service,
         price_ngn: newOtp.priceNgn,
         status: 'PENDING',
-        created_at: newOtp.created_at,
+        created_at: new Date().toISOString(),
         otp_code: null,
         sms_text: null
       });
 
       setActiveOtps(prev => [newOtp, ...prev]);
+      setActiveSession(newOtp); // Show the code polling panel immediately
       return { success: true };
     } catch (e) {
       // Refund if error
@@ -1840,7 +1906,7 @@ export const AppProvider = ({ children }) => {
       const { data, error } = await supabase.functions.invoke('smm-gateway', {
         body: {
           action: 'add',
-          service: service.apiServiceId,
+          service: service.apiServiceId || SMM_SERVICE_MAPPING[service.id]?.apiServiceId,
           link: targetUrl,
           quantity: qty
         }

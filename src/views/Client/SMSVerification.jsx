@@ -540,7 +540,7 @@ const SMSVerification = () => {
               'Cancel & Refund'
             )}
           </button>
-        ) : (
+        ) : activeSession.server === 'server3' ? (
           <button 
             className="btn btn-accent" 
             style={{ flex: isMobile ? 1 : 'none' }} 
@@ -556,7 +556,7 @@ const SMSVerification = () => {
               'Rebuy / Reuse Number'
             )}
           </button>
-        )}
+        ) : null}
         <button className="btn btn-secondary" style={{ flex: isMobile ? 1 : 'none' }} onClick={() => setActiveSession(null)} disabled={isCancelling || isRebuying}>
           {activeSession.status === 'PENDING' ? 'Order Another' : 'Back to Order Panel'}
         </button>
@@ -636,9 +636,12 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3</span>
-                    <span style={{ fontSize: 7, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US ONLY + WHATSAPP</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <span style={{ fontSize: 7, background: 'rgba(0,242,254,0.2)', color: 'var(--color-turquoise)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>REUSABLE</span>
+                      <span style={{ fontSize: 7, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US ONLY + WHATSAPP</span>
+                    </div>
                   </div>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Physical lines only</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Physical lines only (reusable)</span>
                 </div>
 
                 {/* Server 4 Card */}
@@ -942,9 +945,12 @@ const SMSVerification = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server3' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 3</span>
-                      <span style={{ fontSize: 8, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US ONLY + WHATSAPP</span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <span style={{ fontSize: 8, background: 'rgba(0,242,254,0.2)', color: 'var(--color-turquoise)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>REUSABLE</span>
+                        <span style={{ fontSize: 8, background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US ONLY + WHATSAPP</span>
+                      </div>
                     </div>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Premium US physical non-VOIP real lines</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Premium US physical non-VOIP real lines (reusable)</span>
                   </div>
 
                   {/* Server 4 Card */}

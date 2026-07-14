@@ -43,7 +43,7 @@ const ReuseNumbers = () => {
     });
 
     for (const otp of sorted) {
-      if (otp.phoneNumber && !seen.has(otp.phoneNumber)) {
+      if (otp.server === 'server3' && otp.phoneNumber && !seen.has(otp.phoneNumber)) {
         seen.add(otp.phoneNumber);
         list.push({
           phoneNumber: otp.phoneNumber,
@@ -144,7 +144,7 @@ const ReuseNumbers = () => {
           Re-buy & Reuse OTP Numbers
         </h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0, lineHeight: '1.6' }}>
-          Need additional verification codes or lost access? Enter any previously purchased number below or click a card in your history list to request a re-rent session.
+          Need additional verification codes or lost access? Only phone numbers purchased from <strong style={{ color: 'var(--color-turquoise)' }}>Server 3 (Textverified)</strong> are eligible for reuse/rebuy. Select a Server 3 number from your history list or enter it manually below to request a reactivation session.
         </p>
       </div>
 
@@ -310,8 +310,8 @@ const ReuseNumbers = () => {
             Number Reuse Guidelines
           </h4>
           <ul style={{ paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '10px', margin: 0, lineHeight: '1.6' }}>
-            <li>Number reuse requests target the same physical SIM pool on our carrier nodes.</li>
-            <li><strong>Availability:</strong> A number is eligible for reuse only if it is still online and active in the carrier's gateway (usually within 12-48 hours of original use).</li>
+            <li>Only numbers originally purchased from <strong style={{ color: 'var(--color-turquoise)' }}>Server 3 (Textverified)</strong> can be reactivated/reused.</li>
+            <li><strong>Availability:</strong> A number is eligible for reuse only if it is still online or reactivatable in Textverified's pool (typically within a few hours to days of original use).</li>
             <li><strong>Pricing:</strong> Requesting number reuse deducts the same standard rate as a new temporary OTP number purchase.</li>
             <li>If the request is rejected (e.g. number is no longer online), your wallet balance will be refunded automatically.</li>
             <li>Once requested, monitor the <strong>SMS OTP (Temp)</strong> tab for incoming codes.</li>
@@ -418,7 +418,7 @@ const ReuseNumbers = () => {
                 <div style={{ background: 'rgba(0, 242, 254, 0.02)', border: '1px solid rgba(0, 242, 254, 0.15)', borderRadius: '10px', padding: '12px', display: 'flex', gap: '10px', marginBottom: '20px' }}>
                   <Info size={16} style={{ color: 'var(--color-turquoise)', flexShrink: 0, marginTop: '2px' }} />
                   <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                    <strong>Rebuy Protocol:</strong> Tapping Re-buy sends a <code>GET /v1/user/reuse</code> query. If the SIM is still active on our dynamic pools, a new 15-minute SMS verification session is generated. If offline, the transaction is rejected and auto-refunded.
+                    <strong>Rebuy Protocol:</strong> Tapping Re-buy sends a reactivation request to Server 3 (Textverified). If the number is still active and available, a new SMS verification session is generated. If offline, the transaction is rejected and auto-refunded.
                   </div>
                 </div>
 

@@ -238,6 +238,73 @@ serve(async (req) => {
       });
     }
 
+    if (action === 'reuse') {
+      const { id } = requestBody;
+      if (!id) throw new Error('Missing id parameter');
+
+      // Attempt to reactivate/reuse the verification ID
+      // First, try reactivating (most common if window expired)
+      let reuseRes = await fetch(`https://www.textverified.com/api/pub/v2/verifications/${id}/reactivate`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      // If reactivate fails (e.g. status 409 or 400 because it is still within the reuse window), try reuse
+      if (!reuseRes.ok) {
+        const reactivateErr = await reuseRes.text().catch(() => "");
+        console.log(`Reactivate failed: ${reactivateErr}. Trying reuse endpoint...`);
+        
+        reuseRes = await fetch(`https://www.textverified.com/api/pub/v2/verifications/${id}/reuse`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+      }
+
+      if (!reuseRes.ok) {
+        const errText = await reuseRes.text().catch(() => "");
+        throw new Error(`Failed to reuse/reactivate number: ${reuseRes.statusText}. ${errText}`);
+      }
+
+      // If the reuse/reactivate was successful, retrieve the new verification details
+      const reuseData = await reuseRes.json().catch(() => ({}));
+      
+      let newVerificationId = reuseData.id || (reuseData.href ? reuseData.href.split('/').pop() : '');
+      if (!newVerificationId) {
+        // Check Location header as fallback
+        const loc = reuseRes.headers.get('Location');
+        if (loc) {
+          newVerificationId = loc.split('/').pop();
+        }
+      }
+
+      if (!newVerificationId) {
+        newVerificationId = id;
+      }
+
+      // Retrieve full details of the newly created reuse session
+      const detailRes = await fetch(`https://www.textverified.com/api/pub/v2/verifications/${newVerificationId}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!detailRes.ok) {
+        throw new Error(`Failed to fetch reused verification details: ${detailRes.statusText}`);
+      }
+
+      const detailData = await detailRes.json();
+      return new Response(JSON.stringify({ status: true, data: detailData }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     throw new Error(`Unsupported action: ${action}`)
 
   } catch (error) {
