@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LandingNav from '../components/LandingNav';
-import { Compass, Mail, Phone, MapPin, Send, MessageSquare, CheckCircle } from 'lucide-react';
+import { Sparkles, Mail, Phone, MapPin, Send, MessageSquare, CheckCircle } from 'lucide-react';
 
 const ContactUs = () => {
   const navigate = useNavigate();
@@ -142,7 +142,7 @@ const ContactUs = () => {
                   <Mail size={20} style={{ color: 'var(--color-turquoise)', flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>General Support</div>
-                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>Support@discountzar.com</div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>support@starlog.ng</div>
                   </div>
                 </div>
 
@@ -182,8 +182,8 @@ const ContactUs = () => {
       <footer className="landing-footer">
         <div className="landing-footer-content">
           <div className="landing-footer-logo">
-            <Compass size={28} style={{ color: 'var(--color-turquoise)' }} />
-            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>discountzar.ng</span>
+            <Sparkles size={28} style={{ color: 'var(--color-turquoise)' }} />
+            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>starlog.ng</span>
           </div>
           <div className="landing-footer-links">
             <span onClick={() => navigate('/about')}>About Us</span>
@@ -193,7 +193,7 @@ const ContactUs = () => {
           </div>
         </div>
         <div className="landing-footer-copyright">
-          © 2026 discountzar.ng. Built as a premium high-fidelity service prototype. All rights reserved.
+          © 2026 starlog.ng. Built as a premium high-fidelity service prototype. All rights reserved.
         </div>
       </footer>
     </div>

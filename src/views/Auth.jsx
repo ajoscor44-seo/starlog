@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { supabase } from '../supabase';
-import { Compass, Mail, Lock, User, Phone, CheckSquare, Square, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, Phone, CheckSquare, Square, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -166,8 +166,8 @@ const Auth = () => {
         {/* Brand Header */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Compass size={32} style={{ color: 'var(--color-turquoise)' }} />
-            <span style={{ fontSize: '26px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--color-turquoise)', letterSpacing: '-0.03em' }}>discountzar.ng</span>
+            <Sparkles size={32} style={{ color: 'var(--color-turquoise)' }} />
+            <span style={{ fontSize: '26px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--color-turquoise)', letterSpacing: '-0.03em' }}>starlog.ng</span>
           </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
             {isLogin ? 'Access your digital services dashboard console' : 'Create an account to deploy instant digital assets'}
@@ -363,7 +363,7 @@ const Auth = () => {
                   <Square size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0, marginTop: '2px' }} />
                 )}
                 <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                  I agree to the discountzar.ng <span onClick={() => navigate('/terms')} style={{ cursor: 'pointer', color: 'var(--color-turquoise)' }}>Terms</span> and <span onClick={() => navigate('/privacy')} style={{ cursor: 'pointer', color: 'var(--color-turquoise)' }}>Privacy</span> policy.
+                  I agree to the starlog.ng <span onClick={() => navigate('/terms')} style={{ cursor: 'pointer', color: 'var(--color-turquoise)' }}>Terms</span> and <span onClick={() => navigate('/privacy')} style={{ cursor: 'pointer', color: 'var(--color-turquoise)' }}>Privacy</span> policy.
                 </span>
               </div>
             )

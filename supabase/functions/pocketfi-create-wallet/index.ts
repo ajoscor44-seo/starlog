@@ -67,8 +67,8 @@ serve(async (req) => {
     const firstName = names[0] || 'Customer'
     const lastName = names.slice(1).join(' ') || 'User'
 
-    const pocketFiPublicKey = Deno.env.get('POCKETFI_PUBLIC_KEY') || '32438|LO9iG4rLGLnVzywfVDlhGoji0JWTpYywEIc3KHGxf837cb4b'
-    const pocketFiBusinessId = Deno.env.get('POCKETFI_BUSINESS_ID') || '30135'
+    const pocketFiPublicKey = Deno.env.get('POCKETFI_PUBLIC_KEY') || '34910|Ji5GKNF7XwPgdpDRRJT5o7qzVQMKjPn7GvpGiqG1aa500c6a'
+    const pocketFiBusinessId = Deno.env.get('POCKETFI_BUSINESS_ID') || '30266'
 
     // Call PocketFi virtual account generation endpoint
     const response = await fetch('https://api.pocketfi.ng/api/v1/virtual-accounts/create', {

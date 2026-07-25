@@ -50,7 +50,7 @@ serve(async (req) => {
       }), { status: 401 })
     }
 
-    const secret = Deno.env.get('POCKETFI_SECRET_KEY') || '1c85ecfb4714c1a3aa40e51eb1630a3c155ac3a53ef03d2f188379af677a120c'
+    const secret = Deno.env.get('POCKETFI_SECRET_KEY') || '490d286bfc3611eaa3a8c709b702158e60139067e38c96d1b9850a71439e0eea'
     const rawBody = await req.text()
 
     const encoder = new TextEncoder()

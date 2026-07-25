@@ -49,7 +49,7 @@ const Support = () => {
   }, [user]);
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText('Support@discountzar.com');
+    navigator.clipboard.writeText('support@starlog.ng');
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2000);
   };
@@ -109,7 +109,7 @@ const Support = () => {
     },
     {
       q: "What is your refund policy?",
-      a: "All failed SMS verification codes, failed eSIM requests, or cancelled SMM panel orders are automatically refunded to your wallet balance. Wallet deposits themselves are non-withdrawable and must be spent on services inside the DiscountZar Plus console."
+      a: "All failed SMS verification codes, failed eSIM requests, or cancelled SMM panel orders are automatically refunded to your wallet balance. Wallet deposits themselves are non-withdrawable and must be spent on services inside the StarLog Plus console."
     },
     {
       q: "How do eSIM travel packages work?",
@@ -135,7 +135,7 @@ const Support = () => {
           Support Desk & Telemetry Helpline
         </h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: isMobile ? 12 : 14, lineHeight: 1.6, margin: 0 }}>
-          Welcome to the DiscountZar support center. Pre-populate a technical inquiry ticket below, review our comprehensive API status guide, or contact us directly.
+          Welcome to the StarLog support center. Pre-populate a technical inquiry ticket below, review our comprehensive API status guide, or contact us directly.
         </p>
       </div>
 
@@ -370,10 +370,10 @@ const Support = () => {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email Support</div>
                   <a 
-                    href="mailto:Support@discountzar.com" 
+                    href="mailto:support@starlog.ng" 
                     style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}
                   >
-                    Support@discountzar.com
+                    support@starlog.ng
                   </a>
                   <button 
                     onClick={handleCopyEmail}

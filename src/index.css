@@ -1,37 +1,37 @@
 :root {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Space Grotesk', system-ui, -apple-system, sans-serif;
 
-  /* Color Palette - Premium Cyber Dark */
-  --bg-main: #06040b;
-  --bg-card: rgba(14, 11, 24, 0.65);
-  --bg-card-hover: rgba(22, 18, 38, 0.85);
-  --bg-sidebar: rgba(8, 6, 15, 0.85);
-  --border-color: rgba(255, 255, 255, 0.07);
-  --border-focus: rgba(0, 242, 254, 0.5);
+  /* Color Palette - Premium Cosmic Dark */
+  --bg-main: #06050c;
+  --bg-card: rgba(18, 14, 32, 0.65);
+  --bg-card-hover: rgba(26, 20, 46, 0.85);
+  --bg-sidebar: rgba(10, 8, 20, 0.85);
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-focus: rgba(0, 210, 255, 0.5);
 
-  --text-primary: #f1eff5;
-  --text-secondary: #9993ad;
-  --text-muted: #645f77;
+  --text-primary: #f2eff7;
+  --text-secondary: #9c97b5;
+  --text-muted: #67627e;
 
   /* Accents */
-  --color-pink: #ff007f;
-  --color-turquoise: #00f2fe;
-  --color-violet: #7f00ff;
-  --color-green: #00ff87;
-  --color-amber: #ffb900;
-  --color-danger: #ff3b30;
+  --color-pink: #ec4899;
+  --color-turquoise: #00d2ff;
+  --color-violet: #8b5cf6;
+  --color-green: #10b981;
+  --color-amber: #eab308;
+  --color-danger: #ff453a;
 
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, var(--color-violet) 0%, var(--color-pink) 50%, var(--color-turquoise) 100%);
-  --gradient-glow: linear-gradient(135deg, rgba(127, 0, 255, 0.35) 0%, rgba(255, 0, 127, 0.35) 50%, rgba(0, 242, 254, 0.35) 100%);
+  --gradient-glow: linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(236, 72, 153, 0.35) 50%, rgba(0, 210, 255, 0.35) 100%);
   --gradient-cool: linear-gradient(135deg, var(--color-violet) 0%, var(--color-turquoise) 100%);
-  --gradient-success: linear-gradient(135deg, #00b09b, #96c93d);
+  --gradient-success: linear-gradient(135deg, #059669, #10b981);
 
   /* Shadows & Blur */
-  --shadow-neon: 0 0 25px rgba(255, 0, 127, 0.25);
-  --shadow-neon-cyan: 0 0 25px rgba(0, 242, 254, 0.25);
-  --shadow-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-neon: 0 0 25px rgba(236, 72, 153, 0.25);
+  --shadow-neon-cyan: 0 0 25px rgba(0, 210, 255, 0.25);
+  --shadow-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
   --blur-amount: 16px;
 
   /* Theme-specific background variables */
@@ -65,14 +65,14 @@
 
   --color-pink: #db2777;
   --color-turquoise: #0ea5e9;
-  --color-violet: #7c3aed;
+  --color-violet: #6366f1;
   --color-green: #10b981;
   --color-amber: #d97706;
   --color-danger: #dc2626;
 
   --gradient-primary: linear-gradient(135deg, var(--color-violet) 0%, var(--color-pink) 50%, var(--color-turquoise) 100%);
   --gradient-cool: linear-gradient(135deg, var(--color-violet) 0%, var(--color-turquoise) 100%);
-  --gradient-glow: linear-gradient(135deg, rgba(124, 58, 237, 0.06) 0%, rgba(219, 39, 119, 0.06) 50%, rgba(14, 165, 233, 0.06) 100%);
+  --gradient-glow: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(219, 39, 119, 0.06) 50%, rgba(14, 165, 233, 0.06) 100%);
 
   --shadow-neon: 0 4px 20px rgba(219, 39, 119, 0.08);
   --shadow-neon-cyan: 0 4px 20px rgba(14, 165, 233, 0.08);

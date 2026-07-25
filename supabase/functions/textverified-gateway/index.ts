@@ -39,8 +39,8 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('TEXTVERIFIED_API_KEY') ?? '';
-    const username = Deno.env.get('TEXTVERIFIED_USERNAME') ?? '';
+    const apiKey = Deno.env.get('TEXTVERIFIED_API_KEY') ?? 'GnMunP3FeemUbAFxLrft3Qw6r4NLjlqcXDnoWQt2DAiD4j1W2e4kD3TgJGITmH';
+    const username = Deno.env.get('TEXTVERIFIED_USERNAME') ?? 'ademartins077@gmail.com';
 
     if (!apiKey || !username) {
       throw new Error('Missing TEXTVERIFIED_API_KEY or TEXTVERIFIED_USERNAME environment variables');

@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
-import { Compass, Menu, X, Sun, Moon, LogOut } from 'lucide-react';
+import { Sparkles, Menu, X, Sun, Moon, LogOut } from 'lucide-react';
 
 const LandingNav = () => {
   const { isLoggedIn, logoutUser, user, theme, toggleTheme, dbIsAdmin } = useContext(AppContext);
@@ -25,8 +25,8 @@ const LandingNav = () => {
     <nav className="landing-nav">
       <div className="landing-nav-left">
         <div className="landing-brand" onClick={() => handleNavClick('landing')}>
-          <Compass size={28} style={{ color: 'var(--color-turquoise)' }} className="pulse-glow-cyan" />
-          <span className="landing-brand-text">discountzar.ng</span>
+          <Sparkles size={28} style={{ color: 'var(--color-turquoise)' }} className="pulse-glow-cyan" />
+          <span className="landing-brand-text">starlog.ng</span>
         </div>
       </div>
 
@@ -71,14 +71,7 @@ const LandingNav = () => {
           <div className="landing-mobile-menu-links">
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Services</div>
             <span onClick={() => handleNavClick('otp')} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>💬 SMS OTP Verification</span>
-            <span onClick={() => handleNavClick('esim')} style={{ color: 'var(--text-primary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              📶 eSIM Travel Profiles
-              {!dbIsAdmin && (
-                <span style={{ fontSize: '9px', background: 'var(--border-color)', color: 'var(--text-secondary)', padding: '2px 4px', borderRadius: '4px', textTransform: 'uppercase' }}>Coming Soon</span>
-              )}
-            </span>
-            <span onClick={() => handleNavClick('smm')} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>📈 SMM Panel Reseller</span>
-            <span onClick={() => window.open('https://www.discountzar.com/marketplace', '_blank')} style={{ color: 'var(--color-pink)', fontWeight: '700' }}>⭐ Premium Accounts Shop ↗</span>
+            <span onClick={() => handleNavClick('social')} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>🛡️ Social Media Logs</span>
           </div>
 
           <div className="landing-mobile-menu-actions">

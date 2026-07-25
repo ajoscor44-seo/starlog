@@ -36,7 +36,7 @@ serve(async (req) => {
       throw new Error('Missing action parameter')
     }
 
-    const apiKey = 'WPEqw3A3GHdSYYLztpJRKb28sul5xlQI' // Provided by user
+    const apiKey = Deno.env.get('SMSPOOL_API_KEY') || 'qDvWrwpd2npHkQul9h0hvDDySdTAxrm5'
     
     let url = ''
     let formData = new FormData()

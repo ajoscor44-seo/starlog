@@ -8,7 +8,7 @@ import {
   Smartphone, 
   Share2, 
   CreditCard, 
-  Compass, 
+  Sparkles, 
   Settings, 
   LogOut,
   User,
@@ -29,12 +29,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const menuItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'subs', label: 'Premium Accounts', icon: User, external: true, url: 'https://www.discountzar.com/marketplace' },
     { id: 'otp', label: 'SMS OTP (Temp)', icon: Key },
     { id: 'social', label: 'Social Media Logs', icon: ShieldCheck },
-    { id: 'reuse', label: 'Reuse Number', icon: RefreshCw },
-    { id: 'esim', label: 'eSIM Travel', icon: Smartphone },
-    { id: 'smm', label: 'SMM Panel', icon: Share2 },
     { id: 'wallet', label: 'Wallet & Fund', icon: CreditCard },
     { id: 'orders', label: 'Order History', icon: ClipboardList },
     { id: 'profile', label: 'User Profile', icon: User },
@@ -69,8 +65,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo sidebar-logo--hide-mobile-auth">
-          <Compass size={28} className="pulse-glow-cyan" style={{ color: 'var(--color-turquoise)' }} />
-          <span className="logo-text">discountzar.ng</span>
+          <Sparkles size={28} className="pulse-glow-cyan" style={{ color: 'var(--color-turquoise)' }} />
+          <span className="logo-text">starlog.ng</span>
         </div>
 
         <ul className="sidebar-menu">
