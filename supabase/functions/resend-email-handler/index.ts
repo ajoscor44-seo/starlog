@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const SENDER_EMAIL = "support@starlog.ng"; // verified domain on Resend
+const SENDER_EMAIL = "support@starlog.com.ng"; // verified domain on Resend
 
 // Supabase client (Service Role for admin DB access)
 const supabase = createClient(
