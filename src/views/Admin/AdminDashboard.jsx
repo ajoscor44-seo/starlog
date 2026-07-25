@@ -2567,26 +2567,84 @@ const AdminDashboard = () => {
 
                     {/* Stock list */}
                     <div>
-                      <h4 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 'bold' }}>Current Loaded Items ({logItems.length})</h4>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold' }}>Current Loaded Items ({filteredLogItems.length})</h4>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button type="button" className="wp-button-secondary button-small" onClick={() => setStockFilter('all')} style={{ padding: '2px 8px', background: stockFilter === 'all' ? '#007cba' : '', color: stockFilter === 'all' ? '#fff' : '', border: '1px solid #ccd0d4', borderRadius: '4px', cursor: 'pointer' }}>All</button>
+                          <button type="button" className="wp-button-secondary button-small" onClick={() => setStockFilter('available')} style={{ padding: '2px 8px', background: stockFilter === 'available' ? '#007cba' : '', color: stockFilter === 'available' ? '#fff' : '', border: '1px solid #ccd0d4', borderRadius: '4px', cursor: 'pointer' }}>Available</button>
+                          <button type="button" className="wp-button-secondary button-small" onClick={() => setStockFilter('sold')} style={{ padding: '2px 8px', background: stockFilter === 'sold' ? '#007cba' : '', color: stockFilter === 'sold' ? '#fff' : '', border: '1px solid #ccd0d4', borderRadius: '4px', cursor: 'pointer' }}>Sold</button>
+                        </div>
+                      </div>
+
                       {loadingItems ? (
                         <div style={{ textAlign: 'center', padding: '20px' }}>Loading items...</div>
-                      ) : logItems.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed #ccd0d4', color: '#64748b', borderRadius: '6px' }}>Out of stock. Load lines above.</div>
+                      ) : filteredLogItems.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed #ccd0d4', color: '#64748b', borderRadius: '6px' }}>No items found for this status.</div>
                       ) : (
-                        <div style={{ overflowX: 'auto', maxHeight: '250px', border: '1px solid #ccd0d4', borderRadius: '4px' }}>
+                        <div style={{ overflowX: 'auto', maxHeight: '300px', border: '1px solid #ccd0d4', borderRadius: '4px' }}>
                           <table className="wp-table" style={{ margin: 0 }}>
                             <thead>
                               <tr>
-                                <th>Credential Data</th>
+                                <th>Credential Details</th>
                                 <th>Status</th>
                                 <th style={{ width: '80px', textAlign: 'right' }}>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {logItems.map((item) => (
+                              {filteredLogItems.map((item) => (
                                 <tr key={item.id} style={{ background: item.is_sold ? '#f0fcf1' : '#fff' }}>
-                                  <td style={{ fontFamily: 'monospace', fontSize: '11.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>{item.account_data}</td>
-                                  <td>
+                                  <td style={{ padding: '12px 10px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{
+                                          fontFamily: 'monospace',
+                                          fontSize: '11px',
+                                          wordBreak: 'break-all',
+                                          background: '#f6f7f7',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          border: '1px solid #dcdcde'
+                                        }}>
+                                          {revealedItems[item.id] ? item.account_data : (item.account_data.length > 40 ? item.account_data.slice(0, 40) + "..." : item.account_data)}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setRevealedItems(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                                          style={{
+                                            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                                            color: '#2271b1', fontSize: '11px', textDecoration: 'underline'
+                                          }}
+                                        >
+                                          {revealedItems[item.id] ? "Hide" : "Reveal"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(item.account_data);
+                                            alert("Copied to clipboard!");
+                                          }}
+                                          style={{
+                                            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                                            color: '#2271b1', fontSize: '11px', textDecoration: 'underline'
+                                          }}
+                                        >
+                                          Copy
+                                        </button>
+                                      </div>
+                                      
+                                      {item.is_sold ? (
+                                        <div style={{ fontSize: '11px', color: '#0f5132', background: '#d1e7dd', border: '1px solid #badbcc', padding: '6px 10px', borderRadius: '4px', marginTop: '4px' }}>
+                                          👤 Purchased by: <strong>{item.profiles?.full_name || 'Client'}</strong> ({item.profiles?.email || 'No email'})
+                                          <span style={{ color: '#0f5132', marginLeft: '8px' }}>on {item.sold_at ? new Date(item.sold_at).toLocaleString() : 'N/A'}</span>
+                                        </div>
+                                      ) : (
+                                        <div style={{ fontSize: '10px', color: '#64748b' }}>
+                                          📥 Loaded: {new Date(item.created_at).toLocaleString()}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td style={{ verticalAlign: 'middle' }}>
                                     <span style={{
                                       padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold',
                                       background: item.is_sold ? '#c3e6cb' : '#e2e3e5',
@@ -2595,7 +2653,7 @@ const AdminDashboard = () => {
                                       {item.is_sold ? 'SOLD' : 'AVAILABLE'}
                                     </span>
                                   </td>
-                                  <td>
+                                  <td style={{ verticalAlign: 'middle' }}>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                       <button className="wp-button wp-button-danger button-small" onClick={() => handleDeleteStockItem(item.id)}>Delete</button>
                                     </div>

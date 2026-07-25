@@ -223,24 +223,26 @@ const SocialMediaLogs = () => {
                   <span style={{ color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'var(--mono)' }}>{formatCost(currency === 'NGN' ? selectedLog.priceNgn : selectedLog.priceUsd)}</span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Quantity</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', padding: '6px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                    <button 
-                      type="button" 
-                      onClick={() => setPurchaseQuantity(Math.max(1, purchaseQuantity - 1))}
-                      disabled={purchaseLoading || selectedLog.stock <= 0}
-                      style={{ width: '32px', height: '32px', background: 'var(--bg-btn-secondary)', border: 'none', borderRadius: '8px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >-</button>
-                    <span style={{ fontSize: '16px', width: '24px', textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 'bold', color: 'var(--text-primary)' }}>{purchaseQuantity}</span>
-                    <button 
-                      type="button" 
-                      onClick={() => setPurchaseQuantity(Math.min(selectedLog.stock, purchaseQuantity + 1))}
-                      disabled={purchaseLoading || selectedLog.stock <= 0}
-                      style={{ width: '32px', height: '32px', background: 'var(--bg-btn-secondary)', border: 'none', borderRadius: '8px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >+</button>
+                {!selectedLog.isLocal && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Quantity</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-input)', padding: '6px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                      <button 
+                        type="button" 
+                        onClick={() => setPurchaseQuantity(Math.max(1, purchaseQuantity - 1))}
+                        disabled={purchaseLoading || selectedLog.stock <= 0}
+                        style={{ width: '32px', height: '32px', background: 'var(--bg-btn-secondary)', border: 'none', borderRadius: '8px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >-</button>
+                      <span style={{ fontSize: '16px', width: '24px', textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 'bold', color: 'var(--text-primary)' }}>{purchaseQuantity}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setPurchaseQuantity(Math.min(selectedLog.stock, purchaseQuantity + 1))}
+                        disabled={purchaseLoading || selectedLog.stock <= 0}
+                        style={{ width: '32px', height: '32px', background: 'var(--bg-btn-secondary)', border: 'none', borderRadius: '8px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >+</button>
+                    </div>
                   </div>
-                </div>
+                )}
                 
                 <hr style={{ border: 'none', borderTop: '1px dashed rgba(255,255,255,0.1)', margin: '20px 0' }} />
                 
