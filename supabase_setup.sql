@@ -87,38 +87,14 @@ on conflict (id) do nothing;
 -- Create a trigger function to automatically create a profile when a new user signs up
 create or replace function public.handle_new_user()
 returns trigger as $$
-declare
-    user_count integer;
-    initial_balance numeric(15, 2) := 0.00;
 begin
-    -- Count existing profiles to check if we are within the first 29 users
-    select count(*) into user_count from public.profiles;
-    
-    if user_count < 29 then
-        initial_balance := 100.00; -- ₦100 welcome bonus for the first 29 users
-    end if;
-
     insert into public.profiles (id, full_name, phone, wallet_balance)
     values (
         new.id,
         coalesce(new.raw_user_meta_data->>'full_name', ''),
         coalesce(new.raw_user_meta_data->>'phone', ''),
-        initial_balance
+        0.00
     );
-
-    -- If user received a welcome bonus, log it as a Deposit transaction so it shows in Order History
-    if initial_balance > 0 then
-        insert into public.transactions (id, user_id, amount, type, method, status, created_at)
-        values (
-            'bonus-welcome-' || new.id,
-            new.id,
-            initial_balance,
-            'Deposit',
-            'Welcome Bonus — ₦100 Sign-up Credit 🎉',
-            'SUCCESS',
-            now()
-        );
-    end if;
 
     return new;
 end;
@@ -350,3 +326,146 @@ CREATE TRIGGER sync_profile_admins_trigger
 INSERT INTO public.admins (user_id)
 SELECT id FROM public.profiles WHERE is_admin = true
 ON CONFLICT (user_id) DO NOTHING;
+
+
+-- =========================================================================
+-- STARLOG CUSTOM LOCAL SOCIAL LOGS AND STOCK INVENTORY MANAGER SCHEMA
+-- =========================================================================
+
+-- Create table for local social media logs (listings)
+create table if not exists public.local_social_logs (
+  id uuid default gen_random_uuid() primary key,
+  category text not null,
+  name text not null,
+  price numeric(10,2) not null,
+  description text,
+  image text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on local_social_logs
+alter table public.local_social_logs enable row level security;
+
+-- Policies for local_social_logs
+drop policy if exists "Allow public select on local_social_logs" on public.local_social_logs;
+create policy "Allow public select on local_social_logs" on public.local_social_logs
+  for select using (true);
+
+drop policy if exists "Allow admin modifications on local_social_logs" on public.local_social_logs;
+create policy "Allow admin modifications on local_social_logs" on public.local_social_logs
+  for all using (public.is_admin(auth.uid()));
+
+-- Create table for credentials items in stock
+create table if not exists public.local_social_log_items (
+  id uuid default gen_random_uuid() primary key,
+  product_id uuid references public.local_social_logs(id) on delete cascade not null,
+  account_data text not null, -- format: "username:password|2fa" or raw credentials
+  is_sold boolean default false not null,
+  sold_to uuid references public.profiles(id) on delete set null,
+  sold_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on local_social_log_items
+alter table public.local_social_log_items enable row level security;
+
+-- Policies for local_social_log_items
+drop policy if exists "Allow admins all access on items" on public.local_social_log_items;
+create policy "Allow admins all access on items" on public.local_social_log_items
+  for all using (public.is_admin(auth.uid()));
+
+drop policy if exists "Allow users to select their own purchased items" on public.local_social_log_items;
+create policy "Allow users to select their own purchased items" on public.local_social_log_items
+  for select using (auth.uid() = sold_to);
+
+-- Create secure atomic local purchase function
+create or replace function public.buy_local_social_log(
+  p_user_id uuid,
+  p_product_id uuid,
+  p_cost numeric,
+  p_plan_name text
+)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_item_id uuid;
+  v_account_data text;
+  v_order_id uuid;
+  v_current_balance numeric;
+begin
+  -- 1. Check user balance and lock row
+  select wallet_balance into v_current_balance from public.profiles where id = p_user_id for update;
+  if v_current_balance is null or v_current_balance < p_cost then
+    return json_build_object('success', false, 'error', 'Insufficient balance');
+  end if;
+
+  -- 2. Find and lock an unsold item
+  select id, account_data into v_item_id, v_account_data
+  from public.local_social_log_items
+  where product_id = p_product_id and is_sold = false
+  limit 1
+  for update skip locked;
+
+  if v_item_id is null then
+    return json_build_object('success', false, 'error', 'Out of stock');
+  end if;
+
+  -- 3. Deduct wallet balance
+  update public.profiles set wallet_balance = wallet_balance - p_cost where id = p_user_id;
+
+  -- 4. Mark item as sold
+  update public.local_social_log_items
+  set is_sold = true, sold_to = p_user_id, sold_at = now()
+  where id = v_item_id;
+
+  -- 5. Insert transaction log
+  insert into public.transactions (id, user_id, amount, type, method, status)
+  values (
+    'tx-' || substring(md5(random()::text) from 1 for 8),
+    p_user_id,
+    p_cost,
+    'debit',
+    'Purchased Social Log: ' || p_plan_name,
+    'SUCCESS'
+  );
+
+  -- 6. Insert social media order record
+  v_order_id := gen_random_uuid();
+  insert into public.social_media_orders (id, user_id, plan_id, plan_name, quantity, cost, status, account_details, ologstore_order_id)
+  values (
+    v_order_id,
+    p_user_id,
+    p_product_id::text,
+    p_plan_name,
+    1,
+    p_cost,
+    'completed',
+    json_build_object('Credentials', v_account_data),
+    'local_' || substring(md5(random()::text) from 1 for 8)
+  );
+
+  return json_build_object('success', true, 'order_id', v_order_id, 'credentials', v_account_data);
+exception when others then
+  return json_build_object('success', false, 'error', SQLERRM);
+end;
+$$;
+
+-- Add database realtime publication tables
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'local_social_logs'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.local_social_logs;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'local_social_log_items'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.local_social_log_items;
+  END IF;
+END $$;

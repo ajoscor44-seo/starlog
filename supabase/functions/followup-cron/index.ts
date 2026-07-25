@@ -5,28 +5,28 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.6";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const SENDER_EMAIL = Deno.env.get("SENDER_EMAIL") || "support@discountzar.com";
+const SENDER_EMAIL = Deno.env.get("SENDER_EMAIL") || "support@starlog.ng";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const generateFollowUpEmail = (name: string) => `
 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0a18; color: #fff; padding: 30px; border-radius: 12px; border: 1px solid #2d1a45;">
   <div style="text-align: center; margin-bottom: 20px;">
-    <h1 style="color: #ab47fc; margin: 0; font-size: 24px;">Still Exploring DiscountZar?</h1>
+    <h1 style="color: #ab47fc; margin: 0; font-size: 24px;">Still Exploring StarLog?</h1>
   </div>
   <p style="font-size: 16px; color: #e2e8f0; line-height: 1.6;">Hi ${name},</p>
   <p style="font-size: 16px; color: #e2e8f0; line-height: 1.6;">
-    We noticed you signed up for DiscountZar Plus recently, but haven't placed your first order yet! 
+    We noticed you signed up for StarLog recently, but haven't placed your first order yet! 
   </p>
   <p style="font-size: 16px; color: #e2e8f0; line-height: 1.6;">
-    Whether you're looking for cheap temporary SMS numbers for verification, premium social media accounts, or eSIM data for your next trip, we've got you covered at unbeatable prices.
+    Whether you're looking for cheap temporary SMS numbers for verification or premium social media accounts logs, we've got you covered at unbeatable prices.
   </p>
   
   <div style="background: rgba(171, 71, 252, 0.1); border: 1px solid rgba(171, 71, 252, 0.2); padding: 15px; border-radius: 8px; margin: 25px 0;">
     <h3 style="margin: 0 0 10px 0; color: #ab47fc; font-size: 16px;">Quick Start Guide:</h3>
     <ul style="margin: 0; padding-left: 20px; color: #94a3b8; font-size: 14px; line-height: 1.8;">
       <li><strong>Step 1:</strong> Deposit funds securely into your wallet.</li>
-      <li><strong>Step 2:</strong> Browse our marketplace for OTPs, eSIMs, or Social Media packages.</li>
+      <li><strong>Step 2:</strong> Browse our marketplace for OTPs or Social Media packages.</li>
       <li><strong>Step 3:</strong> Purchase instantly and get details delivered right on your dashboard!</li>
     </ul>
   </div>
@@ -36,17 +36,16 @@ const generateFollowUpEmail = (name: string) => `
   </p>
   
   <div style="text-align: center; margin: 35px 0;">
-    <a href="https://discountzar.ng/dashboard" style="background: #ab47fc; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
+    <a href="https://starlog.ng/dashboard" style="background: #ab47fc; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
   </div>
 
   <p style="font-size: 12px; color: #64748b; text-align: center; margin-top: 40px;">
-    You're receiving this because you signed up on DiscountZar.ng.
+    You're receiving this because you signed up on StarLog.ng.
   </p>
 </div>
 `;
 
 serve(async (req) => {
-  // We can restrict to POST or allow GET for cron scheduling.
   try {
     // 1. Fetch profiles created > 24h ago that haven't received a follow-up
     const { data: profiles, error: profileErr } = await supabase
@@ -106,9 +105,9 @@ serve(async (req) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          from: `DiscountZar <${SENDER_EMAIL}>`,
+          from: `StarLog <${SENDER_EMAIL}>`,
           to: email,
-          subject: "Still exploring DiscountZar?",
+          subject: "Still exploring StarLog?",
           html: htmlBody
         })
       });

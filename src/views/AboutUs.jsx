@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import LandingNav from '../components/LandingNav';
-import { Compass, Users, Target, ShieldCheck } from 'lucide-react';
+import { Sparkles, Users, Target, ShieldCheck } from 'lucide-react';
 
 const AboutUs = () => {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ const AboutUs = () => {
           <span>to Global Digital Assets</span>
         </h1>
         <p className="landing-desc" style={{ margin: 0 }}>
-          At discountzar.ng, we believe international subscription billing, travel cellular profiles, and OTP verification gateway routes should be accessible, affordable, and fully automated in local currencies.
+          At starlog.ng, we believe international subscription billing, travel cellular profiles, and OTP verification gateway routes should be accessible, affordable, and fully automated in local currencies.
         </p>
       </section>
 
@@ -55,7 +55,7 @@ const AboutUs = () => {
         <div className="glass-panel" style={{ marginTop: '40px', padding: '40px' }}>
           <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Our Infrastructure Journey</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: '1.7', marginBottom: '20px' }}>
-            Established in 2026, discountzar.ng was conceptualized to address two major hurdles: international credit card spending caps and high cellular data roaming tariffs. By grouping wholesale shared slots for top media and AI channels, and developing SMS routing grids linked directly with real physical SIM providers, we created a single dashboard platform.
+            Established in 2026, starlog.ng was conceptualized to address two major hurdles: international credit card spending caps and high cellular data roaming tariffs. By grouping wholesale shared slots for top media and AI channels, and developing SMS routing grids linked directly with real physical SIM providers, we created a single dashboard platform.
           </p>
           <p style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: '1.7', margin: 0 }}>
             Every eSIM package, SMM campaign queue, and temp verification session operates on real-time telemetry pipelines. We continue to expand our regional networks to verify logins on any website.
@@ -67,8 +67,8 @@ const AboutUs = () => {
       <footer className="landing-footer">
         <div className="landing-footer-content">
           <div className="landing-footer-logo">
-            <Compass size={28} style={{ color: 'var(--color-turquoise)' }} />
-            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>discountzar.ng</span>
+            <Sparkles size={28} style={{ color: 'var(--color-turquoise)' }} />
+            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>starlog.ng</span>
           </div>
           <div className="landing-footer-links">
             <span onClick={() => navigate('/about')} style={{ color: 'var(--color-turquoise)', fontWeight: '600' }}>About Us</span>
@@ -78,7 +78,7 @@ const AboutUs = () => {
           </div>
         </div>
         <div className="landing-footer-copyright">
-          © 2026 discountzar.ng. Built as a premium high-fidelity service prototype. All rights reserved.
+          © 2026 starlog.ng. Built as a premium high-fidelity service prototype. All rights reserved.
         </div>
       </footer>
     </div>

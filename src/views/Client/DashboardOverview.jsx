@@ -36,19 +36,15 @@ const DashboardOverview = () => {
   const recentTransactions = transactions.slice(0, isMobile ? 3 : 4);
 
   const stats = [
-    { label: 'Balance', value: formatCost(walletBalance), icon: CreditCard, color: 'var(--color-turquoise)', bg: 'rgba(0,242,254,0.12)', tab: 'wallet' },
-    { label: 'eSIMs', value: activeEsimsCount, icon: Smartphone, color: 'var(--color-violet)', bg: 'rgba(127,0,255,0.12)', tab: 'esim' },
-    { label: 'Reuse Num', value: activeOtps.length, icon: RefreshCw, color: 'var(--color-amber)', bg: 'rgba(255,185,0,0.12)', tab: 'reuse' },
-    { label: 'SMM', value: smmOrders.length, icon: Share2, color: 'var(--color-green)', bg: 'rgba(0,255,135,0.12)', tab: 'smm' },
+    { label: 'Balance', value: formatCost(walletBalance), icon: CreditCard, color: 'var(--color-turquoise)', bg: 'rgba(0,210,255,0.12)', tab: 'wallet' },
+    { label: 'Active OTP Leases', value: activeOtps.length, icon: Key, color: 'var(--color-pink)', bg: 'rgba(236,72,153,0.12)', tab: 'otp' },
   ];
 
   const quickLinks = [
-    { label: 'Accounts', icon: User, tab: null, url: 'https://www.discountzar.com/marketplace', ext: true },
+    { label: 'OTP Verification', icon: Key, tab: 'otp' },
     { label: 'Social Logs', icon: ShieldCheck, tab: 'social' },
-    { label: 'OTP Code', icon: Key, tab: 'otp' },
-    { label: 'eSIM', icon: Smartphone, tab: 'esim' },
-    { label: 'SMM', icon: Share2, tab: 'smm' },
-    { label: 'Orders', icon: ClipboardList, tab: 'orders' },
+    { label: 'Fund Wallet', icon: CreditCard, tab: 'wallet' },
+    { label: 'Order History', icon: ClipboardList, tab: 'orders' },
   ];
 
   /* ── Mobile Layout ── */
@@ -324,39 +320,14 @@ const DashboardOverview = () => {
                   <div key={i} className="glass-panel interactive quick-link-card"
                     onClick={() => ql.ext ? window.open(ql.url, '_blank') : navigate(`/dashboard/${ql.tab}`)}>
                     <Icon size={24} />
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{ql.label === 'Accounts' ? 'Accounts Shop' : ql.label === 'OTP Code' ? 'Get OTP Code' : ql.label === 'Reuse #' ? 'Reuse Numbers' : ql.label === 'Orders' ? 'Order History' : ql.label === 'SMM' ? 'SMM Boost' : ql.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{ql.label}</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className="glass-panel">
-            <h3 style={{ fontSize: 18, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Clock size={18} style={{ color: 'var(--color-violet)' }} />
-              Active Assets
-            </h3>
-            {activeEsims.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)', border: '1px dashed var(--border-color)', borderRadius: 12 }}>
-                No active eSIM profiles configured yet.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {activeEsims.slice(0, 2).map(esim => (
-                  <div key={esim.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <Smartphone size={18} style={{ color: 'var(--color-turquoise)' }} />
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 700 }}>eSIM - {esim.country}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Used: {esim.usedDataGb}GB / {esim.totalDataGb === 999 ? 'Unlimited' : esim.totalDataGb + 'GB'}</div>
-                      </div>
-                    </div>
-                    <span className="badge badge-success">Active</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+
         </div>
 
         <div className="glass-panel">

@@ -161,10 +161,7 @@ serve(async (req) => {
       })
     }
 
-    const apiKey = Deno.env.get('FIVESIM_API_KEY')
-    if (!apiKey) {
-      throw new Error('FIVESIM_API_KEY is not configured on the backend')
-    }
+    const apiKey = Deno.env.get('FIVESIM_API_KEY') ?? ''
 
     if (action === 'get_countries') {
       // Public endpoint — no API key required

@@ -29,10 +29,7 @@ serve(async (req) => {
       throw new Error('Unauthorized user')
     }
 
-    const apiKey = Deno.env.get('HEROSMS_API_KEY')
-    if (!apiKey) {
-      throw new Error('HEROSMS_API_KEY secret is not configured on the backend')
-    }
+    const apiKey = Deno.env.get('HEROSMS_API_KEY') ?? ''
 
     const requestBody = await req.json().catch(() => ({}))
     const { action } = requestBody

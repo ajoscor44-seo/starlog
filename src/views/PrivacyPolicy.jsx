@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import LandingNav from '../components/LandingNav';
-import { Compass, Shield } from 'lucide-react';
+import { Sparkles, Shield } from 'lucide-react';
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const PrivacyPolicy = () => {
         </div>
         <h1 className="landing-title">
           Privacy Policy<br />
-          <span> discountzar.ng Telemetry</span>
+          <span> starlog.ng Telemetry</span>
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
           Last Updated: June 25, 2026
@@ -64,8 +64,8 @@ const PrivacyPolicy = () => {
       <footer className="landing-footer">
         <div className="landing-footer-content">
           <div className="landing-footer-logo">
-            <Compass size={28} style={{ color: 'var(--color-turquoise)' }} />
-            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>discountzar.ng</span>
+            <Sparkles size={28} style={{ color: 'var(--color-turquoise)' }} />
+            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>starlog.ng</span>
           </div>
           <div className="landing-footer-links">
             <span onClick={() => navigate('/about')}>About Us</span>
@@ -75,7 +75,7 @@ const PrivacyPolicy = () => {
           </div>
         </div>
         <div className="landing-footer-copyright">
-          © 2026 discountzar.ng. Built as a premium high-fidelity service prototype. All rights reserved.
+          © 2026 starlog.ng. Built as a premium high-fidelity service prototype. All rights reserved.
         </div>
       </footer>
     </div>

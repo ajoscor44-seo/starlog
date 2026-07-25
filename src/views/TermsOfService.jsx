@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import LandingNav from '../components/LandingNav';
-import { Compass, ScrollText } from 'lucide-react';
+import { Sparkles, ScrollText } from 'lucide-react';
 
 const TermsOfService = () => {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const TermsOfService = () => {
         </div>
         <h1 className="landing-title">
           Terms of Service<br />
-          <span> discountzar.ng Guidelines</span>
+          <span> starlog.ng Guidelines</span>
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
           Last Updated: June 25, 2026
@@ -32,7 +32,7 @@ const TermsOfService = () => {
           <div>
             <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>1. Acceptance of Terms</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>
-              By creating a wallet account and utilizing the automated APIs on discountzar.ng, you express complete consent to comply with our billing policies, support regulations, and usage parameters. If you disagree, please discontinue service deployment.
+              By creating a wallet account and utilizing the automated APIs on starlog.ng, you express complete consent to comply with our billing policies, support regulations, and usage parameters. If you disagree, please discontinue service deployment.
             </p>
           </div>
 
@@ -71,8 +71,8 @@ const TermsOfService = () => {
       <footer className="landing-footer">
         <div className="landing-footer-content">
           <div className="landing-footer-logo">
-            <Compass size={28} style={{ color: 'var(--color-turquoise)' }} />
-            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>discountzar.ng</span>
+            <Sparkles size={28} style={{ color: 'var(--color-turquoise)' }} />
+            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>starlog.ng</span>
           </div>
           <div className="landing-footer-links">
             <span onClick={() => navigate('/about')}>About Us</span>
@@ -82,7 +82,7 @@ const TermsOfService = () => {
           </div>
         </div>
         <div className="landing-footer-copyright">
-          © 2026 discountzar.ng. Built as a premium high-fidelity service prototype. All rights reserved.
+          © 2026 starlog.ng. Built as a premium high-fidelity service prototype. All rights reserved.
         </div>
       </footer>
     </div>

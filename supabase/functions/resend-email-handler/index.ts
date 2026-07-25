@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const SENDER_EMAIL = "support@discountzar.ng"; // verified domain on Resend
+const SENDER_EMAIL = "support@starlog.ng"; // verified domain on Resend
 
 // Supabase client (Service Role for admin DB access)
 const supabase = createClient(
@@ -20,18 +20,18 @@ const corsHeaders = {
 const generateWelcomeEmail = (name: string) => `
 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0f0a18; color: #fff; padding: 30px; border-radius: 12px; border: 1px solid #2d1a45;">
   <div style="text-align: center; margin-bottom: 30px;">
-    <h1 style="color: #ab47fc; margin: 0; font-size: 28px;">Welcome to DiscountZar Plus! 🚀</h1>
+    <h1 style="color: #ab47fc; margin: 0; font-size: 28px;">Welcome to StarLog! 🚀</h1>
   </div>
   <p style="font-size: 16px; color: #e2e8f0;">Hi ${name || 'there'},</p>
   <p style="font-size: 16px; color: #e2e8f0; line-height: 1.6;">
-    Thank you for joining DiscountZar! We're thrilled to have you on board.
-    You now have access to premium digital services, including shared subscriptions, SMS OTP numbers, eSIMs, and SMM Panel boosts.
+    Thank you for joining StarLog! We're thrilled to have you on board.
+    You now have access to premium digital services, including SMS OTP numbers and Social Media logs.
   </p>
   <p style="font-size: 16px; color: #e2e8f0; line-height: 1.6;">
     To get started, you can generate your virtual PocketFi wallet and fund your account instantly.
   </p>
   <div style="text-align: center; margin: 30px 0;">
-    <a href="https://discountzar.ng/dashboard" style="background: linear-gradient(90deg, #9333ea 0%, #ab47fc 100%); color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
+    <a href="https://starlog.ng/dashboard" style="background: linear-gradient(90deg, #9333ea 0%, #ab47fc 100%); color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
   </div>
   <p style="font-size: 14px; color: #94a3b8;">If you have any questions, simply reply to this email.</p>
 </div>
@@ -52,7 +52,7 @@ const generateFundingEmail = (amount: any, reference: string) => `
   <p style="font-size: 14px; color: #94a3b8; margin: 5px 0;">Transaction Ref: ${reference}</p>
   
   <div style="text-align: center; margin: 30px 0;">
-    <a href="https://discountzar.ng/dashboard" style="background: #ab47fc; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">View Wallet</a>
+    <a href="https://starlog.ng/dashboard" style="background: #ab47fc; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">View Wallet</a>
   </div>
 </div>
 `;
@@ -93,7 +93,7 @@ const generateAdminFundingEmail = (userProfile: any, amount: any, method: any, r
   </div>
   
   <div style="text-align: center; margin: 30px 0;">
-    <a href="https://discountzar.ng/dashboard/admin" style="background: linear-gradient(90deg, #9333ea 0%, #ab47fc 100%); color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Admin Console</a>
+    <a href="https://starlog.ng/dashboard/admin" style="background: linear-gradient(90deg, #9333ea 0%, #ab47fc 100%); color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Admin Console</a>
   </div>
 </div>
 `;
@@ -126,11 +126,11 @@ const generateVirtualAccountEmail = (name: string, bankName: string, accountNumb
   </div>
   
   <p style="font-size: 14px; color: #94a3b8; line-height: 1.5;">
-    Deposits sent to this account are credited to your DiscountZar wallet automatically within seconds.
+    Deposits sent to this account are credited to your StarLog wallet automatically within seconds.
   </p>
   
   <div style="text-align: center; margin: 30px 0;">
-    <a href="https://discountzar.ng/dashboard" style="background: linear-gradient(90deg, #00c6ff 0%, #00f2fe 100%); color: #000; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
+    <a href="https://starlog.ng/dashboard" style="background: linear-gradient(90deg, #00c6ff 0%, #00f2fe 100%); color: #000; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
   </div>
 </div>
 `;
@@ -194,7 +194,7 @@ const generatePurchaseReceiptEmail = (method: string, amount: any, txId: string)
   <div style="text-align: center; margin-bottom: 20px;">
     <h1 style="color: #ab47fc; margin: 0; font-size: 24px;">Receipt for Purchase 🧾</h1>
   </div>
-  <p style="font-size: 16px; color: #e2e8f0;">Thank you for your purchase on DiscountZar!</p>
+  <p style="font-size: 16px; color: #e2e8f0;">Thank you for your purchase on StarLog!</p>
   
   <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; margin: 20px 0;">
     <table style="width: 100%; border-collapse: collapse;">
@@ -214,7 +214,7 @@ const generatePurchaseReceiptEmail = (method: string, amount: any, txId: string)
   </div>
   
   <div style="text-align: center; margin: 30px 0;">
-    <a href="https://discountzar.ng/dashboard" style="background: #ab47fc; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
+    <a href="https://starlog.ng/dashboard" style="background: #ab47fc; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
   </div>
 </div>
 `;
@@ -285,7 +285,7 @@ const generateOrderEmail = (planName: string, quantity: number, cost: any, order
   <p style="font-size: 14px; color: #94a3b8; margin: 5px 0;">Order ID: ${orderId}</p>
   
   <div style="text-align: center; margin: 30px 0;">
-    <a href="https://discountzar.ng/dashboard" style="background: #ab47fc; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">View Order History</a>
+    <a href="https://starlog.ng/dashboard" style="background: #ab47fc; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; display: inline-block;">View Order History</a>
   </div>
 </div>
 `;
@@ -326,7 +326,7 @@ serve(async (req) => {
         // Welcome Email
         recipientEmail = record.email;
         recipientName = record.username || record.full_name || "Valued Customer";
-        emailSubject = "Welcome to DiscountZar Plus!";
+        emailSubject = "Welcome to StarLog!";
         emailHtml = generateWelcomeEmail(recipientName);
 
       } else if (table === "transactions") {
@@ -336,7 +336,7 @@ serve(async (req) => {
           
           if (record.type === "Deposit") {
             // Funding Email
-            emailSubject = "Wallet Funded Successfully - DiscountZar";
+            emailSubject = "Wallet Funded Successfully - StarLog";
             emailHtml = generateFundingEmail(record.amount, record.id);
 
             // Also notify admins if this is a real deposit (not a refund or welcome bonus)
@@ -364,7 +364,7 @@ serve(async (req) => {
                       "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                      from: `DiscountZar <${SENDER_EMAIL}>`,
+                      from: `StarLog <${SENDER_EMAIL}>`,
                       to: adminEmails,
                       subject: `[Admin Alert] User Wallet Funded: ₦${Number(record.amount).toLocaleString()}`,
                       html: adminEmailHtml
@@ -377,7 +377,7 @@ serve(async (req) => {
             }
           } else if (record.type === "Purchase") {
             // Purchase Receipt Email
-            emailSubject = "Purchase Receipt - DiscountZar";
+            emailSubject = "Purchase Receipt - StarLog";
             emailHtml = generatePurchaseReceiptEmail(record.method, record.amount, record.id);
           }
         }
@@ -386,7 +386,7 @@ serve(async (req) => {
         const profile = await fetchUserProfile(record.user_id);
         if (profile && profile.email) {
           recipientEmail = profile.email;
-          emailSubject = "Your DiscountZar Order Receipt";
+          emailSubject = "Your StarLog Order Receipt";
           
           const planName = record.plan_name || record.service_name || record.package_name || "Digital Service";
           const cost = record.cost || record.price || 0;
@@ -408,7 +408,7 @@ serve(async (req) => {
         if (profile && profile.email) {
           recipientEmail = profile.email;
           recipientName = profile.username || profile.full_name || "Customer";
-          emailSubject = "Dedicated Funding Account Active - DiscountZar";
+          emailSubject = "Dedicated Funding Account Active - StarLog";
           emailHtml = generateVirtualAccountEmail(recipientName, record.bank_name, record.account_number, record.account_name);
         }
       }
@@ -437,7 +437,7 @@ serve(async (req) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          from: `DiscountZar <${SENDER_EMAIL}>`,
+          from: `StarLog <${SENDER_EMAIL}>`,
           to: recipientEmail,
           subject: emailSubject,
           html: emailHtml

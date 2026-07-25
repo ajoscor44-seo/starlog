@@ -39,6 +39,12 @@ const AdminDashboard = () => {
     adminUpdateSystemConfig,
     adminUpdateProfile,
     adminFetchAllOtpOrders,
+    adminFetchLocalSocialLogs,
+    adminCreateLocalSocialLog,
+    adminDeleteLocalSocialLog,
+    adminFetchLocalSocialLogItems,
+    adminCreateLocalSocialLogItems,
+    adminDeleteLocalSocialLogItem,
     isAdmin,
     isAuthLoading
   } = useContext(AppContext);
@@ -82,6 +88,23 @@ const AdminDashboard = () => {
   const [isLoadingDb, setIsLoadingDb] = useState(false);
   const [updatingTicketId, setUpdatingTicketId] = useState(null);
 
+  // Local Social Logs admin states
+  const [localLogs, setLocalLogs] = useState([]);
+  const [selectedLogForStock, setSelectedLogForStock] = useState(null);
+  const [logItems, setLogItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  // Form states
+  const [newLogCategory, setNewLogCategory] = useState('');
+  const [newLogName, setNewLogName] = useState('');
+  const [newLogPrice, setNewLogPrice] = useState('');
+  const [newLogDesc, setNewLogDesc] = useState('');
+  const [newLogImage, setNewLogImage] = useState('');
+  const [newItemLines, setNewItemLines] = useState('');
+  
+  const [showAddLogModal, setShowAddLogModal] = useState(false);
+  const [showStockModal, setShowStockModal] = useState(false);
+
   const fetchAdminData = async () => {
     setIsLoadingDb(true);
     try {
@@ -110,6 +133,12 @@ const AdminDashboard = () => {
         .order('created_at', { ascending: false });
       if (!ticketsError && ticketsData) {
         setDbTickets(ticketsData);
+      }
+
+      // Fetch local social logs
+      const logsRes = await adminFetchLocalSocialLogs();
+      if (logsRes.success) {
+        setLocalLogs(logsRes.data);
       }
     } catch (e) {
       console.error("Failed to load admin db data:", e);
@@ -151,6 +180,91 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleCreateLog = async (e) => {
+    e.preventDefault();
+    if (!newLogCategory || !newLogName || !newLogPrice) {
+      alert("Category, Name and Price are required.");
+      return;
+    }
+    const log = {
+      category: newLogCategory.trim(),
+      name: newLogName.trim(),
+      price: Number(newLogPrice),
+      description: newLogDesc.trim() || null,
+      image: newLogImage.trim() || null
+    };
+    const res = await adminCreateLocalSocialLog(log);
+    if (res.success) {
+      alert("Social Log Product created successfully!");
+      setNewLogCategory('');
+      setNewLogName('');
+      setNewLogPrice('');
+      setNewLogDesc('');
+      setNewLogImage('');
+      setShowAddLogModal(false);
+      await fetchAdminData();
+    } else {
+      alert(`Error creating product: ${res.msg}`);
+    }
+  };
+
+  const handleDeleteLog = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this social log product? All items in stock will also be deleted.")) return;
+    const res = await adminDeleteLocalSocialLog(id);
+    if (res.success) {
+      alert("Product deleted successfully!");
+      await fetchAdminData();
+    } else {
+      alert(`Error deleting product: ${res.msg}`);
+    }
+  };
+
+  const handleOpenStock = async (log) => {
+    setSelectedLogForStock(log);
+    setLoadingItems(true);
+    setShowStockModal(true);
+    const res = await adminFetchLocalSocialLogItems(log.id);
+    if (res.success) {
+      setLogItems(res.data);
+    } else {
+      alert(`Error loading stock: ${res.msg}`);
+    }
+    setLoadingItems(false);
+  };
+
+  const handleCreateStockItems = async (e) => {
+    e.preventDefault();
+    if (!newItemLines.trim()) {
+      alert("Please enter at least one line of account details.");
+      return;
+    }
+    const lines = newItemLines.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const res = await adminCreateLocalSocialLogItems(selectedLogForStock.id, lines);
+    if (res.success) {
+      alert(`Successfully added ${res.data.length} stock items!`);
+      setNewItemLines('');
+      // Reload items
+      const itemsRes = await adminFetchLocalSocialLogItems(selectedLogForStock.id);
+      if (itemsRes.success) {
+        setLogItems(itemsRes.data);
+      }
+      await fetchAdminData();
+    } else {
+      alert(`Error adding stock items: ${res.msg}`);
+    }
+  };
+
+  const handleDeleteStockItem = async (itemId) => {
+    if (!window.confirm("Are you sure you want to delete this stock item?")) return;
+    const res = await adminDeleteLocalSocialLogItem(itemId);
+    if (res.success) {
+      setLogItems(prev => prev.filter(item => item.id !== itemId));
+      await fetchAdminData();
+    } else {
+      alert(`Error deleting stock item: ${res.msg}`);
     }
   };
 
@@ -338,7 +452,7 @@ const AdminDashboard = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `discountzar_admin_otp_orders_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `starlog_admin_otp_orders_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1161,11 +1275,11 @@ const AdminDashboard = () => {
         <button className={`wp-sidebar-item ${adminTab === 'rates' ? 'active' : ''}`} onClick={() => setAdminTab('rates')}>
           <Settings size={16} /> Rates & Config
         </button>
-        <button className={`wp-sidebar-item ${adminTab === 'profile' ? 'active' : ''}`} onClick={() => setAdminTab('profile')}>
-          <ShieldCheck size={16} /> Profile
-        </button>
         <button className={`wp-sidebar-item ${adminTab === 'tickets' ? 'active' : ''}`} onClick={() => setAdminTab('tickets')}>
           <MessageSquare size={16} /> Support Tickets
+        </button>
+        <button className={`wp-sidebar-item ${adminTab === 'social_logs' ? 'active' : ''}`} onClick={() => setAdminTab('social_logs')}>
+          <ShieldCheck size={16} /> Social Logs Manager
         </button>
       </div>
 
@@ -2201,7 +2315,7 @@ const AdminDashboard = () => {
                   <div style={{ background: '#f8d7da', border: '1px solid #f5c2c7', padding: '10px', color: '#842029' }}>
                     <div style={{ fontWeight: 'bold', fontSize: '13px' }}>System Support Contact</div>
                     <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                      Email: Support@discountzar.com<br/>
+                      Email: support@starlog.ng<br/>
                       WhatsApp: +234 707 972 2993
                     </div>
                   </div>
@@ -2233,82 +2347,64 @@ const AdminDashboard = () => {
                           <th>Customer</th>
                           <th>Subject</th>
                           <th style={{ width: '150px' }}>Date</th>
-                          <th style={{ width: '100px' }}>Status</th>
-                          <th style={{ width: '220px', textAlign: 'right' }}>Actions</th>
+                          <th style={{ width: '120px' }}>Status</th>
+                          <th style={{ width: '150px', textAlign: 'right' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {dbTickets.map((ticket) => {
-                          const isPending = ticket.status === 'PENDING';
-                          const isResolved = ticket.status === 'RESOLVED';
-                          
+                          const userProfile = allUsers.find(u => u.id === ticket.user_id);
                           return (
                             <React.Fragment key={ticket.id}>
-                              <tr>
-                                <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{ticket.id}</td>
+                              {/* Metadata Row */}
+                              <tr style={{ background: '#fff' }}>
+                                <td style={{ fontWeight: 'bold', color: '#2c3338' }}>#{ticket.id.slice(0, 8)}</td>
                                 <td>
-                                  <div style={{ fontWeight: '600' }}>{ticket.name}</div>
-                                  <div style={{ fontSize: '11px', color: '#646970' }}>{ticket.email}</div>
+                                  <div style={{ fontWeight: 'bold' }}>{userProfile?.full_name || 'Client'}</div>
+                                  <div style={{ fontSize: '11px', color: '#646970' }}>{userProfile?.email || 'No Email'}</div>
                                 </td>
+                                <td style={{ fontWeight: '600' }}>{ticket.subject}</td>
+                                <td style={{ fontSize: '12px', color: '#646970' }}>{new Date(ticket.created_at).toLocaleString()}</td>
                                 <td>
-                                  <div style={{ fontWeight: '600', color: '#1d2327' }}>{ticket.subject || 'No Subject'}</div>
-                                  <div style={{ fontSize: '12px', color: '#646970', marginTop: '4px', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '280px' }}>
-                                    {ticket.message}
-                                  </div>
-                                </td>
-                                <td style={{ fontSize: '12px' }}>{new Date(ticket.created_at).toLocaleString()}</td>
-                                <td>
-                                  <span className={`wp-badge ${isPending ? 'wp-badge-warning' : isResolved ? 'wp-badge-success' : 'wp-badge-error'}`} style={{ color: '#fff' }}>
+                                  <span style={{
+                                    display: 'inline-block',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: 'bold',
+                                    background: ticket.status === 'open' ? '#fcf0f1' : '#f0fcf1',
+                                    color: ticket.status === 'open' ? '#d63638' : '#00a32a',
+                                    border: `1px solid ${ticket.status === 'open' ? '#f5c2c7' : '#c3e6cb'}`,
+                                    textTransform: 'uppercase'
+                                  }}>
                                     {ticket.status}
                                   </span>
                                 </td>
-                                <td style={{ textAlign: 'right' }}>
-                                  <div style={{ display: 'inline-flex', gap: '5px' }}>
-                                    {isPending ? (
-                                      <>
-                                        <button 
-                                          className="wp-button-primary" 
-                                          style={{ background: '#00a32a', borderColor: '#00a32a', fontSize: '11px', padding: '0 8px', height: '24px', borderRadius: '3px' }}
-                                          onClick={() => handleUpdateTicketStatus(ticket.id, 'RESOLVED')}
-                                          disabled={updatingTicketId === ticket.id}
-                                        >
-                                          Resolve
-                                        </button>
-                                        <button 
-                                          className="wp-button-secondary" 
-                                          style={{ fontSize: '11px', padding: '0 8px', height: '24px', borderRadius: '3px' }}
-                                          onClick={() => handleUpdateTicketStatus(ticket.id, 'CLOSED')}
-                                          disabled={updatingTicketId === ticket.id}
-                                        >
-                                          Close
-                                        </button>
-                                      </>
-                                    ) : (
+                                <td>
+                                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                    {ticket.status === 'open' ? (
                                       <button 
-                                        className="wp-button-secondary" 
-                                        style={{ fontSize: '11px', padding: '0 8px', height: '24px', borderRadius: '3px' }}
-                                        onClick={() => handleUpdateTicketStatus(ticket.id, 'PENDING')}
+                                        className="wp-button wp-button-secondary button-small"
+                                        onClick={() => handleUpdateTicketStatus(ticket.id, 'resolved')}
                                         disabled={updatingTicketId === ticket.id}
                                       >
-                                        Reopen
+                                        Resolve
+                                      </button>
+                                    ) : (
+                                      <button 
+                                        className="wp-button wp-button-secondary button-small"
+                                        onClick={() => handleUpdateTicketStatus(ticket.id, 'open')}
+                                        disabled={updatingTicketId === ticket.id}
+                                      >
+                                        Re-open
                                       </button>
                                     )}
                                     <button 
-                                      className="wp-button-secondary" 
-                                      style={{ color: '#d63638', borderColor: '#d63638', fontSize: '11px', padding: '0 8px', height: '24px', borderRadius: '3px' }}
+                                      className="wp-button wp-button-danger button-small"
                                       onClick={() => handleDeleteTicket(ticket.id)}
                                     >
                                       Delete
                                     </button>
-                                  </div>
-                                </td>
-                              </tr>
-                              {/* Message body row */}
-                              <tr>
-                                <td colSpan="6" style={{ background: '#f6f7f7', padding: '10px 15px', borderBottom: '1px solid #ccd0d4' }}>
-                                  <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#646970', marginBottom: '4px' }}>Ticket Description:</div>
-                                  <div style={{ fontSize: '13px', color: '#2c3338', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-                                    {ticket.message}
                                   </div>
                                 </td>
                               </tr>
@@ -2321,6 +2417,205 @@ const AdminDashboard = () => {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* SOCIAL LOGS MANAGER TAB */}
+        {adminTab === 'social_logs' && (
+          <div>
+            {renderTabHeader('Social Logs Manager')}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '18px' }}>Local Custom Products</h2>
+              <button className="wp-button wp-button-primary" onClick={() => setShowAddLogModal(true)}>
+                + Create Social Log
+              </button>
+            </div>
+
+            <div className="wp-metabox">
+              <div className="wp-metabox-content" style={{ padding: 0 }}>
+                {localLogs.length === 0 ? (
+                  <div style={{ padding: '40px', color: '#64748b', textAlign: 'center' }}>
+                    No custom social logs created yet. Click "+ Create Social Log" to list a new service.
+                  </div>
+                ) : (
+                  <table className="wp-table">
+                    <thead>
+                      <tr>
+                        <th>Product Info</th>
+                        <th>Category</th>
+                        <th>Price (NGN)</th>
+                        <th>Inventory / Stock</th>
+                        <th style={{ width: '220px', textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {localLogs.map((log) => {
+                        const inStockCount = (log.items || []).filter(item => !item.is_sold).length;
+                        const totalCount = (log.items || []).length;
+                        return (
+                          <tr key={log.id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <img src={log.image || "https://upload.wikimedia.org/wikipedia/commons/4/44/Question_mark_civ.svg"} alt="" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover' }} />
+                                <div>
+                                  <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{log.name}</div>
+                                  <div style={{ fontSize: '11px', color: '#646970', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.description || 'No description'}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td><span style={{ background: '#f0f0f1', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>{log.category}</span></td>
+                            <td style={{ fontWeight: 'bold' }}>{formatCost(log.price)}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontWeight: 'bold', color: inStockCount === 0 ? '#d63638' : '#00a32a' }}>{inStockCount}</span>
+                                <span style={{ color: '#646970', fontSize: '12px' }}>in stock ({totalCount} total loaded)</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button className="wp-button wp-button-secondary button-small" onClick={() => handleOpenStock(log)}>
+                                  Manage Stock
+                                </button>
+                                <button className="wp-button wp-button-danger button-small" onClick={() => handleDeleteLog(log.id)}>
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            {/* ADD PRODUCT MODAL */}
+            {showAddLogModal && (
+              <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+              }}>
+                <div className="wp-metabox" style={{ width: '450px', background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                  <div className="wp-metabox-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2>Create Social Log Product</h2>
+                    <button style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowAddLogModal(false)}>&times;</button>
+                  </div>
+                  <div className="wp-metabox-content" style={{ padding: '20px' }}>
+                    <form onSubmit={handleCreateLog} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Category</label>
+                        <input type="text" value={newLogCategory} onChange={e => setNewLogCategory(e.target.value)} placeholder="e.g. Facebook, Instagram" style={{ padding: '6px', border: '1px solid #ccd0d4', borderRadius: '4px' }} required />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Product Name</label>
+                        <input type="text" value={newLogName} onChange={e => setNewLogName(e.target.value)} placeholder="e.g. Facebook PVA Aged 2021" style={{ padding: '6px', border: '1px solid #ccd0d4', borderRadius: '4px' }} required />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Price (NGN)</label>
+                        <input type="number" value={newLogPrice} onChange={e => setNewLogPrice(e.target.value)} placeholder="Price in Naira" style={{ padding: '6px', border: '1px solid #ccd0d4', borderRadius: '4px' }} required />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Description (Optional)</label>
+                        <textarea value={newLogDesc} onChange={e => setNewLogDesc(e.target.value)} placeholder="Account specifications, guarantee details..." style={{ padding: '6px', border: '1px solid #ccd0d4', borderRadius: '4px', height: '60px' }} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Image URL (Optional)</label>
+                        <input type="text" value={newLogImage} onChange={e => setNewLogImage(e.target.value)} placeholder="https://..." style={{ padding: '6px', border: '1px solid #ccd0d4', borderRadius: '4px' }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'flex-end' }}>
+                        <button type="button" className="wp-button wp-button-secondary" onClick={() => setShowAddLogModal(false)}>Cancel</button>
+                        <button type="submit" className="wp-button wp-button-primary">Create Product</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STOCK MANAGEMENT MODAL */}
+            {showStockModal && selectedLogForStock && (
+              <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+              }}>
+                <div className="wp-metabox" style={{ width: '650px', background: '#fff', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                  <div className="wp-metabox-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                    <h2>Manage Stock: {selectedLogForStock.name}</h2>
+                    <button style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowStockModal(false)}>&times;</button>
+                  </div>
+                  <div className="wp-metabox-content" style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    
+                    {/* Add Stock Sub-Form */}
+                    <form onSubmit={handleCreateStockItems} style={{ border: '1px solid #ccd0d4', padding: '15px', borderRadius: '6px', background: '#f6f7f7' }}>
+                      <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 'bold' }}>Load Credentials (Inventory Input)</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', color: '#646970' }}>Paste account credentials here. **Enter one account per line.**</label>
+                        <textarea
+                          value={newItemLines}
+                          onChange={e => setNewItemLines(e.target.value)}
+                          placeholder="e.g.&#10;user1@gmail.com:pass123|recovery@mail.com|2FAKey&#10;user2@gmail.com:pass456|recovery2@mail.com|2FAKey"
+                          style={{ padding: '8px', border: '1px solid #ccd0d4', borderRadius: '4px', height: '100px', fontFamily: 'monospace', fontSize: '12px' }}
+                          required
+                        />
+                      </div>
+                      <button type="submit" className="wp-button wp-button-primary" style={{ marginTop: '10px' }}>
+                        + Add Items in Stock
+                      </button>
+                    </form>
+
+                    {/* Stock list */}
+                    <div>
+                      <h4 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 'bold' }}>Current Loaded Items ({logItems.length})</h4>
+                      {loadingItems ? (
+                        <div style={{ textAlign: 'center', padding: '20px' }}>Loading items...</div>
+                      ) : logItems.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '20px', border: '1px dashed #ccd0d4', color: '#64748b', borderRadius: '6px' }}>Out of stock. Load lines above.</div>
+                      ) : (
+                        <div style={{ overflowX: 'auto', maxHeight: '250px', border: '1px solid #ccd0d4', borderRadius: '4px' }}>
+                          <table className="wp-table" style={{ margin: 0 }}>
+                            <thead>
+                              <tr>
+                                <th>Credential Data</th>
+                                <th>Status</th>
+                                <th style={{ width: '80px', textAlign: 'right' }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {logItems.map((item) => (
+                                <tr key={item.id} style={{ background: item.is_sold ? '#f0fcf1' : '#fff' }}>
+                                  <td style={{ fontFamily: 'monospace', fontSize: '11.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>{item.account_data}</td>
+                                  <td>
+                                    <span style={{
+                                      padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold',
+                                      background: item.is_sold ? '#c3e6cb' : '#e2e3e5',
+                                      color: item.is_sold ? '#155724' : '#383d41'
+                                    }}>
+                                      {item.is_sold ? 'SOLD' : 'AVAILABLE'}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                      <button className="wp-button wp-button-danger button-small" onClick={() => handleDeleteStockItem(item.id)}>Delete</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                  <div className="wp-metabox-footer" style={{ padding: '10px 20px', borderTop: '1px solid #ccd0d4', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+                    <button className="wp-button wp-button-secondary" onClick={() => setShowStockModal(false)}>Close</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 

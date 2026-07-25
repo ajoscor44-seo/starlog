@@ -26,7 +26,7 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
       case 'api': return isMobile ? 'Developer API' : 'Developer API Portal';
       case 'support': return 'Support Desk';
       case 'admin': return isMobile ? 'Admin' : 'System Admin Sandbox';
-      default: return 'DiscountZar Console';
+      default: return 'StarLog Console';
     }
   };
 

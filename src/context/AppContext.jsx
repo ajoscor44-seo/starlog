@@ -798,7 +798,7 @@ export const AppProvider = ({ children }) => {
   const [accountSubscriptions, setAccountSubscriptions] = useState(() => {
     const saved = localStorage.getItem('zp_accountSubs');
     return saved ? JSON.parse(saved) : [
-      { id: 'as-001', name: 'YouTube Premium (Shared)', email: 'discountzar.yt82@gmail.com', pass: 'DiscountZarPass45!', screen: 'Screen 2', expiry: new Date(Date.now() + 3600000 * 24 * 18).toLocaleDateString(), status: 'ACTIVE' }
+      { id: 'as-001', name: 'YouTube Premium (Shared)', email: 'starlog.yt82@gmail.com', pass: 'StarLogPass45!', screen: 'Screen 2', expiry: new Date(Date.now() + 3600000 * 24 * 18).toLocaleDateString(), status: 'ACTIVE' }
     ];
   });
 
@@ -1168,8 +1168,8 @@ export const AppProvider = ({ children }) => {
     }
     
     const serviceNick = sub.name.split(' ')[0].toLowerCase();
-    const mockEmail = `discountzar.${serviceNick}${Math.floor(10 + Math.random() * 89)}@discountzar.ng`;
-    const mockPass = `DiscountZar$${Math.floor(1000 + Math.random() * 8999)}`;
+    const mockEmail = `starlog.${serviceNick}${Math.floor(10 + Math.random() * 89)}@starlog.ng`;
+    const mockPass = `StarLog$${Math.floor(1000 + Math.random() * 8999)}`;
     const mockScreen = `Profile Screen ${Math.floor(1 + Math.random() * 4)}`;
 
     const newSub = {
@@ -2585,43 +2585,96 @@ export const AppProvider = ({ children }) => {
 
   const fetchSocialMediaLogs = async () => {
     try {
-      const cached = sessionStorage.getItem('zp_social_logs');
-      const cacheTime = sessionStorage.getItem('zp_social_logs_time');
-      if (cached && cacheTime && Date.now() - Number(cacheTime) < 5 * 60 * 1000) {
-        return { success: true, data: JSON.parse(cached) };
+      let ologProducts = [];
+      try {
+        const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
+          body: { action: 'products' }
+        });
+        if (!error && data && data.success) {
+          const markup = profitMarkup.subs || 30;
+          ologProducts = data.products.map(p => {
+            const basePriceUsd = p.price / 25400;
+            const priceNgn = Math.max(500, Math.round(basePriceUsd * exchangeRate * (1 + markup / 100)));
+            const priceUsd = priceNgn / exchangeRate;
+            return { ...p, priceNgn, priceUsd, isLocal: false };
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to fetch ologstore products:", e);
       }
 
-      const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
-        body: { action: 'products' }
-      });
-      if (error || !data || !data.success) {
-        throw new Error(error ? error.message : (data ? data.error : 'Failed to fetch logs'));
+      // Fetch local custom logs
+      let localProducts = [];
+      try {
+        const { data: localLogs, error: localError } = await supabase
+          .from('local_social_logs')
+          .select('*, items:local_social_log_items(id, is_sold)');
+        if (!localError && localLogs) {
+          localProducts = localLogs.map(p => ({
+            id: p.id,
+            category: p.category,
+            name: p.name,
+            slug: `local-${p.id}`,
+            image: p.image || "https://upload.wikimedia.org/wikipedia/commons/4/44/Question_mark_civ.svg",
+            price: Number(p.price),
+            priceNgn: Number(p.price),
+            priceUsd: Number(p.price) / exchangeRate,
+            stock: (p.items || []).filter(item => !item.is_sold).length,
+            description: p.description || "",
+            isLocal: true
+          }));
+        }
+      } catch (e) {
+        console.warn("Failed to fetch local social logs:", e);
       }
-      
-      const markup = profitMarkup.subs || 30;
-      const productsWithCurrency = data.products.map(p => {
-        const basePriceUsd = p.price / 25400;
-        const priceNgn = Math.max(500, Math.round(basePriceUsd * exchangeRate * (1 + markup / 100)));
-        const priceUsd = priceNgn / exchangeRate;
-        return {
-          ...p,
-          priceNgn,
-          priceUsd
-        };
-      });
 
-      sessionStorage.setItem('zp_social_logs', JSON.stringify(productsWithCurrency));
-      sessionStorage.setItem('zp_social_logs_time', Date.now().toString());
-      
-      return { success: true, data: productsWithCurrency };
+      const combined = [...localProducts, ...ologProducts];
+      return { success: true, data: combined };
     } catch (e) {
       console.error("Fetch Social Media Logs Error:", e);
-      return { success: false, msg: customizeGatewayError(e.message, 'Log Server') };
+      return { success: false, msg: e.message };
     }
   };
 
   const buySocialMediaLog = async (plan_id, plan_name, quantity, cost) => {
     try {
+      // Check if this is a local product (UUID is a string length of 36)
+      const isLocal = typeof plan_id === 'string' && plan_id.length > 20;
+      if (isLocal) {
+        const { data, error } = await supabase.rpc('buy_local_social_log', {
+          p_user_id: user.id,
+          p_product_id: plan_id,
+          p_cost: cost,
+          p_plan_name: plan_name
+        });
+        if (error || !data || !data.success) {
+          throw new Error(error ? error.message : (data ? data.error : 'Failed to purchase local log'));
+        }
+
+        // Retrieve profile balance update
+        const { data: updatedProfile } = await supabase.from('profiles').select('wallet_balance').eq('id', user.id).single();
+        if (updatedProfile) {
+          setWalletBalance(Number(updatedProfile.wallet_balance));
+        }
+
+        const mockOrder = {
+          id: data.order_id,
+          plan_id,
+          plan_name,
+          quantity: 1,
+          cost,
+          status: 'completed',
+          account_details: { Credentials: data.credentials },
+          ologstore_order_id: `local_order_${Date.now()}`,
+          created_at: new Date().toISOString(),
+          date: new Date().toLocaleString()
+        };
+        setSocialMediaOrders(prev => [mockOrder, ...prev]);
+
+        return { success: true, order: mockOrder };
+      }
+
+      // OlogStore fallback purchase
       const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
         body: { action: 'buy', payload: { plan_id, plan_name, quantity, cost } }
       });
@@ -2674,6 +2727,102 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+
+  const adminFetchLocalSocialLogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('local_social_logs')
+        .select('*, items:local_social_log_items(id, is_sold)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error("adminFetchLocalSocialLogs Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const adminCreateLocalSocialLog = async (log) => {
+    try {
+      const { data, error } = await supabase
+        .from('local_social_logs')
+        .insert(log)
+        .select()
+        .single();
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error("adminCreateLocalSocialLog Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const adminDeleteLocalSocialLog = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('local_social_logs')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.error("adminDeleteLocalSocialLog Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const adminFetchLocalSocialLogItems = async (productId) => {
+    try {
+      const { data, error } = await supabase
+        .from('local_social_log_items')
+        .select('*')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error("adminFetchLocalSocialLogItems Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const adminCreateLocalSocialLogItems = async (productId, lines) => {
+    try {
+      const itemsToInsert = lines.map(line => ({
+        product_id: productId,
+        account_data: line.trim(),
+        is_sold: false
+      })).filter(item => item.account_data.length > 0);
+
+      if (itemsToInsert.length === 0) {
+        throw new Error("No valid credential lines found.");
+      }
+
+      const { data, error } = await supabase
+        .from('local_social_log_items')
+        .insert(itemsToInsert)
+        .select();
+      if (error) throw error;
+      return { success: true, data };
+    } catch (e) {
+      console.error("adminCreateLocalSocialLogItems Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const adminDeleteLocalSocialLogItem = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('local_social_log_items')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.error("adminDeleteLocalSocialLogItem Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
 
   return (
     <AppContext.Provider value={{
@@ -2746,7 +2895,13 @@ export const AppProvider = ({ children }) => {
       fetchSocialMediaLogs,
       buySocialMediaLog,
       checkSocialMediaLogStatus,
-      socialMediaOrders
+      socialMediaOrders,
+      adminFetchLocalSocialLogs,
+      adminCreateLocalSocialLog,
+      adminDeleteLocalSocialLog,
+      adminFetchLocalSocialLogItems,
+      adminCreateLocalSocialLogItems,
+      adminDeleteLocalSocialLogItem
     }}>
       {children}
     </AppContext.Provider>

@@ -3,19 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import LandingNav from '../components/LandingNav';
 import { AppContext } from '../context/AppContext';
 import { 
-  Compass, 
-  Smartphone, 
+  Sparkles, 
   Key, 
-  RefreshCw, 
-  Share2, 
   Zap, 
-  Users, 
   ArrowRight,
   Sun,
   Moon,
   HelpCircle,
   Check,
-  Layers
+  Layers,
+  ShieldCheck
 } from 'lucide-react';
 
 const LandingPage = () => {
@@ -24,20 +21,6 @@ const LandingPage = () => {
 
   const features = [
     {
-      title: 'Shared Accounts Marketplace',
-      desc: 'Buy shared family slots for premium services like Netflix, Spotify, Claude Pro, ChatGPT Plus, YouTube, and VPNs in local currency.',
-      icon: Users,
-      action: 'subs',
-      color: 'var(--color-violet)'
-    },
-    {
-      title: 'Global eSIM Travel Profiles',
-      desc: 'Get instantly provisioned eSIM data profiles for over 85 countries. Install automatically with a scanned QR code or SM-DP+ code.',
-      icon: Smartphone,
-      action: 'esim',
-      color: 'var(--color-turquoise)'
-    },
-    {
       title: 'One-Time OTP Verifications',
       desc: 'Verify accounts with real physical non-VOIP SIMs. Instantly receive verification codes for WhatsApp, Google, Telegram, and more.',
       icon: Key,
@@ -45,18 +28,11 @@ const LandingPage = () => {
       color: 'var(--color-pink)'
     },
     {
-      title: 'Re-buy & Reuse Numbers',
-      desc: 'Re-verify accounts or get additional codes. Request simulated re-rent sessions on any previously purchased numbers.',
-      icon: RefreshCw,
-      action: 'reuse',
-      color: 'var(--color-amber)'
-    },
-    {
-      title: 'SMM panel reseller core',
-      desc: 'Grow your social media profiles on Instagram, TikTok, YouTube, and Telegram. High speed and lifetime refill services available.',
-      icon: Share2,
-      action: 'smm',
-      color: 'var(--color-green)'
+      title: 'Social Media Logs',
+      desc: 'Purchase secure credentials and access logs for social media profiles. Instantly retrieved with recovery details.',
+      icon: ShieldCheck,
+      action: 'social',
+      color: 'var(--color-violet)'
     }
   ];
 
@@ -72,11 +48,11 @@ const LandingPage = () => {
           All-In-One Digital Services Hub
         </div>
         <h1 className="landing-title">
-          Discount Shared Services, <br />
-          <span>eSIMs, Virtual SMS & SMM</span>
+          Stellar OTP Verifications, <br />
+          <span>& Social Media Logs</span>
         </h1>
         <p className="landing-desc">
-          DiscountZar matches top-tier telecom access, verification tools, and shared subscription channels under a single premium dashboard. Fund in NGN/USD and deploy assets instantly.
+          StarLog matches top-tier telecom access, physical SIM verification, and premium social logs under a single automated dashboard. Fund in NGN/USD and deploy assets instantly.
         </p>
         <div className="hero-buttons">
           <button className="btn btn-primary" style={{ padding: '14px 28px', fontSize: '16px' }} onClick={() => navigate('/dashboard')}>
@@ -123,7 +99,7 @@ const LandingPage = () => {
                   style={{ color: feat.color, cursor: 'pointer' }}
                   onClick={() => {
                     if (feat.action === 'subs') {
-                      window.open('https://www.discountzar.com/marketplace', '_blank');
+                      navigate('/dashboard/subs');
                     } else {
                       navigate(`/dashboard/${feat.action}`);
                     }
@@ -168,7 +144,7 @@ const LandingPage = () => {
               </div>
               <h4 style={{ fontSize: '16px', marginBottom: '8px' }}>Choose Service</h4>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
-                Select from our extensive catalog of global services: buy shared premium subscription slots, request a temporary one-time OTP verification number, configure travel eSIM data profiles, purchase high-refill SMM reseller boost packages, or re-buy and reuse verification numbers.
+                Select from our core services: request a temporary one-time OTP verification number or order secure social media account logs.
               </p>
             </div>
 
@@ -179,7 +155,7 @@ const LandingPage = () => {
               </div>
               <h4 style={{ fontSize: '16px', marginBottom: '8px' }}>Instant Delivery</h4>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
-                Our backend automates provisioning. eSIM QR profiles are generated on the spot, verification SMS arrives in real-time on our custom dashboard panels, and shared account details are issued securely for immediate login.
+                Our backend automates provisioning. Verification SMS arrives in real-time on our custom dashboard panels, and purchased social account logs are delivered instantly to your console.
               </p>
             </div>
 
@@ -190,7 +166,7 @@ const LandingPage = () => {
               </div>
               <h4 style={{ fontSize: '16px', marginBottom: '8px' }}>Manage Telemetry</h4>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
-                Utilize the Client Console telemetry to monitor data usage, read incoming messages, extend number rentals, or track SMM campaign completion status. Everything is centralized in one simple premium dashboard.
+                Utilize the Client Console telemetry to read incoming verification messages or manage your purchased social logs. Everything is centralized in one simple premium dashboard.
               </p>
             </div>
           </div>
@@ -342,8 +318,8 @@ const LandingPage = () => {
       <footer className="landing-footer">
         <div className="landing-footer-content">
           <div className="landing-footer-logo">
-            <Compass size={28} style={{ color: 'var(--color-turquoise)' }} />
-            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>discountzar.ng</span>
+            <Sparkles size={28} style={{ color: 'var(--color-turquoise)' }} />
+            <span style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>starlog.ng</span>
           </div>
           
           <div className="landing-footer-links">
@@ -355,7 +331,7 @@ const LandingPage = () => {
         </div>
         
         <div className="landing-footer-copyright">
-          © 2026 discountzar.ng. Built as a premium high-fidelity service prototype. All rights reserved.
+          © 2026 starlog.ng. Built as a premium high-fidelity service prototype. All rights reserved.
         </div>
       </footer>
     </div>

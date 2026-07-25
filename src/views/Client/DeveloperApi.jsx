@@ -268,7 +268,7 @@ const DeveloperApi = () => {
           <div>
             <h2 style={{ fontSize: isMobile ? 18 : 22, margin: '0 0 4px', fontWeight: 800 }}>Developer API Portal</h2>
             <p style={{ margin: 0, fontSize: isMobile ? 12 : 13, color: 'var(--text-secondary)' }}>
-              Integrate DiscountZar Plus automated services directly into your own reseller portals and applications.
+              Integrate StarLog Plus automated services directly into your own reseller portals and applications.
             </p>
           </div>
         </div>
