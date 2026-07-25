@@ -2585,25 +2585,7 @@ export const AppProvider = ({ children }) => {
 
   const fetchSocialMediaLogs = async () => {
     try {
-      let ologProducts = [];
-      try {
-        const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
-          body: { action: 'products' }
-        });
-        if (!error && data && data.success) {
-          const markup = profitMarkup.subs || 30;
-          ologProducts = data.products.map(p => {
-            const basePriceUsd = p.price / 25400;
-            const priceNgn = Math.max(500, Math.round(basePriceUsd * exchangeRate * (1 + markup / 100)));
-            const priceUsd = priceNgn / exchangeRate;
-            return { ...p, priceNgn, priceUsd, isLocal: false };
-          });
-        }
-      } catch (e) {
-        console.warn("Failed to fetch ologstore products:", e);
-      }
-
-      // Fetch local custom logs
+      // Fetch local custom logs only (removing third-party API logs)
       let localProducts = [];
       try {
         const { data: localLogs, error: localError } = await supabase
@@ -2628,8 +2610,7 @@ export const AppProvider = ({ children }) => {
         console.warn("Failed to fetch local social logs:", e);
       }
 
-      const combined = [...localProducts, ...ologProducts];
-      return { success: true, data: combined };
+      return { success: true, data: localProducts };
     } catch (e) {
       console.error("Fetch Social Media Logs Error:", e);
       return { success: false, msg: e.message };
@@ -2638,89 +2619,33 @@ export const AppProvider = ({ children }) => {
 
   const buySocialMediaLog = async (plan_id, plan_name, quantity, cost) => {
     try {
-      // Check if this is a local product (UUID is a string length of 36)
-      const isLocal = typeof plan_id === 'string' && plan_id.length > 20;
-      if (isLocal) {
-        const { data, error } = await supabase.rpc('buy_local_social_log', {
-          p_user_id: user.id,
-          p_product_id: plan_id,
-          p_cost: cost,
-          p_plan_name: plan_name
-        });
-        if (error || !data || !data.success) {
-          throw new Error(error ? error.message : (data ? data.error : 'Failed to purchase local log'));
-        }
-
-        // Retrieve profile balance update
-        const { data: updatedProfile } = await supabase.from('profiles').select('wallet_balance').eq('id', user.id).single();
-        if (updatedProfile) {
-          setWalletBalance(Number(updatedProfile.wallet_balance));
-        }
-
-        const mockOrder = {
-          id: data.order_id,
-          plan_id,
-          plan_name,
-          quantity: 1,
-          cost,
-          status: 'completed',
-          account_details: { Credentials: data.credentials },
-          ologstore_order_id: `local_order_${Date.now()}`,
-          created_at: new Date().toISOString(),
-          date: new Date().toLocaleString()
-        };
-        setSocialMediaOrders(prev => [mockOrder, ...prev]);
-
-        return { success: true, order: mockOrder };
+      if (!user) {
+        throw new Error("You must be logged in to make a purchase");
       }
-
-      // OlogStore fallback purchase
-      const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
-        body: { action: 'buy', payload: { plan_id, plan_name, quantity, cost } }
+      
+      const { data, error } = await supabase.rpc('buy_local_social_log', {
+        p_user_id: user.id,
+        p_product_id: plan_id,
+        p_cost: cost,
+        p_plan_name: plan_name
       });
-      if (error || !data || !data.success) {
-        throw new Error(error ? error.message : (data ? data.error : 'Failed to purchase log'));
+
+      if (error) throw error;
+      if (data && data.success === false) {
+        throw new Error(data.error || "Purchase failed");
       }
-      setWalletBalance(data.newBalance);
-      // Add the new order to socialMediaOrders state so it appears in Order History
-      if (data.order) {
-        setSocialMediaOrders(prev => [{
-          id: data.order.id,
-          plan_id: data.order.plan_id,
-          plan_name: data.order.plan_name,
-          quantity: data.order.quantity,
-          cost: Number(data.order.cost),
-          status: data.order.status,
-          account_details: data.order.account_details,
-          ologstore_order_id: data.order.ologstore_order_id,
-          created_at: data.order.created_at,
-          date: new Date(data.order.created_at).toLocaleString()
-        }, ...prev]);
-      }
-      return { success: true, order: data.order };
+
+      return { success: true, order: data };
     } catch (e) {
-      console.error("Buy Social Media Log Error:", e);
-      return { success: false, msg: customizeGatewayError(e.message, 'Log Server') };
+      console.error("Purchase Social Log Error:", e);
+      return { success: false, msg: e.message };
     }
   };
 
-  const checkSocialMediaLogStatus = async (trans_id) => {
+  const checkSocialMediaLogStatus = async (orderId) => {
     try {
-      const { data, error } = await supabase.functions.invoke('ologstore-gateway', {
-        body: { action: 'status', payload: { trans_id } }
-      });
-      if (error || !data || !data.success) {
-        throw new Error(error ? error.message : (data ? data.error : 'Failed to check order status'));
-      }
-      // Update local state
-      if (data.order) {
-        setSocialMediaOrders(prev => prev.map(o => o.ologstore_order_id === trans_id ? {
-          ...o,
-          status: data.order.status,
-          account_details: data.order.account_details
-        } : o));
-      }
-      return { success: true, order: data.order };
+      // Local social logs are instantly completed, return success
+      return { success: true };
     } catch (e) {
       console.error("Check Social Media Log Status Error:", e);
       return { success: false, msg: e.message };
@@ -2775,7 +2700,7 @@ export const AppProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('local_social_log_items')
-        .select('*')
+        .select('*, profiles(full_name, email)')
         .eq('product_id', productId)
         .order('created_at', { ascending: false });
       if (error) throw error;
