@@ -3,16 +3,29 @@ import { useNavigate, useMatch } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { createPortal } from 'react-dom';
-import { Share2, ShoppingCart, Tag, AlertCircle, CheckCircle, Search, Shield, ChevronRight } from 'lucide-react';
-import { supabase } from '../../supabase';
+import { Share2, ShoppingCart, AlertCircle, CheckCircle, Search, Shield, ChevronRight } from 'lucide-react';
+
+let cachedLogs = null;
+let pendingLogsRequest = null;
+
+const platformNames = ['Facebook', 'Reddit', 'Instagram', 'TikTok', 'Twitter', 'Telegram', 'Discord', 'LinkedIn', 'YouTube', 'Google'];
+
+const getPlatform = (log) => {
+  const text = `${log.category || ''} ${log.name || ''}`.toLowerCase();
+  const match = platformNames.find(platform => text.includes(platform.toLowerCase()));
+  if (match) return match;
+  if (/\bfb\b/.test(text)) return 'Facebook';
+  if (/\big\b/.test(text)) return 'Instagram';
+  if (/\bx\b/.test(text)) return 'Twitter';
+  return null;
+};
 
 const SocialMediaLogs = () => {
   const { fetchSocialMediaLogs, fetchSocialMediaLogDetails, buySocialMediaLog, formatCost, currency, profitMarkup } = useContext(AppContext);
   const isMobile = useIsMobile();
   
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [logs, setLogs] = useState(() => cachedLogs || []);
+  const [loading, setLoading] = useState(() => !cachedLogs);
   const [error, setError] = useState(null);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,10 +57,21 @@ const SocialMediaLogs = () => {
   }, [selectedLog?.id]);
 
   const loadLogs = async () => {
+    if (cachedLogs) {
+      setLogs(cachedLogs);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const res = await fetchSocialMediaLogs();
+    pendingLogsRequest ||= fetchSocialMediaLogs();
+    const res = await pendingLogsRequest;
+    pendingLogsRequest = null;
     if (res.success) {
-      setLogs(res.data);
+      cachedLogs = res.data
+        .map(log => ({ ...log, category: getPlatform(log) }))
+        .filter(log => log.category);
+      setLogs(cachedLogs);
       setError(null);
     } else {
       setError(res.msg);
@@ -55,7 +79,7 @@ const SocialMediaLogs = () => {
     setLoading(false);
   };
 
-  const categories = ['All', ...new Set(logs.map(l => l.category))];
+  const categories = ['All', ...platformNames.filter(platform => logs.some(log => log.category === platform))];
 
   const filteredLogs = logs.filter(l => {
     if (activeCategory !== 'All' && l.category !== activeCategory) return false;
@@ -317,7 +341,7 @@ const SocialMediaLogs = () => {
             Social Media Logs
           </h1>
           <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', margin: 0, lineHeight: '1.6' }}>
-            Buy aged, verified, and high-quality social media accounts instantly. Delivered straight to your dashboard with 100% security.
+            High-quality accounts for products that sell faster. Choose a platform and get secure, instant delivery straight to your dashboard.
           </p>
         </div>
         

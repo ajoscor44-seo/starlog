@@ -21,6 +21,7 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
       case 'reuse': return isMobile ? 'Reuse Number' : 'Re-buy & Reuse OTP Number';
       case 'esim': return isMobile ? 'eSIM' : 'Global eSIM Connectivity';
       case 'smm': return isMobile ? 'SMM Boost' : 'SMM Boost Reseller';
+      case 'social': return isMobile ? 'Logs' : 'Social Media Logs';
       case 'wallet': return 'Fund Wallet';
       case 'orders': return isMobile ? 'Orders' : 'Order History';
       case 'api': return isMobile ? 'Developer API' : 'Developer API Portal';

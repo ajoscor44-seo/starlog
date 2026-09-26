@@ -30,7 +30,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const menuItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'otp', label: 'SMS OTP (Temp)', icon: Key },
-    { id: 'social', label: 'Social Media Logs', icon: ShieldCheck },
+    { id: 'social', label: 'Logs', icon: ShieldCheck },
     { id: 'wallet', label: 'Wallet & Fund', icon: CreditCard },
     { id: 'orders', label: 'Order History', icon: ClipboardList },
     { id: 'profile', label: 'User Profile', icon: User },

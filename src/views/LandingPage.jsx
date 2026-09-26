@@ -48,7 +48,7 @@ const LandingPage = () => {
           All-In-One Digital Services Hub
         </div>
         <h1 className="landing-title">
-          Stellar OTP Verifications, <br />
+          OTP Verifications, <br />
           <span>& Social Media Logs</span>
         </h1>
         <p className="landing-desc">
