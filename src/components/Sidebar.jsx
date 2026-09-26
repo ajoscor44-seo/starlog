@@ -35,7 +35,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { id: 'orders', label: 'Order History', icon: ClipboardList },
     { id: 'profile', label: 'User Profile', icon: User },
     { id: 'api', label: 'Developer API', icon: Code },
-    { id: 'support', label: 'Support Desk', icon: MessageSquare },
+    { id: 'support', label: 'Telegram Support', icon: MessageSquare, external: true, url: 'https://t.me/Starlogadmin' },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {

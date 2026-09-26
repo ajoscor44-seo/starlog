@@ -61,7 +61,8 @@ serve(async (req) => {
       const result = await providerRequest("/listings?per_page=100&sort=title&direction=asc");
       const products = (result.data ?? []).map((listing: Record<string, unknown>) => ({
         id: listing.id,
-        slug: listing.slug,
+        slug: `acc-${listing.id}`,
+        providerSlug: listing.slug,
         name: listing.title,
         category: (listing.subcategory as Record<string, unknown> | undefined)?.title
           ?? (listing.category as Record<string, unknown> | undefined)?.title
@@ -72,6 +73,23 @@ serve(async (req) => {
         description: "",
       }));
       return json({ success: true, products });
+    }
+
+    if (action === "product") {
+      const slug = String(payload.slug ?? "");
+      if (!slug) return json({ success: false, error: "Missing listing slug" }, 400);
+      const result = await providerRequest(`/listings/${encodeURIComponent(slug)}`);
+      const listing = result.data ?? {};
+      return json({
+        success: true,
+        product: {
+          id: listing.id,
+          name: listing.title,
+          description: listing.description ?? "",
+          image: listing.image ?? listing.category?.image ?? null,
+          stock: Number(listing.available_stock ?? 0),
+        },
+      });
     }
 
     if (action === "buy") {

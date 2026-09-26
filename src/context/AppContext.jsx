@@ -2510,35 +2510,24 @@ export const AppProvider = ({ children }) => {
 
   const adminFetchAllProfiles = async () => {
     try {
+      // Use the admin-only Edge Function first so RLS never limits the dashboard to
+      // the current user's profile.
+      const gateway = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'admin-get-profiles' }
+      });
+      if (!gateway.error && gateway.data?.status && Array.isArray(gateway.data.data)) {
+        return { success: true, data: gateway.data.data };
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, username, email, phone, wallet_balance, is_admin, updated_at, created_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
-
-      // If RLS filtered the select query, we might only see own profile row
-      if (data && data.length <= 1) {
-        console.warn("Direct profiles query was filtered by RLS. Attempting Edge Function bypass...");
-        const fallback = await supabase.functions.invoke('sms-gateway', {
-          body: { action: 'admin-get-profiles' }
-        });
-        if (!fallback.error && fallback.data?.status && fallback.data?.data) {
-          return { success: true, data: fallback.data.data };
-        }
-      }
-      
-      return { success: true, data };
+      return { success: true, data: data || [] };
     } catch (e) {
-      console.warn("Direct profiles fetch failed, attempting Edge Function fallback...", e.message);
-      try {
-        const { data, error } = await supabase.functions.invoke('sms-gateway', {
-          body: { action: 'admin-get-profiles' }
-        });
-        if (error) throw error;
-        return { success: true, data: data.data };
-      } catch (err) {
-        return { success: false, msg: err.message };
-      }
+      console.error("Admin profiles fetch failed:", e.message);
+      return { success: false, msg: e.message };
     }
   };
 
@@ -2675,7 +2664,7 @@ export const AppProvider = ({ children }) => {
       const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
         body: {
           action: 'buy',
-          payload: { listing_id: product.id, slug: product.slug, plan_name: product.name, quantity, cost }
+          payload: { listing_id: product.id, slug: product.providerSlug, plan_name: product.name, quantity, cost }
         }
       });
       if (error || !data?.success) throw new Error(error?.message || data?.error || 'Purchase failed');
@@ -2684,6 +2673,20 @@ export const AppProvider = ({ children }) => {
       return { success: true, order: data.order };
     } catch (e) {
       console.error("Purchase Social Log Error:", e);
+      return { success: false, msg: e.message };
+    }
+  };
+
+  const fetchSocialMediaLogDetails = async (product) => {
+    if (product.isLocal || !product.providerSlug) return { success: true, product };
+    try {
+      const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
+        body: { action: 'product', payload: { slug: product.providerSlug } }
+      });
+      if (error || !data?.success) throw new Error(error?.message || data?.error || 'Failed to load product details');
+      return { success: true, product: { ...product, ...data.product } };
+    } catch (e) {
+      console.error('Fetch Social Media Log Details Error:', e);
       return { success: false, msg: e.message };
     }
   };
@@ -2869,6 +2872,7 @@ export const AppProvider = ({ children }) => {
       adminUpdateProfile,
       adminFetchAllOtpOrders,
       fetchSocialMediaLogs,
+      fetchSocialMediaLogDetails,
       buySocialMediaLog,
       checkSocialMediaLogStatus,
       socialMediaOrders,

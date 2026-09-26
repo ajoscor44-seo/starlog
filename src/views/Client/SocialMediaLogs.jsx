@@ -8,7 +8,7 @@ import { Share2, ShoppingCart, Tag, AlertCircle, CheckCircle, Search, Shield, Ch
 import { supabase } from '../../supabase';
 
 const SocialMediaLogs = () => {
-  const { fetchSocialMediaLogs, buySocialMediaLog, formatCost, currency, profitMarkup } = useContext(AppContext);
+  const { fetchSocialMediaLogs, fetchSocialMediaLogDetails, buySocialMediaLog, formatCost, currency, profitMarkup } = useContext(AppContext);
   const isMobile = useIsMobile();
   
   const [logs, setLogs] = useState([]);
@@ -29,6 +29,19 @@ const SocialMediaLogs = () => {
   useEffect(() => {
     loadLogs();
   }, []);
+
+  useEffect(() => {
+    if (!selectedLog || selectedLog.isLocal || selectedLog.description) return;
+    let cancelled = false;
+    const loadDetails = async () => {
+      const result = await fetchSocialMediaLogDetails(selectedLog);
+      if (result.success && !cancelled) {
+        setLogs(current => current.map(log => log.id === selectedLog.id ? result.product : log));
+      }
+    };
+    loadDetails();
+    return () => { cancelled = true; };
+  }, [selectedLog?.id]);
 
   const loadLogs = async () => {
     setLoading(true);
