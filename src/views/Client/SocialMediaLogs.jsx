@@ -8,7 +8,7 @@ import { Share2, ShoppingCart, Tag, AlertCircle, CheckCircle, Search, Shield, Ch
 import { supabase } from '../../supabase';
 
 const SocialMediaLogs = () => {
-  const { fetchSocialMediaLogs, buySocialMediaLog, formatCost, currency } = useContext(AppContext);
+  const { fetchSocialMediaLogs, buySocialMediaLog, formatCost, currency, profitMarkup } = useContext(AppContext);
   const isMobile = useIsMobile();
   
   const [logs, setLogs] = useState([]);
@@ -67,9 +67,7 @@ const SocialMediaLogs = () => {
     
     setPurchaseLoading(true);
     // Cost calculation in NGN
-    const totalCost = selectedLog.priceNgn * purchaseQuantity;
-    
-    const res = await buySocialMediaLog(selectedLog.id, selectedLog.name, purchaseQuantity, totalCost);
+    const res = await buySocialMediaLog(selectedLog, purchaseQuantity);
     setPurchaseLoading(false);
     
     if (res.success) {
@@ -222,6 +220,13 @@ const SocialMediaLogs = () => {
                   <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Price per account</span>
                   <span style={{ color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'var(--mono)' }}>{formatCost(currency === 'NGN' ? selectedLog.priceNgn : selectedLog.priceUsd)}</span>
                 </div>
+
+                {!selectedLog.isLocal && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Service markup</span>
+                    <span style={{ color: '#ab47fc', fontSize: '14px', fontFamily: 'var(--mono)', fontWeight: 'bold' }}>{profitMarkup.subs || 30}%</span>
+                  </div>
+                )}
 
                 {!selectedLog.isLocal && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>

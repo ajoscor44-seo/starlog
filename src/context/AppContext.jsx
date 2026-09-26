@@ -2585,7 +2585,29 @@ export const AppProvider = ({ children }) => {
 
   const fetchSocialMediaLogs = async () => {
     try {
-      // Fetch local custom logs only (removing third-party API logs)
+      let providerProducts = [];
+      try {
+        const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
+          body: { action: 'products' }
+        });
+        if (error) throw error;
+        if (data?.success) {
+          const markup = profitMarkup.subs || 30;
+          providerProducts = data.products.map(product => {
+            const providerPriceUsd = Number(product.price) || 0;
+            const priceNgn = Math.max(500, Math.round(providerPriceUsd * exchangeRate * (1 + markup / 100)));
+            return {
+              ...product,
+              priceUsd: priceNgn / exchangeRate,
+              priceNgn,
+              isLocal: false
+            };
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to fetch AccsBulk products:", e);
+      }
+
       let localProducts = [];
       try {
         const { data: localLogs, error: localError } = await supabase
@@ -2610,32 +2632,56 @@ export const AppProvider = ({ children }) => {
         console.warn("Failed to fetch local social logs:", e);
       }
 
-      return { success: true, data: localProducts };
+      return { success: true, data: [...localProducts, ...providerProducts] };
     } catch (e) {
       console.error("Fetch Social Media Logs Error:", e);
       return { success: false, msg: e.message };
     }
   };
 
-  const buySocialMediaLog = async (plan_id, plan_name, quantity, cost) => {
+  const buySocialMediaLog = async (product, quantity) => {
     try {
       if (!user) {
         throw new Error("You must be logged in to make a purchase");
       }
-      
-      const { data, error } = await supabase.rpc('buy_local_social_log', {
-        p_user_id: user.id,
-        p_product_id: plan_id,
-        p_cost: cost,
-        p_plan_name: plan_name
-      });
 
-      if (error) throw error;
-      if (data && data.success === false) {
-        throw new Error(data.error || "Purchase failed");
+      const cost = product.priceNgn * quantity;
+      if (product.isLocal) {
+        const { data, error } = await supabase.rpc('buy_local_social_log', {
+          p_user_id: user.id,
+          p_product_id: product.id,
+          p_cost: cost,
+          p_plan_name: product.name
+        });
+        if (error || !data?.success) throw new Error(error?.message || data?.error || "Purchase failed");
+        const order = {
+          id: data.order_id,
+          plan_id: product.id,
+          plan_name: product.name,
+          quantity: 1,
+          cost,
+          status: 'completed',
+          account_details: { Credentials: data.credentials },
+          ologstore_order_id: `local_${data.order_id}`,
+          created_at: new Date().toISOString(),
+          date: new Date().toLocaleString()
+        };
+        setSocialMediaOrders(prev => [order, ...prev]);
+        const { data: updatedProfile } = await supabase.from('profiles').select('wallet_balance').eq('id', user.id).single();
+        if (updatedProfile) setWalletBalance(Number(updatedProfile.wallet_balance));
+        return { success: true, order };
       }
 
-      return { success: true, order: data };
+      const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
+        body: {
+          action: 'buy',
+          payload: { listing_id: product.id, slug: product.slug, plan_name: product.name, quantity, cost }
+        }
+      });
+      if (error || !data?.success) throw new Error(error?.message || data?.error || 'Purchase failed');
+      setWalletBalance(Number(data.newBalance));
+      if (data.order) setSocialMediaOrders(prev => [{ ...data.order, cost: Number(data.order.cost ?? cost), date: new Date(data.order.created_at ?? Date.now()).toLocaleString() }, ...prev]);
+      return { success: true, order: data.order };
     } catch (e) {
       console.error("Purchase Social Log Error:", e);
       return { success: false, msg: e.message };
@@ -2644,8 +2690,13 @@ export const AppProvider = ({ children }) => {
 
   const checkSocialMediaLogStatus = async (orderId) => {
     try {
-      // Local social logs are instantly completed, return success
-      return { success: true };
+      if (String(orderId).startsWith('local_')) return { success: true, order: null };
+      const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
+        body: { action: 'status', payload: { order_id: orderId } }
+      });
+      if (error || !data?.success) throw new Error(error?.message || data?.error || 'Failed to check order status');
+      if (data.order) setSocialMediaOrders(prev => prev.map(order => order.ologstore_order_id === String(orderId) ? { ...order, ...data.order } : order));
+      return { success: true, order: data.order };
     } catch (e) {
       console.error("Check Social Media Log Status Error:", e);
       return { success: false, msg: e.message };
