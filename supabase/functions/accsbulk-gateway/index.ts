@@ -39,6 +39,19 @@ const asAccountDetails = (accounts: unknown) => {
   return values.map((credential, index) => ({ item_number: index + 1, Credentials: credential }));
 };
 
+const getLogsMarkup = async (admin: ReturnType<typeof createClient>) => {
+  const { data } = await admin.from("system_config").select("value").eq("id", "profit_markup").maybeSingle();
+  try {
+    const value = typeof data?.value === "string" ? JSON.parse(data.value) : data?.value;
+    if (value && typeof value === "object" && Number.isFinite(Number(value.subs))) {
+      return Math.max(0, Number(value.subs));
+    }
+  } catch {
+    // Fall back to the marketplace's standard margin when config is absent or legacy numeric data is present.
+  }
+  return 30;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -114,8 +127,11 @@ serve(async (req) => {
         return json({ success: false, error: "This listing is unavailable or no longer has enough stock" }, 400);
       }
 
-      const providerCostNgn = Math.ceil(Number(listing.price ?? 0) * quantity);
-      if (!Number.isFinite(providerCostNgn) || providerCostNgn <= 0 || chargedCost < providerCostNgn) {
+      const providerUnitPrice = Number(listing.price ?? 0);
+      const markup = await getLogsMarkup(admin);
+      const retailUnitPrice = Math.max(100, Math.round(providerUnitPrice * (1 + markup / 100)));
+      const requiredCharge = retailUnitPrice * quantity;
+      if (!Number.isFinite(requiredCharge) || requiredCharge <= 0 || chargedCost !== requiredCharge) {
         return json({ success: false, error: "The listing price changed. Refresh the catalogue and try again." }, 409);
       }
 
