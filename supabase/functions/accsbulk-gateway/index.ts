@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 
-const API_BASE_URL = "https://accsbulk.com/api/v1";
-const API_KEY = Deno.env.get("ACCSBULK_API_KEY") ?? "";
+const API_BASE_URL = "https://www.logsapi.cv/api";
+const API_KEY = Deno.env.get("LOGSAPI_KEY") ?? "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,19 +15,19 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 });
 
 const providerRequest = async (path: string, init: RequestInit = {}) => {
-  if (!API_KEY) throw new Error("AccsBulk is not configured");
+  if (!API_KEY) throw new Error("LogsAPI is not configured");
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
-      "X-API-Key": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`,
       ...(init.body ? { "Content-Type": "application/json" } : {}),
       ...init.headers,
     },
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok || result?.success === false) {
-    throw new Error(result?.message || result?.error || "AccsBulk request failed");
+    throw new Error(result?.message || result?.error || "LogsAPI request failed");
   }
   return result;
 };
@@ -58,59 +58,63 @@ serve(async (req) => {
     const { action, payload = {} } = await req.json();
 
     if (action === "products") {
-      const result = await providerRequest("/listings?per_page=100&sort=title&direction=asc");
-      const products = (result.data ?? []).map((listing: Record<string, unknown>) => ({
-        id: listing.id,
-        slug: `acc-${listing.id}`,
-        providerSlug: listing.slug,
-        name: listing.title,
-        category: (listing.subcategory as Record<string, unknown> | undefined)?.title
-          ?? (listing.category as Record<string, unknown> | undefined)?.title
-          ?? "Social media",
-        image: (listing.category as Record<string, unknown> | undefined)?.image ?? null,
-        price: Number(listing.price ?? 0),
-        stock: Number(listing.available_stock ?? 0),
-        description: "",
-      }));
+      const result = await providerRequest("/products");
+      const categoryIcons = new Map(
+        (result.categories ?? []).map((category: Record<string, unknown>) => [String(category.name ?? ""), category.icon ?? null]),
+      );
+      const products = (result.products ?? [])
+        .filter((product: Record<string, unknown>) => Number(product.stock ?? 0) > 0)
+        .map((product: Record<string, unknown>) => ({
+          id: String(product.id),
+          slug: `logsapi-${product.id}`,
+          providerSlug: String(product.id),
+          name: product.name,
+          category: product.category ?? "Other",
+          image: categoryIcons.get(String(product.category ?? "")) ?? null,
+          price: Number(product.price ?? 0),
+          priceCurrency: "NGN",
+          min: Number(product.min ?? 1),
+          max: Number(product.max ?? product.stock ?? 1),
+          stock: Number(product.stock ?? 0),
+          description: product.description ?? "",
+        }));
       return json({ success: true, products });
     }
 
     if (action === "product") {
       const slug = String(payload.slug ?? "");
       if (!slug) return json({ success: false, error: "Missing listing slug" }, 400);
-      const result = await providerRequest(`/listings/${encodeURIComponent(slug)}`);
-      const listing = result.data ?? {};
+      const result = await providerRequest(`/products/${encodeURIComponent(slug)}`);
+      const listing = result.product ?? result;
       return json({
         success: true,
         product: {
           id: listing.id,
-          name: listing.title,
+          name: listing.name,
           description: listing.description ?? "",
-          image: listing.image ?? listing.category?.image ?? null,
-          stock: Number(listing.available_stock ?? 0),
+          image: listing.image ?? null,
+          stock: Number(listing.stock ?? 0),
         },
       });
     }
 
     if (action === "buy") {
-      const listingId = Number(payload.listing_id);
-      const slug = String(payload.slug ?? "");
+      const listingId = String(payload.listing_id ?? "");
+      const slug = String(payload.slug ?? listingId);
       const quantity = Number(payload.quantity);
       const chargedCost = Number(payload.cost);
-      if (!Number.isInteger(listingId) || !slug || !Number.isInteger(quantity) || quantity < 1 || !Number.isFinite(chargedCost) || chargedCost <= 0) {
+      if (!listingId || !slug || !Number.isInteger(quantity) || quantity < 1 || !Number.isFinite(chargedCost) || chargedCost <= 0) {
         return json({ success: false, error: "Invalid purchase details" }, 400);
       }
 
       // Refresh the listing before charging so a stale browser price cannot cause a loss.
-      const listingResult = await providerRequest(`/listings/${encodeURIComponent(slug)}`);
-      const listing = listingResult.data ?? {};
-      if (Number(listing.id) !== listingId || Number(listing.available_stock ?? 0) < quantity) {
+      const listingResult = await providerRequest(`/products/${encodeURIComponent(slug)}`);
+      const listing = listingResult.product ?? listingResult;
+      if (String(listing.id) !== listingId || Number(listing.stock ?? 0) < quantity) {
         return json({ success: false, error: "This listing is unavailable or no longer has enough stock" }, 400);
       }
 
-      const { data: rateConfig } = await admin.from("system_config").select("value").eq("id", "exchange_rate").maybeSingle();
-      const exchangeRate = Number(rateConfig?.value) || 1350;
-      const providerCostNgn = Math.ceil(Number(listing.price ?? 0) * exchangeRate * quantity);
+      const providerCostNgn = Math.ceil(Number(listing.price ?? 0) * quantity);
       if (!Number.isFinite(providerCostNgn) || providerCostNgn <= 0 || chargedCost < providerCostNgn) {
         return json({ success: false, error: "The listing price changed. Refresh the catalogue and try again." }, 409);
       }
@@ -128,30 +132,30 @@ serve(async (req) => {
 
       let purchase;
       try {
-        purchase = await providerRequest("/purchase", {
+        purchase = await providerRequest("/orders", {
           method: "POST",
-          body: JSON.stringify({ ad_id: listingId, quantity }),
+          body: JSON.stringify({ id: listingId, amount: quantity }),
         });
       } catch (error) {
         await admin.from("profiles").update({ wallet_balance: Number(profile.wallet_balance) }).eq("id", user.id);
         return json({ success: false, error: "The provider could not complete the order. Your wallet has been refunded." }, 502);
       }
 
-      const order = purchase.data ?? {};
-      const providerOrderId = String(order.order_id ?? "");
-      const accountDetails = asAccountDetails(order.accounts);
-      const status = Array.isArray(order.accounts) && order.accounts.length ? "completed" : "processing";
+      const order = purchase.data ?? purchase;
+      const providerOrderId = String(order.orderId ?? order.transId ?? "");
+      const accountDetails = asAccountDetails(order.logs);
+      const status = order.status === "delivered" ? "completed" : "processing";
       const orderId = crypto.randomUUID();
       const { data: savedOrder, error: saveError } = await admin.from("social_media_orders").insert({
         id: orderId,
         user_id: user.id,
         plan_id: String(listingId),
-        plan_name: String(listing.title ?? payload.plan_name ?? "Social media account"),
+        plan_name: String(listing.name ?? payload.plan_name ?? "Social media account"),
         quantity,
         cost: chargedCost,
         status,
         account_details: accountDetails,
-        ologstore_order_id: providerOrderId || `accsbulk_${orderId}`,
+        ologstore_order_id: providerOrderId || `logsapi_${orderId}`,
       }).select().single();
       if (saveError) console.error("Failed to save AccsBulk order", saveError);
 
@@ -160,7 +164,7 @@ serve(async (req) => {
         user_id: user.id,
         amount: chargedCost,
         type: "debit",
-        method: `AccsBulk: ${String(listing.title ?? "Social media account")}`,
+        method: `LogsAPI: ${String(listing.name ?? "Social media account")}`,
         status: "SUCCESS",
       });
 
@@ -168,12 +172,13 @@ serve(async (req) => {
     }
 
     if (action === "status") {
-      const orderId = Number(payload.order_id);
-      if (!Number.isInteger(orderId)) return json({ success: false, error: "Invalid order ID" }, 400);
-      const result = await providerRequest(`/orders/${orderId}`);
-      const order = result.data ?? {};
-      const accountDetails = asAccountDetails(order.accounts);
-      const status = Array.isArray(order.accounts) && order.accounts.length ? "completed" : "processing";
+      const orderId = String(payload.order_id ?? "");
+      if (!orderId) return json({ success: false, error: "Invalid order ID" }, 400);
+      const result = await providerRequest("/orders?limit=100");
+      const order = (result.orders ?? []).find((item: Record<string, unknown>) => String(item.id) === orderId || String(item.transId) === orderId) ?? {};
+      const logs = Array.isArray(order.logs) ? order.logs : (order.logs ? [order.logs] : []);
+      const accountDetails = asAccountDetails(logs);
+      const status = order.status === "delivered" ? "completed" : "processing";
       const { data: updatedOrder, error } = await admin.from("social_media_orders")
         .update({ status, account_details: accountDetails })
         .eq("ologstore_order_id", String(orderId)).eq("user_id", user.id).select().single();

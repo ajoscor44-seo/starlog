@@ -2583,8 +2583,10 @@ export const AppProvider = ({ children }) => {
         if (data?.success) {
           const markup = profitMarkup.subs || 30;
           providerProducts = data.products.map(product => {
-            const providerPriceUsd = Number(product.price) || 0;
-            const priceNgn = Math.max(500, Math.round(providerPriceUsd * exchangeRate * (1 + markup / 100)));
+            const providerPrice = Number(product.price) || 0;
+            const priceNgn = product.priceCurrency === 'NGN'
+              ? Math.max(100, Math.round(providerPrice * (1 + markup / 100)))
+              : Math.max(500, Math.round(providerPrice * exchangeRate * (1 + markup / 100)));
             return {
               ...product,
               priceUsd: priceNgn / exchangeRate,

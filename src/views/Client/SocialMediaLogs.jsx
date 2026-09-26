@@ -8,7 +8,7 @@ import { Share2, ShoppingCart, AlertCircle, CheckCircle, Search, Shield, Chevron
 let cachedLogs = null;
 let pendingLogsRequest = null;
 
-const platformNames = ['Facebook', 'Reddit', 'Instagram', 'TikTok', 'Twitter', 'Telegram', 'Discord', 'LinkedIn', 'YouTube', 'Google'];
+const platformNames = ['Facebook', 'Reddit', 'Instagram', 'TikTok', 'Twitter', 'Pinterest', 'Telegram', 'Discord', 'LinkedIn', 'YouTube', 'Google', 'VPN', 'Email', 'Tools', 'Other'];
 
 const getPlatform = (log) => {
   const text = `${log.category || ''} ${log.name || ''}`.toLowerCase();
@@ -17,7 +17,9 @@ const getPlatform = (log) => {
   if (/\bfb\b/.test(text)) return 'Facebook';
   if (/\big\b/.test(text)) return 'Instagram';
   if (/\bx\b/.test(text)) return 'Twitter';
-  return null;
+  if (text.includes('mail') || text.includes('email') || text.includes('outlook')) return 'Email';
+  if (text.includes('tool') || text.includes('capcut') || text.includes('tradingview')) return 'Tools';
+  return 'Other';
 };
 
 const SocialMediaLogs = () => {
@@ -68,9 +70,7 @@ const SocialMediaLogs = () => {
     const res = await pendingLogsRequest;
     pendingLogsRequest = null;
     if (res.success) {
-      cachedLogs = res.data
-        .map(log => ({ ...log, category: getPlatform(log) }))
-        .filter(log => log.category);
+      cachedLogs = res.data.map(log => ({ ...log, providerCategory: log.category, category: getPlatform(log) }));
       setLogs(cachedLogs);
       setError(null);
     } else {
