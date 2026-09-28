@@ -2687,7 +2687,9 @@ export const AppProvider = ({ children }) => {
           }
           return response.value.data.products.map(product => {
             const providerPrice = Number(product.price) || 0;
-            const priceNgn = product.priceCurrency === 'NGN'
+            const priceNgn = product.priceIsRetail
+              ? providerPrice
+              : product.priceCurrency === 'NGN'
               ? Math.max(100, Math.round(providerPrice * (1 + markup / 100)))
               : Math.max(500, Math.round(providerPrice * exchangeRate * (1 + markup / 100)));
             return {
@@ -2782,7 +2784,7 @@ export const AppProvider = ({ children }) => {
           payload: { listing_id: product.id, slug: product.providerSlug, plan_name: product.name, quantity, cost }
         }
       });
-      if (error || !data?.success) throw new Error(error?.message || data?.error || 'Purchase failed');
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Purchase failed');
       setWalletBalance(Number(data.newBalance));
       if (data.order) setSocialMediaOrders(prev => [{ ...data.order, cost: Number(data.order.cost ?? cost), date: new Date(data.order.created_at ?? Date.now()).toLocaleString() }, ...prev]);
       return { success: true, order: data.order };

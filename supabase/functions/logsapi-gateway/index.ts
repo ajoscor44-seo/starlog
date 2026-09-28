@@ -87,28 +87,34 @@ serve(async (req) => {
 
     if (action === "products") {
       const result = await providerRequest("/products");
+      const catalogue = result.data ?? result;
+      const markup = await getLogsMarkup(admin);
       const categoryIcons = new Map(
-        (result.categories ?? []).map((category: Record<string, unknown>) => [String(category.name ?? ""), category.icon ?? null]),
+        (catalogue.categories ?? []).map((category: Record<string, unknown>) => [String(category.name ?? ""), category.icon ?? null]),
       );
-      const products = (result.products ?? [])
+      const products = (catalogue.products ?? [])
         .filter((product: Record<string, unknown>) => Number(product.stock ?? 0) > 0)
-        .map((product: Record<string, unknown>) => ({
-          id: String(product.id),
-          slug: `logsapi-${product.id}`,
-          providerSlug: String(product.id),
-          provider: "logsapi",
-          providerCode: "LAP",
-          providerName: "LogsAPI",
-          name: product.name,
-          category: product.category ?? "Other",
-          image: categoryIcons.get(String(product.category ?? "")) ?? null,
-          price: Number(product.price ?? 0),
-          priceCurrency: "NGN",
-          min: Number(product.min ?? 1),
-          max: Number(product.max ?? product.stock ?? 1),
-          stock: Number(product.stock ?? 0),
-          description: product.description ?? "",
-        }));
+        .map((product: Record<string, unknown>) => {
+          const retailPrice = Math.max(100, Math.round(Number(product.price ?? 0) * (1 + markup / 100)));
+          return {
+            id: String(product.id),
+            slug: `logsapi-${product.id}`,
+            providerSlug: String(product.id),
+            provider: "logsapi",
+            providerCode: "LAP",
+            providerName: "LogsAPI",
+            name: product.name,
+            category: product.category ?? "Other",
+            image: categoryIcons.get(String(product.category ?? "")) ?? null,
+            price: retailPrice,
+            priceCurrency: "NGN",
+            priceIsRetail: true,
+            min: Number(product.min ?? 1),
+            max: Number(product.max ?? product.stock ?? 1),
+            stock: Number(product.stock ?? 0),
+            description: product.description ?? "",
+          };
+        });
       return json({ success: true, products });
     }
 
@@ -116,7 +122,7 @@ serve(async (req) => {
       const slug = String(payload.slug ?? "");
       if (!slug) return json({ success: false, error: "Missing listing slug" }, 400);
       const result = await providerRequest(`/products/${encodeURIComponent(slug)}`);
-      const listing = result.product ?? result;
+      const listing = result.product ?? result.data?.product ?? result.data ?? result;
       return json({
         success: true,
         product: {
@@ -140,7 +146,7 @@ serve(async (req) => {
 
       // Refresh the listing before charging so a stale browser price cannot cause a loss.
       const listingResult = await providerRequest(`/products/${encodeURIComponent(slug)}`);
-      const listing = listingResult.product ?? listingResult;
+      const listing = listingResult.product ?? listingResult.data?.product ?? listingResult.data ?? listingResult;
       if (String(listing.id) !== listingId || Number(listing.stock ?? 0) < quantity) {
         return json({ success: false, error: "This listing is unavailable or no longer has enough stock" }, 400);
       }
