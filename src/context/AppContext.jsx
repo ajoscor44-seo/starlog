@@ -2589,7 +2589,7 @@ export const AppProvider = ({ children }) => {
           supabase.functions.invoke(functionName, { body: { action: 'products' } })
         ));
         const markup = profitMarkup.subs || 30;
-        providerProducts = responses.flatMap((response, index) => {
+        const productGroups = responses.map((response, index) => {
           if (response.status !== 'fulfilled' || response.value.error || !response.value.data?.success) {
             console.warn(`Failed to fetch ${providers[index]} products`, response.status === 'fulfilled' ? response.value.error : response.reason);
             return [];
@@ -2607,6 +2607,12 @@ export const AppProvider = ({ children }) => {
             };
           });
         });
+        // Keep both providers visible throughout the catalogue instead of
+        // rendering one complete provider block before the next one.
+        const largestGroupSize = Math.max(0, ...productGroups.map(group => group.length));
+        providerProducts = Array.from({ length: largestGroupSize }, (_, productIndex) =>
+          productGroups.map(group => group[productIndex]).filter(Boolean)
+        ).flat();
       } catch (e) {
         console.warn("Failed to fetch API social-log products:", e);
       }
