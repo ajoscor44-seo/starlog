@@ -444,7 +444,7 @@ const SocialMediaLogs = () => {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
           {filteredLogs.map(log => (
-            <div key={log.id} className="glass-panel hover-lift" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', gap: '16px', position: 'relative', overflow: 'hidden' }}>
+            <div key={`${log.providerCode || 'LOCAL'}-${log.id}`} className="glass-panel hover-lift" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px', gap: '16px', position: 'relative', overflow: 'hidden' }}>
               
               <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '100px', height: '100px', background: 'radial-gradient(circle, rgba(171,71,252,0.15) 0%, rgba(0,0,0,0) 70%)', zIndex: 0 }}></div>
               

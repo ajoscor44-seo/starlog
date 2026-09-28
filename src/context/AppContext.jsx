@@ -2584,13 +2584,17 @@ export const AppProvider = ({ children }) => {
     try {
       let providerProducts = [];
       try {
-        const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
-          body: { action: 'products' }
-        });
-        if (error) throw error;
-        if (data?.success) {
-          const markup = profitMarkup.subs || 30;
-          providerProducts = data.products.map(product => {
+        const providers = ['accsbulk-gateway', 'logsapi-gateway'];
+        const responses = await Promise.allSettled(providers.map(functionName =>
+          supabase.functions.invoke(functionName, { body: { action: 'products' } })
+        ));
+        const markup = profitMarkup.subs || 30;
+        providerProducts = responses.flatMap((response, index) => {
+          if (response.status !== 'fulfilled' || response.value.error || !response.value.data?.success) {
+            console.warn(`Failed to fetch ${providers[index]} products`, response.status === 'fulfilled' ? response.value.error : response.reason);
+            return [];
+          }
+          return response.value.data.products.map(product => {
             const providerPrice = Number(product.price) || 0;
             const priceNgn = product.priceCurrency === 'NGN'
               ? Math.max(100, Math.round(providerPrice * (1 + markup / 100)))
@@ -2602,9 +2606,9 @@ export const AppProvider = ({ children }) => {
               isLocal: false
             };
           });
-        }
+        });
       } catch (e) {
-        console.warn("Failed to fetch AccsBulk products:", e);
+        console.warn("Failed to fetch API social-log products:", e);
       }
 
       let localProducts = [];
@@ -2674,7 +2678,8 @@ export const AppProvider = ({ children }) => {
         return { success: true, order };
       }
 
-      const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
+      const gateway = product.provider === 'accsbulk' ? 'accsbulk-gateway' : 'logsapi-gateway';
+      const { data, error } = await supabase.functions.invoke(gateway, {
         body: {
           action: 'buy',
           payload: { listing_id: product.id, slug: product.providerSlug, plan_name: product.name, quantity, cost }
@@ -2693,7 +2698,8 @@ export const AppProvider = ({ children }) => {
   const fetchSocialMediaLogDetails = async (product) => {
     if (product.isLocal || !product.providerSlug) return { success: true, product };
     try {
-      const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
+      const gateway = product.provider === 'accsbulk' ? 'accsbulk-gateway' : 'logsapi-gateway';
+      const { data, error } = await supabase.functions.invoke(gateway, {
         body: { action: 'product', payload: { slug: product.providerSlug } }
       });
       if (error || !data?.success) throw new Error(error?.message || data?.error || 'Failed to load product details');
@@ -2707,8 +2713,12 @@ export const AppProvider = ({ children }) => {
   const checkSocialMediaLogStatus = async (orderId) => {
     try {
       if (String(orderId).startsWith('local_')) return { success: true, order: null };
-      const { data, error } = await supabase.functions.invoke('accsbulk-gateway', {
-        body: { action: 'status', payload: { order_id: orderId } }
+      const reference = String(orderId);
+      const isAccsBulk = reference.startsWith('AB:');
+      const gateway = isAccsBulk ? 'accsbulk-gateway' : 'logsapi-gateway';
+      const providerOrderId = reference.replace(/^(AB|LAP):/, '');
+      const { data, error } = await supabase.functions.invoke(gateway, {
+        body: { action: 'status', payload: { order_id: providerOrderId, stored_reference: reference } }
       });
       if (error || !data?.success) throw new Error(error?.message || data?.error || 'Failed to check order status');
       if (data.order) setSocialMediaOrders(prev => prev.map(order => order.ologstore_order_id === String(orderId) ? { ...order, ...data.order } : order));
