@@ -83,11 +83,45 @@ serve(async (req) => {
     if (action === 'admin-get-profiles') {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
-      const { data, error } = await supabaseAdmin
+      const { data: profiles, error: profilesError } = await supabaseAdmin
         .from('profiles')
-        .select('id, full_name, username, email, phone, wallet_balance, is_admin, updated_at, created_at')
+        .select('id, full_name, username, phone, wallet_balance, is_admin, updated_at, created_at')
         .order('created_at', { ascending: false })
-      if (error) throw error
+      if (profilesError) throw profilesError
+
+      // Auth is the source of truth for registered users. Merge it with public
+      // profiles so the dashboard still includes accounts whose profile trigger
+      // failed or predates the profiles table.
+      const authUsers: any[] = []
+      const perPage = 1000
+      for (let page = 1; ; page += 1) {
+        const { data: authPage, error: authError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
+        if (authError) throw authError
+        const users = authPage?.users ?? []
+        authUsers.push(...users)
+        if (users.length < perPage) break
+      }
+
+      const profilesById = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]))
+      const data = authUsers.map((authUser: any) => {
+        const profile: any = profilesById.get(authUser.id) ?? {}
+        const metadata = authUser.user_metadata ?? {}
+        return {
+          id: authUser.id,
+          full_name: profile.full_name || metadata.full_name || metadata.name || '',
+          username: profile.username || metadata.username || '',
+          email: authUser.email || '',
+          phone: profile.phone || authUser.phone || metadata.phone || '',
+          wallet_balance: Number(profile.wallet_balance ?? 0),
+          is_admin: profile.is_admin === true,
+          updated_at: profile.updated_at || authUser.updated_at,
+          created_at: profile.created_at || authUser.created_at,
+          last_sign_in_at: authUser.last_sign_in_at || null,
+          email_confirmed_at: authUser.email_confirmed_at || null,
+        }
+      }).sort((a: any, b: any) =>
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      )
 
       return new Response(JSON.stringify({ status: true, data }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

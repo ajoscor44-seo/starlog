@@ -508,10 +508,18 @@ export const AppProvider = ({ children }) => {
     });
 
     // 2. Listen to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         setIsLoggedIn(true);
-        setUser(session.user);
+        // Supabase refreshes tokens when a background tab becomes active again.
+        // Keep the existing user object for that event so user-data effects do
+        // not tear down the current page and show the full-screen auth loader.
+        setUser(currentUser => {
+          if (currentUser?.id === session.user.id && event !== 'USER_UPDATED') {
+            return currentUser;
+          }
+          return session.user;
+        });
       } else {
         setIsLoggedIn(false);
         setUser(null);
@@ -774,7 +782,7 @@ export const AppProvider = ({ children }) => {
       supabase.removeChannel(txChannel);
       supabase.removeChannel(walletChannel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const loginUser = (email) => {
     setIsLoggedIn(true);
@@ -2521,7 +2529,7 @@ export const AppProvider = ({ children }) => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, username, email, phone, wallet_balance, is_admin, updated_at, created_at')
+        .select('id, full_name, username, phone, wallet_balance, is_admin, updated_at, created_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return { success: true, data: data || [] };

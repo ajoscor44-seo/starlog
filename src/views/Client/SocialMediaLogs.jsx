@@ -11,14 +11,24 @@ let pendingLogsRequest = null;
 const platformNames = ['Facebook', 'Reddit', 'Instagram', 'TikTok', 'Twitter', 'Pinterest', 'Telegram', 'Discord', 'LinkedIn', 'YouTube', 'Google', 'VPN', 'Email', 'Tools', 'Other'];
 
 const getPlatform = (log) => {
-  const text = `${log.category || ''} ${log.name || ''}`.toLowerCase();
-  const match = platformNames.find(platform => text.includes(platform.toLowerCase()));
-  if (match) return match;
-  if (/\bfb\b/.test(text)) return 'Facebook';
-  if (/\big\b/.test(text)) return 'Instagram';
-  if (/\bx\b/.test(text)) return 'Twitter';
-  if (text.includes('mail') || text.includes('email') || text.includes('outlook')) return 'Email';
-  if (text.includes('tool') || text.includes('capcut') || text.includes('tradingview')) return 'Tools';
+  const category = String(log.category || '').trim().toLowerCase();
+  const categoryMatch = platformNames.find(platform => category === platform.toLowerCase());
+  if (categoryMatch) return categoryMatch;
+  if (/\b(facebook|fb)\b/.test(category)) return 'Facebook';
+  if (/\b(instagram|ig)\b/.test(category)) return 'Instagram';
+  if (/\b(twitter|x)\b/.test(category)) return 'Twitter';
+
+  // Provider descriptions often contain usage instructions such as "log in with
+  // VPN". Classify from the product name only so those instructions cannot move
+  // a Facebook product into the VPN tab.
+  const name = String(log.name || '').toLowerCase();
+  const nameMatch = platformNames.find(platform => name.includes(platform.toLowerCase()));
+  if (nameMatch) return nameMatch;
+  if (/\bfb\b/.test(name)) return 'Facebook';
+  if (/\big\b/.test(name)) return 'Instagram';
+  if (/\bx\b/.test(name)) return 'Twitter';
+  if (name.includes('mail') || name.includes('email') || name.includes('outlook')) return 'Email';
+  if (name.includes('tool') || name.includes('capcut') || name.includes('tradingview')) return 'Tools';
   return 'Other';
 };
 
