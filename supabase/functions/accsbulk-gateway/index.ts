@@ -33,11 +33,26 @@ const providerRequest = async (path: string, init: RequestInit = {}) => {
 };
 
 const asAccountDetails = (accounts: unknown) => {
-  const values = Array.isArray(accounts) ? accounts.filter(Boolean).map(String) : [];
+  const values = Array.isArray(accounts) ? accounts.filter(Boolean) : (accounts ? [accounts] : []);
   if (values.length === 0) return { status: "processing" };
-  if (values.length === 1) return { Credentials: values[0] };
-  return values.map((credential, index) => ({ item_number: index + 1, Credentials: credential }));
+  const normalize = (credential: unknown, index?: number) => {
+    const itemNumber = index === undefined ? {} : { item_number: index + 1 };
+    if (credential && typeof credential === "object" && !Array.isArray(credential)) {
+      return { ...itemNumber, ...(credential as Record<string, unknown>) };
+    }
+    return { ...itemNumber, Credentials: String(credential) };
+  };
+  if (values.length === 1) return normalize(values[0]);
+  return values.map((credential, index) => normalize(credential, index));
 };
+
+const unwrapOrder = (result: Record<string, any>) =>
+  result?.data?.order ?? result?.order ?? result?.data ?? result ?? {};
+
+const getDeliveredAccounts = (order: Record<string, any>, result: Record<string, any> = {}) =>
+  order?.logs ?? order?.accounts ?? order?.credentials ??
+  order?.data?.logs ?? order?.data?.accounts ?? order?.data?.credentials ??
+  result?.logs ?? result?.accounts ?? result?.credentials ?? [];
 
 const getLogsMarkup = async (admin: ReturnType<typeof createClient>) => {
   const { data } = await admin.from("system_config").select("value").eq("id", "profit_markup").maybeSingle();
@@ -157,10 +172,17 @@ serve(async (req) => {
         return json({ success: false, error: "The provider could not complete the order. Your wallet has been refunded." }, 502);
       }
 
-      const order = purchase.data ?? purchase;
-      const providerOrderId = String(order.orderId ?? order.transId ?? "");
-      const accountDetails = asAccountDetails(order.logs);
-      const status = order.status === "delivered" ? "completed" : "processing";
+      const order = unwrapOrder(purchase);
+      const providerOrderId = String(order.orderId ?? order.order_id ?? order.transId ?? order.trans_id ?? order.id ?? "");
+      const deliveredAccounts = getDeliveredAccounts(order, purchase);
+      const accountDetails = asAccountDetails(deliveredAccounts);
+      const providerStatus = String(order.status ?? purchase.status ?? "").toLowerCase();
+      const hasDeliveredAccounts = Array.isArray(deliveredAccounts)
+        ? deliveredAccounts.filter(Boolean).length > 0
+        : Boolean(deliveredAccounts);
+      const status = hasDeliveredAccounts || ["delivered", "completed", "success", "successful"].includes(providerStatus)
+        ? "completed"
+        : "processing";
       const orderId = crypto.randomUUID();
       const { data: savedOrder, error: saveError } = await admin.from("social_media_orders").insert({
         id: orderId,
@@ -191,10 +213,23 @@ serve(async (req) => {
       const orderId = String(payload.order_id ?? "");
       if (!orderId) return json({ success: false, error: "Invalid order ID" }, 400);
       const result = await providerRequest("/orders?limit=100");
-      const order = (result.orders ?? []).find((item: Record<string, unknown>) => String(item.id) === orderId || String(item.transId) === orderId) ?? {};
-      const logs = Array.isArray(order.logs) ? order.logs : (order.logs ? [order.logs] : []);
-      const accountDetails = asAccountDetails(logs);
-      const status = order.status === "delivered" ? "completed" : "processing";
+      const candidates = result.orders ?? result.data?.orders ?? (Array.isArray(result.data) ? result.data : []);
+      const order = candidates.find((item: Record<string, unknown>) =>
+        String(item.id ?? "") === orderId ||
+        String(item.orderId ?? "") === orderId ||
+        String(item.order_id ?? "") === orderId ||
+        String(item.transId ?? "") === orderId ||
+        String(item.trans_id ?? "") === orderId
+      ) ?? {};
+      const deliveredAccounts = getDeliveredAccounts(order, result);
+      const accountDetails = asAccountDetails(deliveredAccounts);
+      const providerStatus = String(order.status ?? "").toLowerCase();
+      const hasDeliveredAccounts = Array.isArray(deliveredAccounts)
+        ? deliveredAccounts.filter(Boolean).length > 0
+        : Boolean(deliveredAccounts);
+      const status = hasDeliveredAccounts || ["delivered", "completed", "success", "successful"].includes(providerStatus)
+        ? "completed"
+        : "processing";
       const { data: updatedOrder, error } = await admin.from("social_media_orders")
         .update({ status, account_details: accountDetails })
         .eq("ologstore_order_id", String(orderId)).eq("user_id", user.id).select().single();
