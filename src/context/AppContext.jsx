@@ -2784,7 +2784,17 @@ export const AppProvider = ({ children }) => {
           payload: { listing_id: product.id, slug: product.providerSlug, plan_name: product.name, quantity, cost }
         }
       });
-      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Purchase failed');
+      let buyError = null;
+      if (error) {
+        try {
+          const errBody = await error.context?.json?.();
+          buyError = errBody?.error || errBody?.message;
+        } catch (_) {}
+        if (!buyError) buyError = error.message;
+      } else if (!data?.success) {
+        buyError = data?.error || 'Purchase failed';
+      }
+      if (buyError) throw new Error(buyError);
       setWalletBalance(Number(data.newBalance));
       if (data.order) setSocialMediaOrders(prev => [{ ...data.order, cost: Number(data.order.cost ?? cost), date: new Date(data.order.created_at ?? Date.now()).toLocaleString() }, ...prev]);
       return { success: true, order: data.order };
@@ -2801,7 +2811,17 @@ export const AppProvider = ({ children }) => {
       const { data, error } = await supabase.functions.invoke(gateway, {
         body: { action: 'product', payload: { slug: product.providerSlug } }
       });
-      if (error || !data?.success) throw new Error(error?.message || data?.error || 'Failed to load product details');
+      let detailsError = null;
+      if (error) {
+        try {
+          const errBody = await error.context?.json?.();
+          detailsError = errBody?.error || errBody?.message;
+        } catch (_) {}
+        if (!detailsError) detailsError = error.message;
+      } else if (!data?.success) {
+        detailsError = data?.error || 'Failed to load product details';
+      }
+      if (detailsError) throw new Error(detailsError);
       return { success: true, product: { ...product, ...data.product } };
     } catch (e) {
       console.error('Fetch Social Media Log Details Error:', e);
@@ -2819,7 +2839,17 @@ export const AppProvider = ({ children }) => {
       const { data, error } = await supabase.functions.invoke(gateway, {
         body: { action: 'status', payload: { order_id: providerOrderId, stored_reference: reference } }
       });
-      if (error || !data?.success) throw new Error(error?.message || data?.error || 'Failed to check order status');
+      let statusError = null;
+      if (error) {
+        try {
+          const errBody = await error.context?.json?.();
+          statusError = errBody?.error || errBody?.message;
+        } catch (_) {}
+        if (!statusError) statusError = error.message;
+      } else if (!data?.success) {
+        statusError = data?.error || 'Failed to check order status';
+      }
+      if (statusError) throw new Error(statusError);
       if (data.order) setSocialMediaOrders(prev => prev.map(order => order.ologstore_order_id === String(orderId) ? { ...order, ...data.order } : order));
       return { success: true, order: data.order };
     } catch (e) {

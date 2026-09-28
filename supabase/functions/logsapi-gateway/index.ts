@@ -49,10 +49,16 @@ const asAccountDetails = (accounts: unknown) => {
 const unwrapOrder = (result: Record<string, any>) =>
   result?.data?.order ?? result?.order ?? result?.data ?? result ?? {};
 
-const getDeliveredAccounts = (order: Record<string, any>, result: Record<string, any> = {}) =>
-  order?.logs ?? order?.accounts ?? order?.credentials ??
-  order?.data?.logs ?? order?.data?.accounts ?? order?.data?.credentials ??
-  result?.logs ?? result?.accounts ?? result?.credentials ?? [];
+const getDeliveredAccounts = (order: Record<string, any>, result: Record<string, any> = {}) => {
+  const raw = order?.logs ?? order?.accounts ?? order?.credentials ??
+    order?.data?.logs ?? order?.data?.accounts ?? order?.data?.credentials ??
+    result?.logs ?? result?.accounts ?? result?.credentials ?? [];
+  if (typeof raw === "string") {
+    const lines = raw.split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean);
+    return lines.length > 0 ? lines : [];
+  }
+  return raw;
+};
 
 const getLogsMarkup = async (admin: ReturnType<typeof createClient>) => {
   const { data } = await admin.from("system_config").select("value").eq("id", "profit_markup").maybeSingle();
@@ -143,14 +149,14 @@ serve(async (req) => {
       const quantity = Number(payload.quantity);
       const chargedCost = Number(payload.cost);
       if (!listingId || !slug || !Number.isInteger(quantity) || quantity < 1 || !Number.isFinite(chargedCost) || chargedCost <= 0) {
-        return json({ success: false, error: "Invalid purchase details" }, 400);
+        return json({ success: false, error: "Invalid purchase details" });
       }
 
       // Refresh the listing before charging so a stale browser price cannot cause a loss.
       const listingResult = await providerRequest(`/products/${encodeURIComponent(slug)}`);
       const listing = listingResult.product ?? listingResult.data?.product ?? listingResult.data ?? listingResult;
       if (String(listing.id) !== listingId || Number(listing.stock ?? 0) < quantity) {
-        return json({ success: false, error: "This listing is unavailable or no longer has enough stock" }, 400);
+        return json({ success: false, error: "This listing is unavailable or no longer has enough stock" });
       }
 
       const providerUnitPrice = Number(listing.price ?? 0);
@@ -158,13 +164,13 @@ serve(async (req) => {
       const retailUnitPrice = Math.max(100, Math.round(providerUnitPrice * (1 + markup / 100)));
       const requiredCharge = retailUnitPrice * quantity;
       if (!Number.isFinite(requiredCharge) || requiredCharge <= 0 || chargedCost !== requiredCharge) {
-        return json({ success: false, error: "The listing price changed. Refresh the catalogue and try again." }, 409);
+        return json({ success: false, error: "The listing price changed. Refresh the catalogue and try again." });
       }
 
       const { data: profile, error: profileError } = await admin
         .from("profiles").select("wallet_balance").eq("id", user.id).single();
       if (profileError || !profile || Number(profile.wallet_balance) < chargedCost) {
-        return json({ success: false, error: "Insufficient wallet balance" }, 400);
+        return json({ success: false, error: "Insufficient wallet balance" });
       }
 
       // Create the user's history record before charging or contacting the
@@ -185,7 +191,7 @@ serve(async (req) => {
       }).select().single();
       if (pendingError || !pendingOrder) {
         console.error("Unable to create LogsAPI history record", pendingError);
-        return json({ success: false, error: "Unable to create your order history. You have not been charged." }, 500);
+        return json({ success: false, error: "Unable to create your order history. You have not been charged." });
       }
 
       const newBalance = Number(profile.wallet_balance) - chargedCost;
@@ -203,12 +209,14 @@ serve(async (req) => {
           body: JSON.stringify({ id: listingId, amount: quantity }),
         });
       } catch (error) {
+        console.error("LogsAPI purchase failed:", error);
+        const errorMsg = error instanceof Error ? error.message : "Provider could not complete the order";
         await admin.from("profiles").update({ wallet_balance: Number(profile.wallet_balance) }).eq("id", user.id);
         await admin.from("social_media_orders").update({
           status: "failed",
-          account_details: { status: "failed", message: "Provider could not complete the order; wallet refunded." },
+          account_details: { status: "failed", message: `${errorMsg}; wallet refunded.` },
         }).eq("id", orderId).eq("user_id", user.id);
-        return json({ success: false, error: "The provider could not complete the order. Your wallet has been refunded." }, 502);
+        return json({ success: false, error: `${errorMsg}. Your wallet has been refunded.` });
       }
 
       const order = unwrapOrder(purchase);
@@ -219,10 +227,24 @@ serve(async (req) => {
       const hasDeliveredAccounts = Array.isArray(deliveredAccounts)
         ? deliveredAccounts.filter(Boolean).length > 0
         : Boolean(deliveredAccounts);
+      const providerReference = providerOrderId ? `LAP:${providerOrderId}` : pendingReference;
+
+      if (providerStatus === "failed" || providerStatus === "cancelled") {
+        await admin.from("profiles").update({ wallet_balance: Number(profile.wallet_balance) }).eq("id", user.id);
+        await admin.from("social_media_orders").update({
+          status: "failed",
+          account_details: { status: "failed", message: "Provider could not fulfill this item; your wallet has been refunded." },
+          ologstore_order_id: providerReference,
+        }).eq("id", orderId).eq("user_id", user.id);
+        return json({
+          success: false,
+          error: "This item could not be fulfilled by the provider. Your wallet has been refunded."
+        });
+      }
+
       const status = hasDeliveredAccounts || ["delivered", "completed", "success", "successful"].includes(providerStatus)
         ? "completed"
         : "processing";
-      const providerReference = providerOrderId ? `LAP:${providerOrderId}` : pendingReference;
       const { data: savedOrder, error: saveError } = await admin.from("social_media_orders").update({
         status,
         account_details: accountDetails,
