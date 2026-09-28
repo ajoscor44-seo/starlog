@@ -378,6 +378,42 @@ drop policy if exists "Allow users to select their own purchased items" on publi
 create policy "Allow users to select their own purchased items" on public.local_social_log_items
   for select using (auth.uid() = sold_to);
 
+-- Create table for social media orders (API providers and local logs)
+create table if not exists public.social_media_orders (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  plan_id text not null,
+  plan_name text not null,
+  quantity integer not null default 1,
+  cost numeric(15,2) not null default 0.00,
+  status text not null default 'pending',
+  account_details jsonb default '{}'::jsonb,
+  ologstore_order_id text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create index if not exists idx_social_media_orders_user_id on public.social_media_orders(user_id);
+create index if not exists idx_social_media_orders_ologstore_order_id on public.social_media_orders(ologstore_order_id);
+create index if not exists idx_social_media_orders_created_at on public.social_media_orders(created_at desc);
+
+alter table public.social_media_orders enable row level security;
+
+drop policy if exists "Users can view own social media orders" on public.social_media_orders;
+create policy "Users can view own social media orders" on public.social_media_orders
+  for select using (auth.uid() = user_id or public.is_admin(auth.uid()));
+
+drop policy if exists "Users can insert own social media orders" on public.social_media_orders;
+create policy "Users can insert own social media orders" on public.social_media_orders
+  for insert with check (auth.uid() = user_id or public.is_admin(auth.uid()));
+
+drop policy if exists "Users and Admins can update own social media orders" on public.social_media_orders;
+create policy "Users and Admins can update own social media orders" on public.social_media_orders
+  for update using (auth.uid() = user_id or public.is_admin(auth.uid()));
+
+drop policy if exists "Users and Admins can delete own social media orders" on public.social_media_orders;
+create policy "Users and Admins can delete own social media orders" on public.social_media_orders
+  for delete using (auth.uid() = user_id or public.is_admin(auth.uid()));
+
 -- Create secure atomic local purchase function
 create or replace function public.buy_local_social_log(
   p_user_id uuid,
@@ -467,5 +503,12 @@ BEGIN
     WHERE pubname = 'supabase_realtime' AND tablename = 'local_social_log_items'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.local_social_log_items;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'social_media_orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.social_media_orders;
   END IF;
 END $$;

@@ -53,7 +53,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
     const { data: { user }, error: authError } = await client.auth.getUser();
-    if (authError || !user) return json({ success: false, error: "Unauthorized" }, 401);
+
 
     const { action, payload = {} } = await req.json();
 
@@ -98,6 +98,9 @@ serve(async (req) => {
         },
       });
     }
+
+    // Purchases and order tracking require an authenticated session
+    if (authError || !user) return json({ success: false, error: "Unauthorized" }, 401);
 
     if (action === "buy") {
       const listingId = Number(payload.listing_id);
