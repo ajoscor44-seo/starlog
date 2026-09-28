@@ -156,10 +156,34 @@ serve(async (req) => {
         return json({ success: false, error: "Insufficient wallet balance" }, 400);
       }
 
+      // Create the user's history record before charging or contacting the
+      // provider. A purchase must never succeed without a durable order row.
+      const orderId = crypto.randomUUID();
+      const pendingReference = `logsapi_pending_${orderId}`;
+      const pendingDetails = { status: "processing" };
+      const { data: pendingOrder, error: pendingError } = await admin.from("social_media_orders").insert({
+        id: orderId,
+        user_id: user.id,
+        plan_id: String(listingId),
+        plan_name: String(listing.name ?? payload.plan_name ?? "Social media account"),
+        quantity,
+        cost: chargedCost,
+        status: "processing",
+        account_details: pendingDetails,
+        ologstore_order_id: pendingReference,
+      }).select().single();
+      if (pendingError || !pendingOrder) {
+        console.error("Unable to create LogsAPI history record", pendingError);
+        return json({ success: false, error: "Unable to create your order history. You have not been charged." }, 500);
+      }
+
       const newBalance = Number(profile.wallet_balance) - chargedCost;
       const { error: debitError } = await admin.from("profiles")
         .update({ wallet_balance: newBalance }).eq("id", user.id);
-      if (debitError) throw new Error("Unable to debit wallet");
+      if (debitError) {
+        await admin.from("social_media_orders").delete().eq("id", orderId).eq("user_id", user.id);
+        throw new Error("Unable to debit wallet");
+      }
 
       let purchase;
       try {
@@ -169,6 +193,10 @@ serve(async (req) => {
         });
       } catch (error) {
         await admin.from("profiles").update({ wallet_balance: Number(profile.wallet_balance) }).eq("id", user.id);
+        await admin.from("social_media_orders").update({
+          status: "failed",
+          account_details: { status: "failed", message: "Provider could not complete the order; wallet refunded." },
+        }).eq("id", orderId).eq("user_id", user.id);
         return json({ success: false, error: "The provider could not complete the order. Your wallet has been refunded." }, 502);
       }
 
@@ -183,19 +211,13 @@ serve(async (req) => {
       const status = hasDeliveredAccounts || ["delivered", "completed", "success", "successful"].includes(providerStatus)
         ? "completed"
         : "processing";
-      const orderId = crypto.randomUUID();
-      const { data: savedOrder, error: saveError } = await admin.from("social_media_orders").insert({
-        id: orderId,
-        user_id: user.id,
-        plan_id: String(listingId),
-        plan_name: String(listing.name ?? payload.plan_name ?? "Social media account"),
-        quantity,
-        cost: chargedCost,
+      const providerReference = providerOrderId || pendingReference;
+      const { data: savedOrder, error: saveError } = await admin.from("social_media_orders").update({
         status,
         account_details: accountDetails,
-        ologstore_order_id: providerOrderId || `logsapi_${orderId}`,
-      }).select().single();
-      if (saveError) console.error("Failed to save AccsBulk order", saveError);
+        ologstore_order_id: providerReference,
+      }).eq("id", orderId).eq("user_id", user.id).select().single();
+      if (saveError) console.error("Failed to attach LogsAPI delivery to history record", saveError);
 
       await admin.from("transactions").insert({
         id: `tx-${crypto.randomUUID()}`,
@@ -206,7 +228,16 @@ serve(async (req) => {
         status: "SUCCESS",
       });
 
-      return json({ success: true, order: savedOrder ?? { id: orderId, account_details: accountDetails, status }, newBalance });
+      return json({
+        success: true,
+        order: savedOrder ?? {
+          ...pendingOrder,
+          status,
+          account_details: accountDetails,
+          ologstore_order_id: providerReference,
+        },
+        newBalance,
+      });
     }
 
     if (action === "status") {
