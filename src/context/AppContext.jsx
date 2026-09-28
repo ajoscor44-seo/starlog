@@ -2624,6 +2624,9 @@ export const AppProvider = ({ children }) => {
             priceUsd: Number(p.price) / exchangeRate,
             stock: (p.items || []).filter(item => !item.is_sold).length,
             description: p.description || "",
+            provider: 'local',
+            providerCode: 'LOCAL',
+            providerName: 'Local Inventory',
             isLocal: true
           }));
         }

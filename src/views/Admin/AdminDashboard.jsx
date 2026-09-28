@@ -45,6 +45,7 @@ const AdminDashboard = () => {
     adminFetchLocalSocialLogItems,
     adminCreateLocalSocialLogItems,
     adminDeleteLocalSocialLogItem,
+    fetchSocialMediaLogs,
     isAdmin,
     isAuthLoading
   } = useContext(AppContext);
@@ -90,6 +91,7 @@ const AdminDashboard = () => {
 
   // Local Social Logs admin states
   const [localLogs, setLocalLogs] = useState([]);
+  const [apiLogs, setApiLogs] = useState([]);
   const [selectedLogForStock, setSelectedLogForStock] = useState(null);
   const [logItems, setLogItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -139,6 +141,11 @@ const AdminDashboard = () => {
       const logsRes = await adminFetchLocalSocialLogs();
       if (logsRes.success) {
         setLocalLogs(logsRes.data);
+      }
+
+      const catalogueRes = await fetchSocialMediaLogs();
+      if (catalogueRes.success) {
+        setApiLogs(catalogueRes.data.filter(product => !product.isLocal));
       }
     } catch (e) {
       console.error("Failed to load admin db data:", e);
@@ -2424,6 +2431,54 @@ const AdminDashboard = () => {
         {adminTab === 'social_logs' && (
           <div>
             {renderTabHeader('Social Logs Manager')}
+
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h2 style={{ margin: 0, fontSize: '18px' }}>Live API Products</h2>
+                <div style={{ fontSize: '12px', color: '#646970' }}>
+                  <strong>AB</strong> = AccsBulk &nbsp;·&nbsp; <strong>LAP</strong> = LogsAPI
+                </div>
+              </div>
+              <div className="wp-metabox">
+                <div className="wp-metabox-content" style={{ padding: 0, maxHeight: '460px', overflow: 'auto' }}>
+                  {apiLogs.length === 0 ? (
+                    <div style={{ padding: '32px', color: '#64748b', textAlign: 'center' }}>
+                      No live API products were returned.
+                    </div>
+                  ) : (
+                    <table className="wp-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '90px' }}>Source</th>
+                          <th>Product</th>
+                          <th>Category</th>
+                          <th>Price</th>
+                          <th>Stock</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {apiLogs.map((log) => (
+                          <tr key={`${log.providerCode || 'API'}-${log.id}`}>
+                            <td>
+                              <span title={log.providerName || 'API provider'} style={{ display: 'inline-block', minWidth: '42px', textAlign: 'center', background: log.providerCode === 'AB' ? '#dbeafe' : '#f3e8ff', color: log.providerCode === 'AB' ? '#1d4ed8' : '#7e22ce', borderRadius: '4px', padding: '3px 7px', fontSize: '11px', fontWeight: '800' }}>
+                                {log.providerCode || 'API'}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{log.name}</div>
+                              <div style={{ fontSize: '11px', color: '#646970' }}>ID: {log.id}</div>
+                            </td>
+                            <td><span style={{ background: '#f0f0f1', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>{log.category}</span></td>
+                            <td style={{ fontWeight: 'bold' }}>{formatCost(log.priceNgn)}</td>
+                            <td style={{ color: Number(log.stock) > 0 ? '#00a32a' : '#d63638', fontWeight: 'bold' }}>{Number(log.stock || 0).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ margin: 0, fontSize: '18px' }}>Local Custom Products</h2>

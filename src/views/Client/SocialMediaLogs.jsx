@@ -474,6 +474,9 @@ const SocialMediaLogs = () => {
                       )}
                     </div>
                   </div>
+                  <span title={log.providerName || 'Product source'} style={{ background: log.providerCode === 'AB' ? 'rgba(37,99,235,0.18)' : log.providerCode === 'LAP' ? 'rgba(168,85,247,0.18)' : 'rgba(100,116,139,0.18)', color: log.providerCode === 'AB' ? '#60a5fa' : log.providerCode === 'LAP' ? '#c084fc' : '#94a3b8', border: '1px solid currentColor', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: '800', letterSpacing: '0.08em' }}>
+                    {log.providerCode || 'LOCAL'}
+                  </span>
                 </div>
                 
                 <h3 style={{ fontSize: '15px', lineHeight: '1.4', margin: '0 0 8px 0', fontWeight: '600' }}>{log.name}</h3>
