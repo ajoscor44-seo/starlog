@@ -41,6 +41,7 @@ serve(async (req) => {
   try {
     const apiKey = Deno.env.get('TEXTVERIFIED_API_KEY') ?? '';
     const username = Deno.env.get('TEXTVERIFIED_USERNAME') ?? '';
+    if (!apiKey || !username) throw new Error('TextVerified credentials are not configured');
 
     if (!apiKey || !username) {
       throw new Error('Missing TEXTVERIFIED_API_KEY or TEXTVERIFIED_USERNAME environment variables');

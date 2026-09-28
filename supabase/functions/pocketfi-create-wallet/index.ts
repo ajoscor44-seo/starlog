@@ -69,6 +69,7 @@ serve(async (req) => {
 
     const pocketFiPublicKey = Deno.env.get('POCKETFI_PUBLIC_KEY') ?? ''
     const pocketFiBusinessId = Deno.env.get('POCKETFI_BUSINESS_ID') ?? ''
+    if (!pocketFiPublicKey || !pocketFiBusinessId) throw new Error('PocketFi credentials are not configured')
 
     // Call PocketFi virtual account generation endpoint
     const response = await fetch('https://api.pocketfi.ng/api/v1/virtual-accounts/create', {

@@ -37,6 +37,7 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get('SMSPOOL_API_KEY') ?? ''
+    if (!apiKey) throw new Error('SMSPOOL_API_KEY is not configured')
     
     let url = ''
     let formData = new FormData()

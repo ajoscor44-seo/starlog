@@ -38,6 +38,7 @@ serve(async (req) => {
 
     // Termii API config
     const apiKey = Deno.env.get('TERMII_API_KEY') ?? ''
+    if (!apiKey) throw new Error('TERMII_API_KEY is not configured')
     const baseUrl = 'https://v3.api.termii.com'
 
     // 1. Authenticate with Termii Sotel to get bearer token

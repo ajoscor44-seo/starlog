@@ -30,6 +30,7 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get('HEROSMS_API_KEY') ?? ''
+    if (!apiKey) throw new Error('HEROSMS_API_KEY is not configured')
 
     const requestBody = await req.json().catch(() => ({}))
     const { action } = requestBody

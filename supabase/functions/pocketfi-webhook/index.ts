@@ -51,6 +51,7 @@ serve(async (req) => {
     }
 
     const secret = Deno.env.get('POCKETFI_SECRET_KEY') ?? ''
+    if (!secret) throw new Error('POCKETFI_SECRET_KEY is not configured')
     const rawBody = await req.text()
 
     const encoder = new TextEncoder()
