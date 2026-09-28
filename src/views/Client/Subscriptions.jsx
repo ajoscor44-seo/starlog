@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { User, Eye, EyeOff, Check, Clipboard, AlertCircle } from 'lucide-react';
+import { User, Eye, EyeOff, Check, Clipboard, AlertCircle, ExternalLink } from 'lucide-react';
 
 import netflixLogo from '../../assets/netflix.jpeg';
 import spotifyLogo from '../../assets/spotify.jpeg';
@@ -96,7 +96,10 @@ const Subscriptions = () => {
                     )}
                   </div>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '16px' }}>{sub.name}</h4>
+                    <h4 style={{ margin: 0, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                      {sub.name}
+                      {sub.provider === 'discountzar' && <span className="badge badge-info">DZ</span>}
+                    </h4>
                     <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{sub.category}</span>
                   </div>
                 </div>
@@ -107,6 +110,12 @@ const Subscriptions = () => {
                   </span>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ month</span>
                 </div>
+
+                {sub.provider === 'discountzar' && (
+                  <div style={{ fontSize: '12px', color: 'var(--color-green)', marginBottom: '10px' }}>
+                    {sub.availableSlots} slot{sub.availableSlots === 1 ? '' : 's'} available • Live inventory
+                  </div>
+                )}
 
                 <ul className="sub-details">
                   {sub.features.map((feat, i) => (
@@ -196,6 +205,11 @@ const Subscriptions = () => {
                           </td>
                           <td>
                             <span className="badge badge-info">{acc.screen}</span>
+                            {acc.portal_url && (
+                              <a href={acc.portal_url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', marginLeft: '8px', display: 'inline-flex', gap: '4px' }}>
+                                Open Portal <ExternalLink size={11} />
+                              </a>
+                            )}
                           </td>
                           <td>{acc.expiry}</td>
                           <td>

@@ -157,7 +157,7 @@ const OrderHistory = () => {
       // delivered credentials. Avoid showing a second, misleading debit-only
       // receipt when that durable order is available.
       const transactionMethod = String(tx.method || '').toLowerCase();
-      const isApiLogDebit = transactionMethod.startsWith('logsapi:') || transactionMethod.startsWith('accsbulk:');
+      const isApiLogDebit = transactionMethod.startsWith('logsapi:') || transactionMethod.startsWith('accsbulk:') || transactionMethod.startsWith('discountzar vpn:');
       const hasMatchingSocialLog = isApiLogDebit && socialMediaOrders.some(slo => {
         const sameAmount = Number(slo.cost || 0) === Number(tx.amountNgn || 0);
         const planName = String(slo.plan_name || '').toLowerCase();
@@ -242,10 +242,11 @@ const OrderHistory = () => {
 
     // Social Media Log Orders
     socialMediaOrders.forEach(slo => {
+      const isDiscountZar = String(slo.plan_id || '').startsWith('discountzar:') || String(slo.ologstore_order_id || '').startsWith('DZ:');
       orders.push({
         id: slo.id || `slo-${Math.random()}`,
-        type: 'Social Log',
-        method: `Social Log — ${slo.plan_name || 'Account'}`,
+        type: isDiscountZar ? 'Subscription' : 'Social Log',
+        method: `${isDiscountZar ? 'Subscription' : 'Social Log'} — ${slo.plan_name || 'Account'}`,
         amountNgn: slo.cost || 0,
         date: slo.date || '—',
         status: (slo.status || 'completed').toUpperCase(),

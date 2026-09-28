@@ -676,7 +676,7 @@ export const AppProvider = ({ children }) => {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         if (orders && !error) {
-          setSocialMediaOrders(orders.map(o => ({
+          const mappedOrders = orders.map(o => ({
             id: o.id,
             plan_id: o.plan_id,
             plan_name: o.plan_name,
@@ -687,7 +687,32 @@ export const AppProvider = ({ children }) => {
             ologstore_order_id: o.ologstore_order_id,
             created_at: o.created_at,
             date: new Date(o.created_at).toLocaleString()
-          })));
+          }));
+          setSocialMediaOrders(mappedOrders);
+
+          const vpnAccounts = mappedOrders
+            .filter(o => String(o.plan_id || '').startsWith('discountzar:') && String(o.status || '').toLowerCase() === 'completed')
+            .map(o => {
+              const details = o.account_details || {};
+              return {
+                id: `dz-${o.id}`,
+                orderId: o.id,
+                provider: 'discountzar',
+                name: o.plan_name,
+                email: details.email || user.email || 'See provider portal',
+                pass: details.password || details.pass || '',
+                screen: details.instruction || 'VPN access',
+                portal_url: details.portal_url || '',
+                expiry: details.expires_at ? new Date(details.expires_at).toLocaleDateString() : 'See provider details',
+                status: 'ACTIVE'
+              };
+            });
+          if (vpnAccounts.length) {
+            setAccountSubscriptions(prev => {
+              const vpnIds = new Set(vpnAccounts.map(item => item.orderId));
+              return [...vpnAccounts, ...prev.filter(item => !vpnIds.has(item.orderId))];
+            });
+          }
         }
       } catch (e) {
         console.error('Failed to fetch social media orders:', e);
@@ -1017,6 +1042,31 @@ export const AppProvider = ({ children }) => {
   }, [subscriptions]);
 
   useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+
+    const fetchDiscountZarVpns = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('discountzar-gateway', {
+          body: { action: 'products' }
+        });
+        if (error || !data?.success) throw new Error(error?.message || data?.error || 'Unable to load VPN products');
+        if (!cancelled) {
+          setSubscriptions(prev => [
+            ...prev.filter(item => item.provider !== 'discountzar'),
+            ...(data.products || [])
+          ]);
+        }
+      } catch (error) {
+        console.error('DiscountZar VPN catalog error:', error);
+      }
+    };
+
+    fetchDiscountZarVpns();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
     localStorage.setItem('zp_catalog_otp', JSON.stringify(otpServices));
   }, [otpServices]);
 
@@ -1168,6 +1218,47 @@ export const AppProvider = ({ children }) => {
   const buySharedSubscription = async (subId) => {
     const sub = subscriptions.find(s => s.id === subId);
     if (!sub) return { success: false, msg: 'Subscription not found' };
+
+    if (sub.provider === 'discountzar') {
+      try {
+        const { data, error } = await supabase.functions.invoke('discountzar-gateway', {
+          body: {
+            action: 'buy',
+            payload: {
+              listing_id: sub.providerListingId,
+              cost: sub.priceNgn
+            }
+          }
+        });
+        if (error || !data?.success) throw new Error(data?.error || error?.message || 'VPN purchase failed');
+
+        const order = data.order;
+        const details = order?.account_details || {};
+        const newSub = {
+          id: `dz-${order.id}`,
+          orderId: order.id,
+          provider: 'discountzar',
+          name: order.plan_name || sub.name,
+          email: details.email || user?.email || 'See provider portal',
+          pass: details.password || details.pass || '',
+          screen: details.instruction || 'VPN access',
+          portal_url: details.portal_url || '',
+          expiry: details.expires_at ? new Date(details.expires_at).toLocaleDateString() : 'See provider details',
+          status: 'ACTIVE'
+        };
+        setWalletBalance(Number(data.newBalance));
+        setAccountSubscriptions(prev => [newSub, ...prev.filter(item => item.orderId !== order.id)]);
+        setSocialMediaOrders(prev => [{
+          ...order,
+          cost: Number(order.cost ?? sub.priceNgn),
+          date: new Date(order.created_at || Date.now()).toLocaleString()
+        }, ...prev.filter(item => item.id !== order.id)]);
+        return { success: true, sub: newSub };
+      } catch (error) {
+        console.error('DiscountZar VPN purchase error:', error);
+        return { success: false, msg: error.message };
+      }
+    }
 
     const price = sub.priceNgn;
     const purchaseRes = await executePurchase(price, 'Purchase', `Wallet (${sub.name})`);
