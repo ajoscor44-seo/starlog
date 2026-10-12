@@ -150,8 +150,14 @@ const SMSVerification = () => {
       }
 
       if (server === 'server4') {
-        if (!selectedCountry) return;
+        setDynamicServices([]);
+        setSelectedService(null);
+        if (!selectedCountry) {
+          setErrorMsg('PVA Deals is temporarily unavailable. Its live country catalog could not be loaded.');
+          return;
+        }
         setIsLoadingServices(true);
+        setErrorMsg('');
         try {
           const res = await supabase.functions.invoke('pvadeals-gateway', {
             body: { action: 'get_services' }
@@ -183,9 +189,13 @@ const SMSVerification = () => {
           } else {
             setDynamicServices([]);
             setSelectedService(null);
+            setErrorMsg(res.data?.error || res.error?.message || 'Unable to load the PVA Deals catalog.');
           }
         } catch (e) {
           console.error("PVA Deals dynamic pricing error:", e);
+          setDynamicServices([]);
+          setSelectedService(null);
+          setErrorMsg(e.message || 'Unable to load the PVA Deals catalog.');
         }
         setIsLoadingServices(false);
         return;
@@ -243,6 +253,9 @@ const SMSVerification = () => {
       setStep(2);
     } else if (server === 'server4') {
       setSelectedCountry(heroSmsCountries[0]?.id || null);
+      setDynamicServices([]);
+      setSelectedService(null);
+      setErrorMsg(heroSmsCountries.length > 0 ? '' : 'PVA Deals is temporarily unavailable. Its live country catalog could not be loaded.');
       setStep(1);
     }
   }, [server, countries, smsPoolShortTermCountries, heroSmsCountries]);
@@ -337,6 +350,12 @@ const SMSVerification = () => {
     }
     return tvPrices[selectedService] || 0;
   };
+
+  const canRequestNumber = Boolean(
+    selectedService &&
+    (server === 'server3' || selectedCountry) &&
+    (server !== 'server4' || (selectedCountryObj && selectedServiceObj && dynamicServices.length > 0))
+  );
 
   const handleCopy = (text, key) => {
     navigator.clipboard.writeText(text);
@@ -766,7 +785,7 @@ const SMSVerification = () => {
             <div className="glass-panel" style={{ padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, fontSize: 13, color: 'var(--text-secondary)' }}>
                 <span>Country:</span>
-                <strong style={{ color: 'var(--text-primary)' }}>{selectedCountryObj?.flag} {selectedCountryObj?.name}</strong>
+                <strong style={{ color: 'var(--text-primary)' }}>{selectedCountryObj ? `${selectedCountryObj.flag || ''} ${selectedCountryObj.name}` : '—'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, fontSize: 13, color: 'var(--text-secondary)' }}>
                 <span>Service:</span>
@@ -776,12 +795,12 @@ const SMSVerification = () => {
                       ? React.cloneElement(serviceLogoMap[selectedServiceObj.id || selectedServiceObj.ID], { style: { width: '16px', height: '16px', flexShrink: 0 } }) 
                       : (selectedServiceObj?.emoji && <span style={{ fontSize: 16 }}>{selectedServiceObj.emoji}</span>)}
                   </div>
-                  <span>{server === 'server3' ? (selectedServiceObj?.description || selectedServiceObj?.serviceName) : selectedServiceObj?.name}</span>
+                  <span>{(server === 'server3' ? (selectedServiceObj?.description || selectedServiceObj?.serviceName) : selectedServiceObj?.name) || '—'}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, fontSize: 15 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Cost:</span>
-                <strong style={{ color: 'var(--color-turquoise)', fontSize: 18, fontFamily: 'var(--font-heading)' }}>{formatCost(getSelectedServicePrice())}</strong>
+                <strong style={{ color: 'var(--color-turquoise)', fontSize: 18, fontFamily: 'var(--font-heading)' }}>{canRequestNumber ? formatCost(getSelectedServicePrice()) : '—'}</strong>
               </div>
               {errorMsg && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: 'rgba(255,59,48,0.15)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: 8, color: '#ff453a', fontSize: 13, marginBottom: 12 }}>
@@ -793,7 +812,7 @@ const SMSVerification = () => {
                 className="btn btn-primary" 
                 style={{ width: '100%', padding: 14 }} 
                 onClick={handleRequestNumber}
-                disabled={isRequesting}
+                disabled={isRequesting || !canRequestNumber}
               >
                 {isRequesting ? (
                   <>
@@ -1054,7 +1073,7 @@ const SMSVerification = () => {
                 className="btn btn-primary" 
                 style={{ width: '100%', padding: 14 }} 
                 onClick={handleRequestNumber}
-                disabled={isRequesting}
+                disabled={isRequesting || !canRequestNumber}
               >
                 {isRequesting ? (
                   <>
