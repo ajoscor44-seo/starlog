@@ -1504,7 +1504,7 @@ export const AppProvider = ({ children }) => {
         }
 
         const detail = data.data?.requests?.[0];
-        if (!detail?._id || !detail?.number) throw new Error('PVA Deals returned an incomplete order');
+        if (!detail?._id || !detail?.number) throw new Error('Server 4 returned an incomplete order');
         const phone = detail.number;
         const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
@@ -1534,7 +1534,7 @@ export const AppProvider = ({ children }) => {
         return { success: true, otp: newOtp };
 
       } catch (e) {
-        console.error("PVA Deals API Order Error:", e);
+        console.error("Server 4 API Order Error:", e);
         const ref = `ref-otp-fail-${Math.floor(100000 + Math.random() * 900000)}`;
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (Server 4 - ${dynamicServiceObj.name})`
@@ -2386,8 +2386,8 @@ export const AppProvider = ({ children }) => {
         }
       });
 
-      // 5. Poll Server 4 (PVA Deals) active orders. SMS content is delivered
-      // through the PVA Deals webhook and synced from otp_orders.
+      // 5. Poll active Server 4 orders. SMS content is delivered through the
+      // provider webhook and synced from otp_orders.
       const pendingPvaDeals = activeOtps.filter(o => o.status === 'PENDING' && o.server === 'server4' && o.orderId);
       pendingPvaDeals.forEach(async (otp) => {
         if (Date.now() < otp.expiresAt) {
@@ -2410,7 +2410,7 @@ export const AppProvider = ({ children }) => {
               }
             }
           } catch (err) {
-            console.error("Error polling PVA Deals order:", otp.orderId, err);
+            console.error("Error polling Server 4 order:", otp.orderId, err);
           }
         }
       });

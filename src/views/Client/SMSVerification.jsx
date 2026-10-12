@@ -192,7 +192,7 @@ const SMSVerification = () => {
             setErrorMsg(res.data?.error || res.error?.message || 'Unable to load the Server 4 catalog.');
           }
         } catch (e) {
-          console.error("PVA Deals dynamic pricing error:", e);
+          console.error("Server 4 dynamic pricing error:", e);
           setDynamicServices([]);
           setSelectedService(null);
           setErrorMsg(e.message || 'Unable to load the Server 4 catalog.');
