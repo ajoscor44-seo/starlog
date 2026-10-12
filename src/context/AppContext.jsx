@@ -802,10 +802,30 @@ export const AppProvider = ({ children }) => {
       })
       .subscribe();
 
+    // Keep OTP codes/statuses pushed by provider webhooks in sync without a reload.
+    const otpChannel = supabase
+      .channel(`public:otp_orders:user_id=eq.${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'otp_orders',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        if (!payload.new) return;
+        setActiveOtps(current => current.map(order => order.id === payload.new.id ? {
+          ...order,
+          status: payload.new.status,
+          otpCode: payload.new.otp_code,
+          smsText: payload.new.sms_text
+        } : order));
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(profileChannel);
       supabase.removeChannel(txChannel);
       supabase.removeChannel(walletChannel);
+      supabase.removeChannel(otpChannel);
     };
   }, [user?.id]);
 
@@ -959,7 +979,7 @@ export const AppProvider = ({ children }) => {
           } else if (dbOtp.server === 'server3' && typeof dbOtp.id === 'string') {
             cleanOrderId = dbOtp.id.replace('tv-', '');
           } else if (dbOtp.server === 'server4' && typeof dbOtp.id === 'string') {
-            cleanOrderId = dbOtp.id.replace('hero-', '');
+            cleanOrderId = dbOtp.id.replace(/^(hero|pva)-/, '');
           }
 
           const autoCountry = getCountryFromNumber(dbOtp.phone_number);
@@ -1469,32 +1489,33 @@ export const AppProvider = ({ children }) => {
       const priceNgn = dynamicServiceObj?.priceNgn;
       if (!priceNgn) return { success: false, msg: 'Pricing information not loaded' };
 
-      const purchaseRes = await executePurchase(priceNgn, 'Purchase', `OTP Verification (HeroSMS - ${dynamicServiceObj.name})`);
+      const purchaseRes = await executePurchase(priceNgn, 'Purchase', `OTP Verification (PVA Deals - ${dynamicServiceObj.name})`);
       if (!purchaseRes.success) {
         return purchaseRes;
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke('herosms-gateway', {
-          body: { action: 'buy', country: countryId, service: serviceId }
+        const { data, error } = await supabase.functions.invoke('pvadeals-gateway', {
+          body: { action: 'buy', serviceId }
         });
 
         if (error || !data || !data.status) {
           throw new Error(error ? error.message : (data ? data.error : 'No numbers available on Server 4'));
         }
 
-        const detail = data.data;
+        const detail = data.data?.requests?.[0];
+        if (!detail?._id || !detail?.number) throw new Error('PVA Deals returned an incomplete order');
         const phone = detail.number;
         const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
         const autoCountry = getCountryFromNumber(formattedPhone);
-        const country = heroSmsCountries.find(c => Number(c.id) === Number(countryId));
-        const countryName = autoCountry ? autoCountry.name : (country ? country.name : 'Unknown Country');
+        const country = heroSmsCountries.find(c => String(c.id) === String(countryId));
+        const countryName = autoCountry ? autoCountry.name : (detail.country || country?.name || 'Unknown Country');
         const countryFlag = autoCountry ? autoCountry.flag : (country ? country.flag : '🏳️');
 
         const newOtp = {
-          id: `hero-${detail.id}`,
-          orderId: detail.id,
+          id: `pva-${detail._id}`,
+          orderId: detail._id,
           phoneNumber: formattedPhone,
           country: countryName,
           flag: countryFlag,
@@ -1502,7 +1523,7 @@ export const AppProvider = ({ children }) => {
           priceNgn,
           status: 'PENDING',
           date: new Date().toLocaleString(),
-          expiresAt: Date.now() + 15 * 60 * 1000,
+          expiresAt: detail.endTime ? new Date(detail.endTime).getTime() : Date.now() + 20 * 60 * 1000,
           smsText: null,
           otpCode: null,
           server: 'server4'
@@ -1513,10 +1534,10 @@ export const AppProvider = ({ children }) => {
         return { success: true, otp: newOtp };
 
       } catch (e) {
-        console.error("HeroSMS API Order Error:", e);
+        console.error("PVA Deals API Order Error:", e);
         const ref = `ref-otp-fail-${Math.floor(100000 + Math.random() * 900000)}`;
         await supabase.rpc('process_deposit', {
-          p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (HeroSMS - ${dynamicServiceObj.name})`
+          p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (PVA Deals - ${dynamicServiceObj.name})`
         });
         return { success: false, msg: customizeGatewayError(e.message, 'server4') };
       }
@@ -1607,7 +1628,7 @@ export const AppProvider = ({ children }) => {
         });
       }
       if (otp.server === 'server4' && otp.orderId) {
-        await supabase.functions.invoke('herosms-gateway', {
+        await supabase.functions.invoke('pvadeals-gateway', {
           body: { action: 'cancel', id: otp.orderId }
         });
       }
@@ -1744,7 +1765,7 @@ export const AppProvider = ({ children }) => {
           } else if (dbOtp.server === 'server2' && typeof dbOtp.id === 'string') {
             cleanOrderId = dbOtp.id.replace('sp-', '');
           } else if (dbOtp.server === 'server4' && typeof dbOtp.id === 'string') {
-            cleanOrderId = dbOtp.id.replace('hero-', '');
+            cleanOrderId = dbOtp.id.replace(/^(hero|pva)-/, '');
           }
           originalOrderId = cleanOrderId;
         }
@@ -2207,24 +2228,26 @@ export const AppProvider = ({ children }) => {
         'swaziland': 'sz', 'togo': 'tg', 'zambia': 'zm'
       };
 
-      const res = await supabase.functions.invoke('herosms-gateway', { body: { action: 'get_countries' } });
-      if (!res.error && res.data?.status && res.data.data) {
-        const rawCountries = res.data.data;
-        const mapped = Object.entries(rawCountries).map(([id, details]) => {
-          const nameLower = (details.eng || '').toLowerCase().trim();
-          const iso = COUNTRY_NAME_TO_ISO[nameLower] || '';
+      const res = await supabase.functions.invoke('pvadeals-gateway', { body: { action: 'get_services' } });
+      if (!res.error && res.data?.status && Array.isArray(res.data.data?.services)) {
+        const countryCodes = [...new Set(res.data.data.services.map(service => {
+          const raw = String(service.country || 'US').toUpperCase();
+          return raw === 'USA' ? 'US' : (raw === 'GB' ? 'UK' : raw);
+        }))];
+        const mapped = countryCodes.map(id => {
+          const iso = id === 'UK' ? 'gb' : id.toLowerCase();
           const flag = ISO_FLAGS[iso] || '🌐';
           return {
-            id: Number(id),
-            ID: Number(id),
-            name: details.eng,
+            id,
+            ID: id,
+            name: id === 'US' ? 'United States' : (id === 'UK' ? 'United Kingdom' : id),
             flag
           };
         });
         setHeroSmsCountries(mapped);
       }
     } catch (e) {
-      console.error("fetchHeroSmsCountries Error:", e);
+      console.error("fetchPvaDealsCountries Error:", e);
     }
   };
 
@@ -2363,32 +2386,31 @@ export const AppProvider = ({ children }) => {
         }
       });
 
-      // 5. Poll Server 4 (HeroSMS) active orders
-      const pendingHeroSms = activeOtps.filter(o => o.status === 'PENDING' && o.server === 'server4' && o.orderId);
-      pendingHeroSms.forEach(async (otp) => {
+      // 5. Poll Server 4 (PVA Deals) active orders. SMS content is delivered
+      // through the PVA Deals webhook and synced from otp_orders.
+      const pendingPvaDeals = activeOtps.filter(o => o.status === 'PENDING' && o.server === 'server4' && o.orderId);
+      pendingPvaDeals.forEach(async (otp) => {
         if (Date.now() < otp.expiresAt) {
           try {
-            const { data, error } = await supabase.functions.invoke('herosms-gateway', {
+            const { data, error } = await supabase.functions.invoke('pvadeals-gateway', {
               body: { action: 'check', id: otp.orderId }
             });
             if (!error && data?.status && data?.data) {
               const resData = data.data;
-              if (resData.status === 'COMPLETED' && resData.otpCode) {
-                updateOtpOrderStatusInDB(otp.id, 'COMPLETED', resData.otpCode, resData.smsText);
+              if (resData.status === 'COMPLETED') {
+                updateOtpOrderStatusInDB(otp.id, 'COMPLETED');
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { 
                   ...o, 
-                  status: 'COMPLETED', 
-                  smsText: resData.smsText, 
-                  otpCode: resData.otpCode 
+                  status: 'COMPLETED'
                 } : o));
-              } else if (resData.status === 'FAILED') {
+              } else if (resData.status === 'FLAGGED' || resData.status === 'TIMEOUT') {
                 refundOtpSession(otp);
                 updateOtpOrderStatusInDB(otp.id, 'EXPIRED');
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { ...o, status: 'EXPIRED' } : o));
               }
             }
           } catch (err) {
-            console.error("Error polling HeroSMS order:", otp.orderId, err);
+            console.error("Error polling PVA Deals order:", otp.orderId, err);
           }
         }
       });
@@ -2632,6 +2654,12 @@ export const AppProvider = ({ children }) => {
 
   const adminFetchAllOtpOrders = async () => {
     try {
+      const gateway = await supabase.functions.invoke('sms-gateway', {
+        body: { action: 'admin-get-otp-orders' }
+      });
+      if (!gateway.error && gateway.data?.status && Array.isArray(gateway.data.data)) {
+        return { success: true, data: gateway.data.data };
+      }
       const { data, error } = await supabase
         .from('otp_orders')
         .select('id, phone_number, server, service, price_ngn, status, otp_code, sms_text, created_at, user_id, profiles(full_name, phone)')

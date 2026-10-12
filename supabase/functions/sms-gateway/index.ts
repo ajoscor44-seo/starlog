@@ -80,6 +80,29 @@ serve(async (req) => {
       })
     }
 
+    if (action === 'admin-get-otp-orders') {
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+      const { data: orders, error } = await supabaseAdmin
+        .from('otp_orders')
+        .select('id, phone_number, server, service, price_ngn, status, otp_code, sms_text, created_at, user_id')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      const userIds = [...new Set((orders ?? []).map((order: any) => order.user_id).filter(Boolean))]
+      const { data: profiles, error: profilesError } = userIds.length
+        ? await supabaseAdmin.from('profiles').select('id, full_name, phone').in('id', userIds)
+        : { data: [], error: null }
+      if (profilesError) throw profilesError
+      const profilesById = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]))
+      const data = (orders ?? []).map((order: any) => ({
+        ...order,
+        profiles: profilesById.get(order.user_id) ?? null,
+      }))
+      return new Response(JSON.stringify({ status: true, data }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+      })
+    }
+
     if (action === 'admin-get-profiles') {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)

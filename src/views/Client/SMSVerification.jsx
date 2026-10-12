@@ -153,44 +153,26 @@ const SMSVerification = () => {
         if (!selectedCountry) return;
         setIsLoadingServices(true);
         try {
-          const res = await supabase.functions.invoke('herosms-gateway', {
-            body: { action: 'get_prices', country: selectedCountry }
+          const res = await supabase.functions.invoke('pvadeals-gateway', {
+            body: { action: 'get_services' }
           });
-          if (!res.error && res.data?.status && res.data.data) {
-            const pricing = res.data.data[selectedCountry] || res.data.data || {};
-            
-            const HERO_SERVICE_MAPPING = {
-              'srv-whatsapp': 'wa',
-              'srv-telegram': 'tg',
-              'srv-google': 'go',
-              'srv-openai': 'dr',
-              'srv-facebook': 'fb',
-              'srv-instagram': 'ig',
-              'srv-tiktok': 'lf',
-              'srv-netflix': 'nf',
-              'srv-discord': 'ds',
-              'srv-twitter': 'tw',
-              'srv-microsoft': 'mm',
-              'srv-apple': 'ap',
-              'srv-yahoo': 'mb',
-              'srv-steam': 'mt',
-              'srv-uber': 'ub'
-            };
-
-            const mapped = otpServices.map(s => {
-              const code = HERO_SERVICE_MAPPING[s.id];
-              const costData = pricing[code];
-              const costUsd = costData ? Number(costData.cost) : 0;
-              const count = costData ? Number(costData.count) : 0;
-              
+          if (!res.error && res.data?.status && Array.isArray(res.data.data?.services)) {
+            const mapped = res.data.data.services.filter(service => {
+              const rawCountry = String(service.country || 'US').toUpperCase();
+              const normalizedCountry = rawCountry === 'USA' ? 'US' : (rawCountry === 'GB' ? 'UK' : rawCountry);
+              return normalizedCountry === selectedCountry && Number(service.STRstock) > 0 && Number(service.STRprice) > 0;
+            }).map(service => {
+              const costUsd = Number(service.STRprice);
               const priceNgn = costUsd > 0 ? Math.max(300, Math.round(costUsd * exchangeRate * (1 + (profitMarkup.otp / 100)))) : 0;
               return {
-                ...s,
+                id: service._id,
+                code: service._id,
+                name: service.name,
                 priceNgn,
-                qty: count,
-                code
+                qty: Number(service.STRstock),
+                country: service.country
               };
-            }).filter(s => s.qty > 0 && s.priceNgn > 0);
+            });
 
             setDynamicServices(mapped);
             if (mapped.length > 0) {
@@ -203,7 +185,7 @@ const SMSVerification = () => {
             setSelectedService(null);
           }
         } catch (e) {
-          console.error("HeroSMS dynamic pricing error:", e);
+          console.error("PVA Deals dynamic pricing error:", e);
         }
         setIsLoadingServices(false);
         return;
@@ -260,7 +242,7 @@ const SMSVerification = () => {
       setSelectedCountry('US');
       setStep(2);
     } else if (server === 'server4') {
-      setSelectedCountry(heroSmsCountries[0]?.id || 1);
+      setSelectedCountry(heroSmsCountries[0]?.id || 'US');
       setStep(1);
     }
   }, [server, countries, smsPoolShortTermCountries, heroSmsCountries]);
@@ -655,8 +637,8 @@ const SMSVerification = () => {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
-                    <span style={{ fontSize: 7, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>ALL COUNTRIES + WHATSAPP</span>
+                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4 · PVA Deals</span>
+                    <span style={{ fontSize: 7, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US + UK SERVICES</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Stable gateways</span>
                 </div>
@@ -970,8 +952,8 @@ const SMSVerification = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
-                      <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>ALL COUNTRIES + WHATSAPP</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4 · PVA Deals</span>
+                      <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US + UK SERVICES</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Reliable gateway and stable connections</span>
                   </div>

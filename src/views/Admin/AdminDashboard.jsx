@@ -1921,7 +1921,7 @@ const AdminDashboard = () => {
                   <option value="ALL">All Servers</option>
                   <option value="server2">Server 2 (SMSPool)</option>
                   <option value="server3">Server 3 (Textverified)</option>
-                  <option value="server4">Server 4 (HeroSMS)</option>
+                  <option value="server4">Server 4 (PVA Deals)</option>
                 </select>
 
                 <select className="wp-select" value={filterOtpStatus} onChange={(e) => setFilterOtpStatus(e.target.value)}>
@@ -1975,7 +1975,7 @@ const AdminDashboard = () => {
                       server1: 'Server 1',
                       server2: 'Server 2',
                       server3: 'Server 3',
-                      server4: 'Server 4'
+                      server4: 'Server 4 (PVA Deals)'
                     };
 
                     if (paginated.length === 0) {
