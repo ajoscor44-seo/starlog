@@ -242,7 +242,7 @@ const SMSVerification = () => {
       setSelectedCountry('US');
       setStep(2);
     } else if (server === 'server4') {
-      setSelectedCountry(heroSmsCountries[0]?.id || 'US');
+      setSelectedCountry(heroSmsCountries[0]?.id || null);
       setStep(1);
     }
   }, [server, countries, smsPoolShortTermCountries, heroSmsCountries]);
@@ -256,7 +256,7 @@ const SMSVerification = () => {
   }, [activeCountriesList, searchCountry]);
 
   const activeServicesList = server === 'server4'
-    ? (dynamicServices.length > 0 ? dynamicServices : otpServices)
+    ? dynamicServices
     : (server === 'server2' ? smsPoolDynamicServices : textVerifiedServices);
 
   const filteredServices = useMemo(() => {
@@ -638,7 +638,7 @@ const SMSVerification = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4 · PVA Deals</span>
-                    <span style={{ fontSize: 7, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>US + UK SERVICES</span>
+                    <span style={{ fontSize: 7, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>LIVE PVA CATALOG</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Stable gateways</span>
                 </div>
@@ -953,7 +953,7 @@ const SMSVerification = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4 · PVA Deals</span>
-                      <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>US + UK SERVICES</span>
+                      <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>LIVE PVA CATALOG</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Reliable gateway and stable connections</span>
                   </div>
