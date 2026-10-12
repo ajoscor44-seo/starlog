@@ -21,7 +21,7 @@ serve(async (req) => {
     if (userError || !user) throw new Error('Unauthorized user')
 
     const apiKey = Deno.env.get('PVADEALS_API_KEY') ?? ''
-    if (!apiKey) throw new Error('PVADEALS_API_KEY is not configured')
+    if (!apiKey) throw new Error('Server 4 is not configured')
     const body = await req.json().catch(() => ({}))
     const { action } = body
     let url = BASE_URL
@@ -59,7 +59,7 @@ serve(async (req) => {
     let result: any
     try { result = JSON.parse(responseText) } catch { result = { message: responseText } }
     if (!response.ok || result?.success === false) {
-      throw new Error(result?.message || result?.error || `PVA Deals API returned ${response.status}`)
+      throw new Error(result?.message || result?.error || `Server 4 returned ${response.status}`)
     }
     return new Response(JSON.stringify({ status: true, data: result?.data, message: result?.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,

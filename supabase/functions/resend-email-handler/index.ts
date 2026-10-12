@@ -155,7 +155,7 @@ const generateOtpRequestedEmail = (service: string, phone: string, server: strin
       </tr>
       <tr>
         <td style="padding: 6px 0; color: #94a3b8;">Server Gateway:</td>
-        <td style="padding: 6px 0; color: #fff; text-align: right;">${server === 'server1' ? 'Server 1 (5SIM)' : server === 'server2' ? 'Server 2 (SMSPool)' : server === 'server3' ? 'Server 3 (Textverified)' : 'Server 4 (PVA Deals)'}</td>
+        <td style="padding: 6px 0; color: #fff; text-align: right;">${server === 'server1' ? 'Server 1 (5SIM)' : server === 'server2' ? 'Server 2 (SMSPool)' : server === 'server3' ? 'Server 3 (Textverified)' : 'Server 4'}</td>
       </tr>
       <tr>
         <td style="padding: 6px 0; color: #94a3b8;">Cost:</td>

@@ -153,7 +153,7 @@ const SMSVerification = () => {
         setDynamicServices([]);
         setSelectedService(null);
         if (!selectedCountry) {
-          setErrorMsg('PVA Deals is temporarily unavailable. Its live country catalog could not be loaded.');
+          setErrorMsg('Server 4 is temporarily unavailable. Its live country catalog could not be loaded.');
           return;
         }
         setIsLoadingServices(true);
@@ -189,13 +189,13 @@ const SMSVerification = () => {
           } else {
             setDynamicServices([]);
             setSelectedService(null);
-            setErrorMsg(res.data?.error || res.error?.message || 'Unable to load the PVA Deals catalog.');
+            setErrorMsg(res.data?.error || res.error?.message || 'Unable to load the Server 4 catalog.');
           }
         } catch (e) {
           console.error("PVA Deals dynamic pricing error:", e);
           setDynamicServices([]);
           setSelectedService(null);
-          setErrorMsg(e.message || 'Unable to load the PVA Deals catalog.');
+          setErrorMsg(e.message || 'Unable to load the Server 4 catalog.');
         }
         setIsLoadingServices(false);
         return;
@@ -255,7 +255,7 @@ const SMSVerification = () => {
       setSelectedCountry(heroSmsCountries[0]?.id || null);
       setDynamicServices([]);
       setSelectedService(null);
-      setErrorMsg(heroSmsCountries.length > 0 ? '' : 'PVA Deals is temporarily unavailable. Its live country catalog could not be loaded.');
+      setErrorMsg(heroSmsCountries.length > 0 ? '' : 'Server 4 is temporarily unavailable. Its live country catalog could not be loaded.');
       setStep(1);
     }
   }, [server, countries, smsPoolShortTermCountries, heroSmsCountries]);
@@ -656,8 +656,8 @@ const SMSVerification = () => {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4 · PVA Deals</span>
-                    <span style={{ fontSize: 7, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>LIVE PVA CATALOG</span>
+                    <span style={{ fontWeight: 700, fontSize: 11, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
+                    <span style={{ fontSize: 7, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>LIVE SERVICES</span>
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Stable gateways</span>
                 </div>
@@ -971,8 +971,8 @@ const SMSVerification = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4 · PVA Deals</span>
-                      <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>LIVE PVA CATALOG</span>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: server === 'server4' ? 'var(--color-turquoise)' : 'var(--text-primary)' }}>Server 4</span>
+                      <span style={{ fontSize: 8, background: 'rgba(57,255,20,0.15)', color: '#39FF14', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>LIVE SERVICES</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Reliable gateway and stable connections</span>
                   </div>

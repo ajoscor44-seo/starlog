@@ -1489,7 +1489,7 @@ export const AppProvider = ({ children }) => {
       const priceNgn = dynamicServiceObj?.priceNgn;
       if (!priceNgn) return { success: false, msg: 'Pricing information not loaded' };
 
-      const purchaseRes = await executePurchase(priceNgn, 'Purchase', `OTP Verification (PVA Deals - ${dynamicServiceObj.name})`);
+      const purchaseRes = await executePurchase(priceNgn, 'Purchase', `OTP Verification (Server 4 - ${dynamicServiceObj.name})`);
       if (!purchaseRes.success) {
         return purchaseRes;
       }
@@ -1537,7 +1537,7 @@ export const AppProvider = ({ children }) => {
         console.error("PVA Deals API Order Error:", e);
         const ref = `ref-otp-fail-${Math.floor(100000 + Math.random() * 900000)}`;
         await supabase.rpc('process_deposit', {
-          p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (PVA Deals - ${dynamicServiceObj.name})`
+          p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (Server 4 - ${dynamicServiceObj.name})`
         });
         return { success: false, msg: customizeGatewayError(e.message, 'server4') };
       }
