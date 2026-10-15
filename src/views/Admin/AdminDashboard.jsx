@@ -295,6 +295,9 @@ const AdminDashboard = () => {
             email: p.email || 'N/A',
             wallet_balance: Number(p.wallet_balance),
             created_at: p.created_at || new Date().toISOString(),
+            last_sign_in_at: p.last_sign_in_at || null,
+            email_confirmed_at: p.email_confirmed_at || null,
+            is_admin: p.is_admin === true,
             isReal: true
           };
         })
@@ -306,6 +309,9 @@ const AdminDashboard = () => {
           email: user?.email || 'N/A',
           wallet_balance: walletBalance,
           created_at: new Date().toISOString(),
+          last_sign_in_at: user?.last_sign_in_at || null,
+          email_confirmed_at: user?.email_confirmed_at || null,
+          is_admin: true,
           isReal: true
         }] : []);
   }, [dbProfiles, user, profile, walletBalance]);
@@ -352,6 +358,42 @@ const AdminDashboard = () => {
     }
     setRestrictedUserIds(next);
     localStorage.setItem('zp_restricted_user_ids', JSON.stringify(next));
+  };
+
+  const handleExportUsers = () => {
+    const escapeCsvCell = (value) => {
+      let text = value == null ? '' : String(value);
+      // Prevent spreadsheet apps from interpreting user-controlled values as formulas.
+      if (/^[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const formatDate = (value) => value ? new Date(value).toISOString() : '';
+    const rows = [
+      ['User ID', 'Full Name', 'Username', 'Email', 'Phone', 'Role', 'Account Status', 'Email Verified', 'Wallet Balance (NGN)', 'Created At', 'Last Sign In'],
+      ...allUsers.map((account) => [
+        account.id,
+        account.full_name.replace(' (You / Admin)', ''),
+        account.username,
+        account.email === 'N/A' ? '' : account.email,
+        account.phone === 'N/A' ? '' : account.phone,
+        account.is_admin ? 'Admin' : 'User',
+        restrictedUserIds.includes(account.id) ? 'Restricted' : (verifiedUserIds.includes(account.id) ? 'Verified' : 'Standard'),
+        account.email_confirmed_at ? 'Yes' : 'No',
+        account.wallet_balance,
+        formatDate(account.created_at),
+        formatDate(account.last_sign_in_at)
+      ])
+    ];
+    const csv = `\uFEFF${rows.map(row => row.map(escapeCsvCell).join(',')).join('\r\n')}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `starlog_users_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   const filteredUsers = allUsers
@@ -1551,6 +1593,9 @@ const AdminDashboard = () => {
 
                 <button type="button" className="wp-button-secondary" style={{ height: '36px', borderRadius: '8px' }} onClick={fetchAdminData} disabled={isLoadingDb}>
                   <RefreshCw size={12} className={isLoadingDb ? 'spin-slow' : ''} style={{ marginRight: '6px' }} /> Refresh
+                </button>
+                <button type="button" className="wp-button-secondary" style={{ height: '36px', borderRadius: '8px' }} onClick={handleExportUsers} disabled={isLoadingDb || allUsers.length === 0}>
+                  <Download size={12} style={{ marginRight: '6px' }} /> Export CSV
                 </button>
               </div>
             </div>
