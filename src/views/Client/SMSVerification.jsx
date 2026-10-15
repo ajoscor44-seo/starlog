@@ -213,11 +213,11 @@ const SMSVerification = () => {
           if (!res.error && res.data?.status) {
             // The API returns an array of prices, e.g. [{ service: 1012, price: "1.20" }, ...]
             // Some services might appear multiple times if they exist in multiple pools, so we take the cheapest or first.
-            const pricingData = res.data.data || [];
+            const pricingData = Array.isArray(res.data.data) ? res.data.data : (res.data.data?.data || []);
             
             // Map the pricing to the smsPoolShortTermServices
             const merged = smsPoolShortTermServices.map(s => {
-              const priceObj = pricingData.find(p => p.service === s.ID);
+              const priceObj = pricingData.find(p => String(p.service ?? p.service_id) === String(s.ID));
               const costUsd = priceObj ? parseFloat(priceObj.price) : 0;
               const priceNgn = costUsd > 0 ? Math.max(300, Math.round(costUsd * exchangeRate * (1 + (profitMarkup.otp / 100)))) : 0;
               
@@ -258,7 +258,7 @@ const SMSVerification = () => {
       setErrorMsg(heroSmsCountries.length > 0 ? '' : 'Server 4 is temporarily unavailable. Its live country catalog could not be loaded.');
       setStep(1);
     }
-  }, [server, countries, smsPoolShortTermCountries, heroSmsCountries]);
+  }, [server, smsPoolShortTermCountries, heroSmsCountries]);
 
   const activeCountriesList = server === 'server2' ? smsPoolShortTermCountries : heroSmsCountries;
 

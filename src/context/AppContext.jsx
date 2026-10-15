@@ -1574,9 +1574,10 @@ export const AppProvider = ({ children }) => {
         const phone = orderData.phonenumber || orderData.number || orderData.cc_and_number;
         const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
-        const autoCountry = getCountryFromNumber(formattedPhone);
-        const countryName = autoCountry ? autoCountry.name : country.name;
-        const countryFlag = autoCountry ? autoCountry.flag : (country.flag || '🏳️');
+        // The gateway verifies SMSPool's allocated country against the selected
+        // provider country. Do not infer it from shared calling codes such as +1.
+        const countryName = orderData.requested_country || country.name;
+        const countryFlag = country.flag || '🏳️';
 
         const newOtp = {
           id: `sp-${orderData.order_id}`,
