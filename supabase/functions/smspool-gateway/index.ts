@@ -6,6 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const normalizeCountryName = (value: unknown) => String(value ?? '')
+  .trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const unwrapList = (value: any): any[] => {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.data)) return value.data
+  return []
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -57,9 +66,11 @@ serve(async (req) => {
       formData.append('country', country)
     } else if (action === 'order_sms') {
       const { country, service, quantity, pricing_option } = requestBody
+      if (country === undefined || country === null || country === '') throw new Error('Missing country for order_sms')
+      if (service === undefined || service === null || service === '') throw new Error('Missing service for order_sms')
       url = 'https://api.smspool.net/purchase/sms'
-      formData.append('country', country)
-      formData.append('service', service)
+      formData.append('country', String(country))
+      formData.append('service', String(service))
       if (quantity) formData.append('quantity', quantity)
       if (pricing_option !== undefined) formData.append('pricing_option', pricing_option)
     } else if (action === 'check_sms') {
@@ -110,13 +121,40 @@ serve(async (req) => {
       throw new Error(text)
     }
 
+    if (!response.ok || result?.success === 0) {
+      throw new Error(result?.message || `SMSPool returned ${response.status}`)
+    }
+
+    if (action === 'order_sms') {
+      const countriesResponse = await fetch(`https://api.smspool.net/country/retrieve_all?key=${encodeURIComponent(apiKey)}`)
+      const countriesResult = await countriesResponse.json().catch(() => [])
+      const requestedCountry = unwrapList(countriesResult).find((country: any) =>
+        String(country?.ID ?? country?.id ?? country?.country_id) === String(requestBody.country)
+      )
+      if (!requestedCountry) throw new Error('The selected SMSPool country is no longer available')
+
+      const expectedName = requestedCountry.name ?? requestedCountry.country
+      const actualName = result?.country
+      if (actualName && normalizeCountryName(actualName) !== normalizeCountryName(expectedName)) {
+        if (result?.order_id) {
+          const cancelData = new FormData()
+          cancelData.append('key', apiKey)
+          cancelData.append('orderid', String(result.order_id))
+          await fetch('https://api.smspool.net/sms/cancel', { method: 'POST', body: cancelData }).catch(() => undefined)
+        }
+        throw new Error(`SMSPool allocated ${actualName} instead of ${expectedName}. The incorrect order was cancelled; please retry.`)
+      }
+      result.requested_country = expectedName
+      result.requested_country_id = String(requestBody.country)
+    }
+
     return new Response(JSON.stringify({ status: true, data: result }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
-    return new Response(JSON.stringify({ status: false, error: error.message }), {
+    return new Response(JSON.stringify({ status: false, error: error instanceof Error ? error.message : String(error) }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
