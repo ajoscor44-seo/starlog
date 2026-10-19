@@ -2399,10 +2399,14 @@ export const AppProvider = ({ children }) => {
             if (!error && data?.status && data?.data) {
               const resData = data.data;
               if (resData.status === 'COMPLETED') {
-                updateOtpOrderStatusInDB(otp.id, 'COMPLETED');
+                const smsText = resData.smsText || resData.sms_text || resData.sms || resData.message || null;
+                const otpCode = resData.otpCode || resData.otp_code || (smsText?.match(/\b\d{3,8}\b/g)?.at(-1) ?? null);
+                updateOtpOrderStatusInDB(otp.id, 'COMPLETED', otpCode, smsText);
                 setActiveOtps(current => current.map(o => o.id === otp.id ? { 
                   ...o, 
-                  status: 'COMPLETED'
+                  status: 'COMPLETED',
+                  smsText,
+                  otpCode
                 } : o));
               } else if (resData.status === 'FLAGGED' || resData.status === 'TIMEOUT') {
                 refundOtpSession(otp);

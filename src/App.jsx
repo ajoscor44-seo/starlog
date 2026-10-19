@@ -16,6 +16,7 @@ import SocialMediaLogs from './views/Client/SocialMediaLogs';
 import Profile from './views/Client/Profile';
 import Support from './views/Client/Support';
 import DeveloperApi from './views/Client/DeveloperApi';
+import Referrals from './views/Client/Referrals';
 import AdminDashboard from './views/Admin/AdminDashboard';
 import AboutUs from './views/AboutUs';
 import ContactUs from './views/ContactUs';
@@ -84,6 +85,7 @@ function AppContent() {
           <Route path="wallet" element={<Wallet />} />
           <Route path="orders" element={<OrderHistory />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="referrals" element={<Referrals />} />
           <Route path="api" element={<DeveloperApi />} />
           <Route path="support" element={<Support />} />
           <Route path="admin" element={<AdminDashboard />} />

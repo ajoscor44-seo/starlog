@@ -6,6 +6,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 const BASE_URL = 'https://prod-v3.pvadeals.com/v3/api'
+let servicesCache: { services: unknown[] } | null = null
+
+const normalizeServices = (result: any): unknown[] => {
+  const candidates = [result?.data?.services, result?.services, result?.data, result]
+  return candidates.find(Array.isArray) ?? []
+}
+
+const normalizeApiKey = (value: string): string => value
+  .trim()
+  .replace(/^Bearer\s+/i, '')
+  .replace(/^['"]|['"]$/g, '')
+  .trim()
+
+const extractMessage = (value: any): string | null => {
+  const candidates = [
+    value?.smsText, value?.sms_text, value?.sms, value?.message,
+    value?.data?.smsText, value?.data?.sms_text, value?.data?.sms, value?.data?.message,
+    value?.request?.sms, value?.request?.message,
+  ]
+  const message = candidates.find((item) => typeof item === 'string' && item.trim())
+  return message?.trim() ?? null
+}
+
+const extractOtp = (message: string | null): string | null =>
+  message?.match(/\b\d{3,8}\b/g)?.at(-1) ?? null
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -20,7 +45,7 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) throw new Error('Unauthorized user')
 
-    const apiKey = Deno.env.get('PVADEALS_API_KEY') ?? ''
+    const apiKey = normalizeApiKey(Deno.env.get('PVADEALS_API_KEY') ?? '')
     if (!apiKey) throw new Error('Server 4 is not configured')
     const body = await req.json().catch(() => ({}))
     const { action } = body
@@ -59,9 +84,38 @@ serve(async (req) => {
     let result: any
     try { result = JSON.parse(responseText) } catch { result = { message: responseText } }
     if (!response.ok || result?.success === false) {
+      if (action === 'get_services' && servicesCache) {
+        return new Response(JSON.stringify({ status: true, data: servicesCache, stale: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+        })
+      }
       throw new Error(result?.message || result?.error || `Server 4 returned ${response.status}`)
     }
-    return new Response(JSON.stringify({ status: true, data: result?.data, message: result?.message }), {
+
+    let responseData = result?.data ?? result
+    if (action === 'get_services') {
+      const services = normalizeServices(result)
+      if (services.length === 0) {
+        if (servicesCache) responseData = servicesCache
+        else throw new Error('Server 4 returned an empty service catalog')
+      } else {
+        responseData = { services }
+        servicesCache = responseData
+      }
+    }
+
+    // PVA Deals has returned the SMS under several keys across API versions.
+    // Give the client one stable shape while preserving the complete payload.
+    if (action === 'check') {
+      const smsText = extractMessage(result)
+      responseData = {
+        ...(typeof responseData === 'object' && responseData ? responseData : { value: responseData }),
+        smsText,
+        otpCode: extractOtp(smsText),
+      }
+    }
+
+    return new Response(JSON.stringify({ status: true, data: responseData, message: result?.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
     })
   } catch (error) {

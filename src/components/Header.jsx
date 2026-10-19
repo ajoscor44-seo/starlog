@@ -24,6 +24,7 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
       case 'social': return isMobile ? 'Logs' : 'Social Media Logs';
       case 'wallet': return 'Fund Wallet';
       case 'orders': return isMobile ? 'Orders' : 'Order History';
+      case 'referrals': return 'Refer & Earn';
       case 'api': return isMobile ? 'Developer API' : 'Developer API Portal';
       case 'support': return 'Support Desk';
       case 'admin': return isMobile ? 'Admin' : 'System Admin Sandbox';

@@ -18,6 +18,7 @@ const Auth = () => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [referralCode, setReferralCode] = useState(() => new URLSearchParams(location.search).get('ref') || '');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -104,7 +105,8 @@ const Auth = () => {
             data: {
               full_name: name,
               username: username,
-              phone: normalizedPhone
+              phone: normalizedPhone,
+              referral_code: referralCode.trim().toUpperCase() || null
             }
           }
         });
@@ -282,6 +284,18 @@ const Auth = () => {
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="form-label" htmlFor="auth-referral">Referral Code <span style={{ fontWeight: 400, opacity: .7 }}>(optional)</span></label>
+                <input
+                  id="auth-referral"
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. STARAB12CD"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                />
               </div>
             </>
           )}

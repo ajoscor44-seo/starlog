@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   ClipboardList,
   MessageSquare,
-  Code
+  Code,
+  Gift
 } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
@@ -34,6 +35,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { id: 'wallet', label: 'Wallet & Fund', icon: CreditCard },
     { id: 'orders', label: 'Order History', icon: ClipboardList },
     { id: 'profile', label: 'User Profile', icon: User },
+    { id: 'referrals', label: 'Refer & Earn', icon: Gift },
     { id: 'api', label: 'Developer API', icon: Code },
     { id: 'support', label: 'Telegram Support', icon: MessageSquare, external: true, url: 'https://t.me/Starlogadmin' },
   ];

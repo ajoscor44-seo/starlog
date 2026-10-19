@@ -25,6 +25,8 @@ dist-ssr
 
 # Supabase SQL Database schema and triggers
 *.sql
+!supabase/migrations/
+!supabase/migrations/*.sql
 # Security exclusions
 .env
 scratch/

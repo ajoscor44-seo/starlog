@@ -16,7 +16,10 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
     const payload = await req.json()
-    if (payload?.event !== 'sms_received' || !payload?.requestId || !payload?.message) {
+    const event = payload?.event ?? payload?.type
+    const requestId = payload?.requestId ?? payload?.request_id ?? payload?.request?._id ?? payload?.data?.requestId
+    const message = payload?.message ?? payload?.sms ?? payload?.smsText ?? payload?.data?.message ?? payload?.data?.sms
+    if ((event && event !== 'sms_received' && event !== 'sms.received') || !requestId || !message) {
       return new Response(JSON.stringify({ received: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -27,9 +30,9 @@ serve(async (req) => {
     )
     const { error } = await supabase.from('otp_orders').update({
       status: 'COMPLETED',
-      otp_code: extractOtp(String(payload.message)),
-      sms_text: String(payload.message),
-    }).eq('id', `pva-${payload.requestId}`).eq('server', 'server4')
+      otp_code: extractOtp(String(message)),
+      sms_text: String(message),
+    }).eq('id', `pva-${requestId}`).eq('server', 'server4')
     if (error) throw error
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
