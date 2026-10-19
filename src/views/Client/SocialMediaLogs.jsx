@@ -32,8 +32,29 @@ const getPlatform = (log) => {
   return 'Other';
 };
 
+const asDiscountZarLog = (product) => ({
+  id: product.id,
+  slug: product.id,
+  subscriptionId: product.id,
+  provider: 'discountzar',
+  providerCode: 'DZ',
+  providerName: 'DiscountZAR',
+  name: product.name,
+  category: 'VPN',
+  providerCategory: 'VPN & Proxy',
+  priceNgn: product.priceNgn,
+  stock: Number(product.stock ?? product.availableSlots ?? 0),
+  description: 'Secure VPN or proxy access delivered straight to your dashboard after purchase. Setup instructions are included with your delivery.',
+  isLocal: true,
+});
+
+const mergeDiscountZarLogs = (items, subscriptions) => [
+  ...items.filter(item => item.provider !== 'discountzar'),
+  ...subscriptions.filter(item => item.provider === 'discountzar').map(asDiscountZarLog),
+];
+
 const SocialMediaLogs = () => {
-  const { fetchSocialMediaLogs, fetchSocialMediaLogDetails, buySocialMediaLog, formatCost, currency, profitMarkup } = useContext(AppContext);
+  const { fetchSocialMediaLogs, fetchSocialMediaLogDetails, buySocialMediaLog, buySharedSubscription, subscriptions, formatCost, currency, profitMarkup } = useContext(AppContext);
   const isMobile = useIsMobile();
   
   const [logs, setLogs] = useState(() => cachedLogs || []);
@@ -56,6 +77,15 @@ const SocialMediaLogs = () => {
   }, []);
 
   useEffect(() => {
+    if (!subscriptions.some(item => item.provider === 'discountzar')) return;
+    setLogs(current => {
+      const merged = mergeDiscountZarLogs(current, subscriptions);
+      cachedLogs = merged;
+      return merged;
+    });
+  }, [subscriptions]);
+
+  useEffect(() => {
     if (!selectedLog || selectedLog.isLocal || selectedLog.description) return;
     let cancelled = false;
     const loadDetails = async () => {
@@ -69,18 +99,13 @@ const SocialMediaLogs = () => {
   }, [selectedLog?.id]);
 
   const loadLogs = async () => {
-    if (cachedLogs) {
-      setLogs(cachedLogs);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     pendingLogsRequest ||= fetchSocialMediaLogs();
     const res = await pendingLogsRequest;
     pendingLogsRequest = null;
     if (res.success) {
-      cachedLogs = res.data.map(log => ({ ...log, providerCategory: log.category, category: getPlatform(log) }));
+      const providerLogs = res.data.map(log => ({ ...log, providerCategory: log.category, category: getPlatform(log) }));
+      cachedLogs = mergeDiscountZarLogs(providerLogs, subscriptions);
       setLogs(cachedLogs);
       setError(null);
     } else {
@@ -113,6 +138,24 @@ const SocialMediaLogs = () => {
     if (!selectedLog) return;
     
     setPurchaseLoading(true);
+    if (selectedLog.provider === 'discountzar') {
+      const res = await buySharedSubscription(selectedLog.subscriptionId);
+      setPurchaseLoading(false);
+      if (res.success) {
+        setPurchaseSuccess({
+          account_details: {
+            email: res.sub.email,
+            password: res.sub.pass,
+            instruction: res.sub.screen,
+            portal_url: res.sub.portal_url || undefined,
+          },
+        });
+      } else {
+        alert('Purchase failed: ' + res.msg);
+      }
+      return;
+    }
+
     // Cost calculation in NGN
     const res = await buySocialMediaLog(selectedLog, purchaseQuantity);
     setPurchaseLoading(false);
@@ -165,7 +208,7 @@ const SocialMediaLogs = () => {
                   {getPlatformIcon(selectedLog.category)}
                 </div>
                 <div>
-                  <span style={{ fontSize: '12px', color: '#ab47fc', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold' }}>{selectedLog.category}</span>
+                  <span style={{ fontSize: '12px', color: '#ab47fc', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold' }}>{selectedLog.provider === 'discountzar' ? selectedLog.providerCategory : selectedLog.category}</span>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Ref: {selectedLog.slug}</div>
                 </div>
               </div>
@@ -190,11 +233,13 @@ const SocialMediaLogs = () => {
                 </div>
                 <h2 style={{ margin: '0 0 10px', fontSize: '24px' }}>Purchase Successful!</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-                  Your social media account details are ready. Please save them securely.
+                  {selectedLog.provider === 'discountzar'
+                    ? 'Your VPN or proxy access details are ready in your dashboard.'
+                    : 'Your social media account details are ready. Please save them securely.'}
                 </p>
                 
                 <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '20px', textAlign: 'left', marginBottom: '24px' }}>
-                  <h4 style={{ margin: '0 0 16px', color: '#ab47fc', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Credentials</h4>
+                  <h4 style={{ margin: '0 0 16px', color: '#ab47fc', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{selectedLog.provider === 'discountzar' ? 'Access Details' : 'Account Credentials'}</h4>
                   
                   {(() => {
                     const details = purchaseSuccess.account_details;
@@ -238,7 +283,9 @@ const SocialMediaLogs = () => {
                   
                   <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.2)', borderRadius: '8px', fontSize: '12px', color: '#eab308' }}>
                     <AlertCircle size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '4px' }} />
-                    We recommend changing the password and securing the account immediately.
+                    {selectedLog.provider === 'discountzar'
+                      ? 'Use the delivered access details and follow any included setup instructions.'
+                      : 'We recommend changing the password and securing the account immediately.'}
                   </div>
                 </div>
                 
@@ -264,7 +311,7 @@ const SocialMediaLogs = () => {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Price per account</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>{selectedLog.provider === 'discountzar' ? 'Price' : 'Price per account'}</span>
                   <span style={{ color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'var(--mono)' }}>{formatCost(currency === 'NGN' ? selectedLog.priceNgn : selectedLog.priceUsd)}</span>
                 </div>
 
@@ -460,7 +507,7 @@ const SocialMediaLogs = () => {
                       {getPlatformIcon(log.category)}
                     </div>
                     <div>
-                      <span style={{ fontSize: '11px', color: '#ab47fc', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold' }}>{log.category}</span>
+                      <span style={{ fontSize: '11px', color: '#ab47fc', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold' }}>{log.provider === 'discountzar' ? log.providerCategory : log.category}</span>
                       {log.stock > 0 ? (
                         <div style={{ fontSize: '11px', color: 'var(--color-green)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                           <span style={{ width: '6px', height: '6px', background: 'var(--color-green)', borderRadius: '50%', display: 'inline-block' }}></span>

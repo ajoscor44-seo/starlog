@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.pvadeals-webhook]
 verify_jwt = false
 
+[functions.discountzar-webhook]
+verify_jwt = false
+
 [functions.smspool-webhook]
 enabled = true
 verify_jwt = false

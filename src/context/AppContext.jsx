@@ -1250,7 +1250,12 @@ export const AppProvider = ({ children }) => {
             }
           }
         });
-        if (error || !data?.success) throw new Error(data?.error || error?.message || 'VPN purchase failed');
+        let providerError = data?.error;
+        if (!providerError && error?.context instanceof Response) {
+          const errorBody = await error.context.clone().json().catch(() => null);
+          providerError = errorBody?.error;
+        }
+        if (error || !data?.success) throw new Error(providerError || error?.message || 'VPN or proxy purchase failed');
 
         const order = data.order;
         const details = order?.account_details || {};

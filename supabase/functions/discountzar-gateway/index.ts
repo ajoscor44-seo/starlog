@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 
 const API_BASE_URL = "https://www.discountzar.com/api/v1";
 const API_KEY = Deno.env.get("DISCOUNTZAR_API_KEY") ?? "";
+const MARKUP_PERCENT = 40;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,19 +33,15 @@ const providerRequest = async (path: string, init: RequestInit = {}) => {
 };
 
 const isVpnListing = (listing: Record<string, any>) => {
-  const text = `${listing.service_name ?? ""} ${listing.category ?? ""} ${listing.slug ?? ""}`.toLowerCase();
-  return text.includes("vpn") || text.includes("privacy & security") || text.includes("privacy and security");
+  const text = `${listing.service_name ?? ""} ${listing.slug ?? ""}`.toLowerCase();
+  return /(vpn|proxy|surfshark|nordvpn|expressvpn|proton|ipvanish|hma)/.test(text);
 };
 
-const getMarkup = async (admin: ReturnType<typeof createClient>) => {
-  const { data } = await admin.from("system_config").select("value").eq("id", "profit_markup").maybeSingle();
-  try {
-    const value = typeof data?.value === "string" ? JSON.parse(data.value) : data?.value;
-    return Math.max(0, Number(value?.subs ?? 30));
-  } catch {
-    return 30;
-  }
-};
+const getWholesalePrice = (listing: Record<string, any>) =>
+  Number(listing.your_price ?? listing.reseller_price ?? listing.price ?? 0);
+
+const getSellingPrice = (listing: Record<string, any>) =>
+  Math.max(100, Math.round(getWholesalePrice(listing) * (1 + MARKUP_PERCENT / 100)));
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -62,20 +59,22 @@ serve(async (req) => {
 
     if (action === "products") {
       const result = await providerRequest("/listings");
-      const markup = await getMarkup(admin);
       const products = (result.listings ?? [])
         .filter((listing: Record<string, any>) => isVpnListing(listing) && Number(listing.available_slots ?? 0) > 0)
         .map((listing: Record<string, any>) => {
-          const wholesalePrice = Number(listing.reseller_price ?? listing.price ?? 0);
+          const wholesalePrice = getWholesalePrice(listing);
           return {
             id: `dz-${listing.id}`,
             providerListingId: String(listing.id),
             provider: "discountzar",
             providerCode: "DZ",
-            name: listing.service_name ?? "VPN Subscription",
+            name: listing.service_name ?? "VPN or Proxy Subscription",
             category: listing.category ?? "Privacy & Security",
-            priceNgn: Math.max(100, Math.round(wholesalePrice * (1 + markup / 100))),
+            wholesalePriceNgn: wholesalePrice,
+            markupPercent: MARKUP_PERCENT,
+            priceNgn: getSellingPrice(listing),
             availableSlots: Number(listing.available_slots ?? 0),
+            stock: Number(listing.available_slots ?? 0),
             billingCycle: listing.billing_cycle ?? "monthly",
             fulfillmentType: listing.fulfillment_type ?? "Credentials",
             features: [
@@ -85,7 +84,7 @@ serve(async (req) => {
             ],
           };
         });
-      return json({ success: true, products });
+      return json({ success: true, markupPercent: MARKUP_PERCENT, products });
     }
 
     if (action === "buy") {
@@ -101,9 +100,7 @@ serve(async (req) => {
         return json({ success: false, error: "This VPN subscription is unavailable" }, 409);
       }
 
-      const markup = await getMarkup(admin);
-      const wholesalePrice = Number(listing.reseller_price ?? listing.price ?? 0);
-      const requiredCharge = Math.max(100, Math.round(wholesalePrice * (1 + markup / 100)));
+      const requiredCharge = getSellingPrice(listing);
       if (chargedCost !== requiredCharge) {
         return json({ success: false, error: "The subscription price changed. Refresh and try again." }, 409);
       }
@@ -111,7 +108,13 @@ serve(async (req) => {
       const { data: profile, error: profileError } = await admin
         .from("profiles").select("wallet_balance").eq("id", user.id).single();
       if (profileError || !profile || Number(profile.wallet_balance) < chargedCost) {
-        return json({ success: false, error: "Insufficient wallet balance" }, 400);
+        const availableBalance = Number(profile?.wallet_balance ?? 0);
+        return json({
+          success: false,
+          error: `Insufficient wallet balance. Available: ₦${availableBalance.toLocaleString()}; required: ₦${chargedCost.toLocaleString()}.`,
+          available_balance: availableBalance,
+          required_amount: chargedCost,
+        }, 400);
       }
 
       const localOrderId = crypto.randomUUID();
