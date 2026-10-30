@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { displayStatus, isUnsuccessfulStatus } from '../../utils/transactionStatus';
 import { CreditCard, Landmark, Coins, AlertCircle, Check, Copy, Wallet2, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 const Wallet = () => {
@@ -418,7 +419,7 @@ const Wallet = () => {
                       {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}{formatCost(tx.amountNgn)}
                     </td>
                     <td>
-                      <span className="badge badge-success" style={{ fontSize: '10px' }}>{tx.status}</span>
+                      <span className={`badge ${isUnsuccessfulStatus(tx.status) ? 'badge-danger' : 'badge-success'}`} style={{ fontSize: '10px' }}>{displayStatus(tx.status)}</span>
                     </td>
                   </tr>
                 ))}

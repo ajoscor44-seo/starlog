@@ -783,6 +783,17 @@ export const AppProvider = ({ children }) => {
           ]);
         }
       })
+      // A refunded purchase is updated to FAILED after it was inserted.
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'transactions',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        if (payload.new) {
+          setTransactions(prev => prev.map(t => t.id === payload.new.id ? { ...t, status: payload.new.status } : t));
+        }
+      })
       .subscribe();
 
     // Listen for virtual wallet updates
@@ -1132,7 +1143,26 @@ export const AppProvider = ({ children }) => {
     if (error) {
       return { success: false, msg: error.message };
     }
-    return { success: true };
+
+    // process_purchase does not return the transaction id, so look up the
+    // debit it just recorded; it is needed to mark the purchase failed later.
+    const { data: tx } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('type', type)
+      .eq('method', method)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return { success: true, txId: tx?.id || null };
+  };
+
+  // Call after refunding a purchase so its debit reads FAILED, not SUCCESS.
+  const markPurchaseFailed = async (txId) => {
+    if (!txId) return;
+    const { error } = await supabase.rpc('mark_purchase_failed', { p_tx_id: txId });
+    if (error) console.error('Failed to mark purchase as failed:', error);
   };
 
   const depositWallet = async (amount, method) => {
@@ -1400,7 +1430,7 @@ export const AppProvider = ({ children }) => {
   const createOtpOrderInDB = async (newOtp) => {
     if (!user) return;
     try {
-      const { error } = await supabase.from('otp_orders').insert({
+      const row = {
         id: newOtp.id,
         user_id: user.id,
         phone_number: newOtp.phoneNumber,
@@ -1408,8 +1438,15 @@ export const AppProvider = ({ children }) => {
         service: newOtp.service,
         price_ngn: newOtp.priceNgn,
         status: newOtp.status,
-        created_at: new Date().toISOString()
-      });
+        created_at: new Date().toISOString(),
+        purchase_tx_id: newOtp.purchaseTxId || null
+      };
+      let { error } = await supabase.from('otp_orders').insert(row);
+      // Keep saving orders if the purchase_tx_id migration has not been applied yet.
+      if (error && /purchase_tx_id/.test(error.message || '')) {
+        const { purchase_tx_id, ...legacyRow } = row;
+        ({ error } = await supabase.from('otp_orders').insert(legacyRow));
+      }
       if (error) console.error("Error inserting OTP order in DB:", error);
     } catch (e) {
       console.error("Failed to insert OTP order:", e);
@@ -1473,7 +1510,8 @@ export const AppProvider = ({ children }) => {
           expiresAt: new Date(detail.endsAt).getTime(),
           smsText: null,
           otpCode: null,
-          server: 'server3'
+          server: 'server3',
+          purchaseTxId: purchaseRes.txId
         };
 
         setActiveOtps(prev => [newOtp, ...prev]);
@@ -1486,6 +1524,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (Textverified - ${serviceId})`
         });
+        await markPurchaseFailed(purchaseRes.txId);
         return { success: false, msg: customizeGatewayError(e.message, 'server3') };
       }
     }
@@ -1531,7 +1570,8 @@ export const AppProvider = ({ children }) => {
           expiresAt: detail.endTime ? new Date(detail.endTime).getTime() : Date.now() + 20 * 60 * 1000,
           smsText: null,
           otpCode: null,
-          server: 'server4'
+          server: 'server4',
+          purchaseTxId: purchaseRes.txId
         };
 
         setActiveOtps(prev => [newOtp, ...prev]);
@@ -1544,6 +1584,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (Server 4 - ${dynamicServiceObj.name})`
         });
+        await markPurchaseFailed(purchaseRes.txId);
         return { success: false, msg: customizeGatewayError(e.message, 'server4') };
       }
     }
@@ -1597,7 +1638,8 @@ export const AppProvider = ({ children }) => {
           expiresAt: Date.now() + 15 * 60 * 1000,
           smsText: null,
           otpCode: null,
-          server: 'server2'
+          server: 'server2',
+          purchaseTxId: purchaseRes.txId
         };
 
         setActiveOtps(prev => [newOtp, ...prev]);
@@ -1610,6 +1652,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: priceNgn, p_method: `OTP Failed Refund (${service.name})`
         });
+        await markPurchaseFailed(purchaseRes.txId);
         return { success: false, msg: customizeGatewayError(e.message, 'server2') };
       }
     }
@@ -1803,6 +1846,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: price, p_method: `OTP Reuse Failed Refund (${service.name} - ${number})`
         });
+        await markPurchaseFailed(purchaseRes.txId);
         return { success: false, msg: data?.error || error?.message || 'Number is no longer available for reuse on Server 3.' };
       }
 
@@ -1815,6 +1859,7 @@ export const AppProvider = ({ children }) => {
         orderId: resData.id,
         phoneNumber: formattedPhone,
         server: 'server3',
+        purchaseTxId: purchaseRes.txId,
         service: service.name,
         priceNgn: price,
         status: 'PENDING',
@@ -1828,18 +1873,7 @@ export const AppProvider = ({ children }) => {
       };
 
       // Save to DB
-      await supabase.from('otp_orders').insert({
-        id: newOtp.id,
-        user_id: user.id,
-        phone_number: newOtp.phoneNumber,
-        server: 'server3',
-        service: newOtp.service,
-        price_ngn: newOtp.priceNgn,
-        status: 'PENDING',
-        created_at: new Date().toISOString(),
-        otp_code: null,
-        sms_text: null
-      });
+      await createOtpOrderInDB(newOtp);
 
       setActiveOtps(prev => [newOtp, ...prev]);
       setActiveSession(newOtp); // Show the code polling panel immediately
@@ -1850,6 +1884,7 @@ export const AppProvider = ({ children }) => {
       await supabase.rpc('process_deposit', {
         p_tx_id: ref, p_user_id: user.id, p_amount: price, p_method: `OTP Reuse Error Refund (${service.name} - ${number})`
       });
+      await markPurchaseFailed(purchaseRes.txId);
       return { success: false, msg: e.message };
     }
   };
@@ -1907,6 +1942,7 @@ export const AppProvider = ({ children }) => {
         await supabase.rpc('process_deposit', {
           p_tx_id: ref, p_user_id: user.id, p_amount: costNgn, p_method: `Rental Failed Refund`
         });
+        await markPurchaseFailed(purchaseRes.txId);
         return { success: false, msg: 'This service is currently unavailable on this server. Please try using another server.' };
       }
     }
@@ -1981,6 +2017,7 @@ export const AppProvider = ({ children }) => {
         p_amount: price,
         p_method: `eSIM Setup Failed Refund (${pkg.country})`
       });
+      await markPurchaseFailed(purchaseRes.txId);
 
       return { success: false, msg: customizeGatewayError(e.message, 'eSIM Provisioner') };
     }
@@ -2046,6 +2083,7 @@ export const AppProvider = ({ children }) => {
           p_amount: costNgn,
           p_method: `SMM Order Failed Refund`
         });
+        await markPurchaseFailed(purchaseRes.txId);
         return { success: false, msg: customizeGatewayError(error?.message || data?.error || 'SMM Gateway Error', 'SMM Panel') };
       }
 
@@ -2074,6 +2112,7 @@ export const AppProvider = ({ children }) => {
         p_amount: costNgn,
         p_method: `SMM Order Failed Refund`
       });
+      await markPurchaseFailed(purchaseRes.txId);
       return { success: false, msg: customizeGatewayError(err.message || 'SMM Order Execution Failed', 'SMM Panel') };
     }
   };

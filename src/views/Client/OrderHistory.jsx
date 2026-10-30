@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { displayStatus, isUnsuccessfulStatus } from '../../utils/transactionStatus';
 import {
   ClipboardList,
   Search,
@@ -81,8 +82,8 @@ const statusBadge = (status) => {
     return <span className="badge badge-success" style={{ gap: 4, display: 'inline-flex', alignItems: 'center' }}><CheckCircle2 size={10} /> {status}</span>;
   if (s === 'PENDING' || s === 'IN PROGRESS' || s === 'WAITING')
     return <span className="badge badge-warning" style={{ gap: 4, display: 'inline-flex', alignItems: 'center' }}><Clock size={10} /> {status}</span>;
-  if (s === 'FAILED' || s === 'CANCELLED' || s === 'EXPIRED')
-    return <span className="badge badge-danger" style={{ gap: 4, display: 'inline-flex', alignItems: 'center' }}><XCircle size={10} /> {status}</span>;
+  if (isUnsuccessfulStatus(s))
+    return <span className="badge badge-danger" style={{ gap: 4, display: 'inline-flex', alignItems: 'center' }}><XCircle size={10} /> FAILED</span>;
   return <span className="badge badge-info">{status}</span>;
 };
 
@@ -256,7 +257,8 @@ const OrderHistory = () => {
       });
     });
 
-    return orders;
+    // Search and CSV export should agree with the badge.
+    return orders.map(o => ({ ...o, status: displayStatus(o.status) }));
   }, [transactions, activeOtps, rentedNumbers, activeEsims, smmOrders, socialMediaOrders]);
 
   /* Filter + search + sort */
