@@ -118,7 +118,8 @@ const SocialMediaLogs = () => {
 
   const filteredLogs = logs.filter(l => {
     if (activeCategory !== 'All' && l.category !== activeCategory) return false;
-    if (searchQuery && !l.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    const query = searchQuery.trim().toLowerCase();
+    if (query && !`${l.name || ''} ${l.category || ''} ${l.description || ''}`.toLowerCase().includes(query)) return false;
     return true;
   }).sort((a, b) => {
     const getScore = (log) => {
@@ -414,7 +415,7 @@ const SocialMediaLogs = () => {
       {/* Controls: Search and Categories */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between' }}>
         
-        <div style={{ position: 'relative', flex: 1, maxWidth: isMobile ? '100%' : '300px' }}>
+        <div style={{ position: 'relative', flex: isMobile ? 'none' : '0 0 300px', width: isMobile ? '100%' : '300px' }}>
           <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input 
             type="text" 
@@ -426,7 +427,7 @@ const SocialMediaLogs = () => {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }} className="hide-scrollbar">
+        <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: 0, overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }} className="hide-scrollbar">
           {categories.map(cat => (
             <button
               key={cat}
