@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import { notifyOutOfStock } from "../_shared/telegram.ts";
 
 const API_BASE_URL = "https://accsbulk.com/api/v1";
 const API_KEY = Deno.env.get("ACCSBULK_API_KEY") ?? "";
@@ -115,6 +116,7 @@ serve(async (req) => {
       const listingResult = await providerRequest(`/listings/${encodeURIComponent(slug)}`);
       const listing = listingResult.data ?? {};
       if (Number(listing.id) !== listingId || Number(listing.available_stock ?? 0) < quantity) {
+        await notifyOutOfStock("AccsBulk", String(listing.title ?? payload.plan_name ?? slug), `Requested ${quantity}; available ${Number(listing.available_stock ?? 0)}.`);
         return json({ success: false, error: "This listing is unavailable or no longer has enough stock" }, 400);
       }
 

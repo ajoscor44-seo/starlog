@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import { notifyOutOfStock } from "../_shared/telegram.ts";
 
 const API_BASE_URL = "https://logsapi.cv/api";
 const API_KEY = Deno.env.get("LOGSAPI_KEY") ?? "";
@@ -156,6 +157,7 @@ serve(async (req) => {
       const listingResult = await providerRequest(`/products/${encodeURIComponent(slug)}`);
       const listing = listingResult.product ?? listingResult.data?.product ?? listingResult.data ?? listingResult;
       if (String(listing.id) !== listingId || Number(listing.stock ?? 0) < quantity) {
+        await notifyOutOfStock("LogsAPI", String(listing.name ?? payload.plan_name ?? listingId), `Requested ${quantity}; available ${Number(listing.stock ?? 0)}.`);
         return json({ success: false, error: "This listing is unavailable or no longer has enough stock" });
       }
 

@@ -12,6 +12,9 @@ verify_jwt = false
 [functions.discountzar-webhook]
 verify_jwt = false
 
+[functions.telegram-admin-bot]
+verify_jwt = false
+
 [functions.smspool-webhook]
 enabled = true
 verify_jwt = false

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import { notifyOutOfStock } from "../_shared/telegram.ts";
 
 const API_BASE_URL = "https://www.discountzar.com/api/v1";
 const API_KEY = Deno.env.get("DISCOUNTZAR_API_KEY") ?? "";
@@ -97,6 +98,7 @@ serve(async (req) => {
       const catalogue = await providerRequest("/listings");
       const listing = (catalogue.listings ?? []).find((item: Record<string, any>) => String(item.id) === listingId);
       if (!listing || !isVpnListing(listing) || Number(listing.available_slots ?? 0) < 1) {
+        await notifyOutOfStock("DiscountZar", String(listing?.service_name ?? payload.plan_name ?? listingId), `Available slots: ${Number(listing?.available_slots ?? 0)}.`);
         return json({ success: false, error: "This VPN subscription is unavailable" }, 409);
       }
 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import { notifyTelegramAdmin } from "../_shared/telegram.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const SENDER_EMAIL = "support@starlog.com.ng"; // verified domain on Resend
@@ -329,6 +330,14 @@ serve(async (req) => {
         emailSubject = "Welcome to StarLog!";
         emailHtml = generateWelcomeEmail(recipientName);
 
+        await notifyTelegramAdmin([
+          "NEW SIGNUP",
+          `Name: ${record.full_name || record.username || "Not provided"}`,
+          `Email: ${record.email || "Not provided"}`,
+          `User ID: ${record.id}`,
+          `Time: ${record.created_at || new Date().toISOString()}`,
+        ].join("\n"));
+
       } else if (table === "transactions") {
         const profile = await fetchUserProfile(record.user_id);
         if (profile && profile.email) {
@@ -393,6 +402,17 @@ serve(async (req) => {
           const quantity = record.quantity || 1;
           
           emailHtml = generateOrderEmail(planName, quantity, cost, record.id, record.account_details);
+
+          await notifyTelegramAdmin([
+            "NEW ORDER",
+            "Type: Digital service",
+            `Customer: ${profile.full_name || profile.username || profile.email}`,
+            `Service: ${planName}`,
+            `Quantity: ${quantity}`,
+            `Amount: NGN ${Number(cost).toLocaleString()}`,
+            `Status: ${record.status || "processing"}`,
+            `Order ID: ${record.id}`,
+          ].join("\n"));
         }
       } else if (table === "otp_orders") {
         // OTP Number Order Receipt
@@ -401,6 +421,17 @@ serve(async (req) => {
           recipientEmail = profile.email;
           emailSubject = "Your Temporary OTP Number Assigned";
           emailHtml = generateOtpRequestedEmail(record.service, record.phone_number, record.server, record.price_ngn);
+
+          await notifyTelegramAdmin([
+            "NEW ORDER",
+            "Type: OTP number",
+            `Customer: ${profile.full_name || profile.username || profile.email}`,
+            `Service: ${record.service || "Unknown"}`,
+            `Server: ${record.server || "Unknown"}`,
+            `Amount: NGN ${Number(record.price_ngn || 0).toLocaleString()}`,
+            `Status: ${record.status || "PENDING"}`,
+            `Order ID: ${record.id}`,
+          ].join("\n"));
         }
       } else if (table === "virtual_wallets") {
         // Dedicated account generated

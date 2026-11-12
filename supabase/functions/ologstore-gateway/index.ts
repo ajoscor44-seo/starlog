@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import { notifyOutOfStock } from "../_shared/telegram.ts";
 
 const OLOGSTORE_API_KEY = Deno.env.get("OLOGSTORE_API_KEY") || "";
 const OLOGSTORE_API_SECRET = Deno.env.get("OLOGSTORE_API_SECRET") || "";
@@ -358,6 +359,9 @@ serve(async (req) => {
         });
 
         const errMsg = err.message || '';
+        if (/(out of stock|no stock|insufficient stock|unavailable|sold out)/i.test(errMsg)) {
+          await notifyOutOfStock("OlogStore", String(plan_name || plan_id), errMsg);
+        }
         let userFriendlyError = "Failed to place order with provider. You have been refunded.";
         if (
           errMsg.toLowerCase().includes('không đủ tiền') ||
