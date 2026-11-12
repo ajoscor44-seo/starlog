@@ -108,7 +108,7 @@ const Subscriptions = () => {
                   <span style={{ fontSize: '24px', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>
                     {formatCost(sub.priceNgn)}
                   </span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ month</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>/ {sub.billingCycle || 'month'}</span>
                 </div>
 
                 {sub.provider === 'discountzar' && (

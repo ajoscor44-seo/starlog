@@ -158,7 +158,7 @@ const OrderHistory = () => {
       // delivered credentials. Avoid showing a second, misleading debit-only
       // receipt when that durable order is available.
       const transactionMethod = String(tx.method || '').toLowerCase();
-      const isApiLogDebit = transactionMethod.startsWith('logsapi:') || transactionMethod.startsWith('accsbulk:') || transactionMethod.startsWith('discountzar vpn:');
+      const isApiLogDebit = transactionMethod.startsWith('logsapi:') || transactionMethod.startsWith('accsbulk:') || transactionMethod.startsWith('discountzar vpn:') || transactionMethod.startsWith('discountzar communication:');
       const hasMatchingSocialLog = isApiLogDebit && socialMediaOrders.some(slo => {
         const sameAmount = Number(slo.cost || 0) === Number(tx.amountNgn || 0);
         const planName = String(slo.plan_name || '').toLowerCase();

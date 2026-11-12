@@ -38,6 +38,14 @@ const isVpnListing = (listing: Record<string, any>) => {
   return /(vpn|proxy|surfshark|nordvpn|expressvpn|proton|ipvanish|hma)/.test(text);
 };
 
+const isCommunicationListing = (listing: Record<string, any>) => {
+  const text = `${listing.service_name ?? ""} ${listing.slug ?? ""} ${listing.category ?? ""}`.toLowerCase();
+  return /(google\s*voice|text\s*plus|textplus)/.test(text);
+};
+
+const getProductType = (listing: Record<string, any>) =>
+  isCommunicationListing(listing) ? "communication" : isVpnListing(listing) ? "vpn" : null;
+
 const getWholesalePrice = (listing: Record<string, any>) =>
   Number(listing.your_price ?? listing.reseller_price ?? listing.price ?? 0);
 
@@ -61,16 +69,18 @@ serve(async (req) => {
     if (action === "products") {
       const result = await providerRequest("/listings");
       const products = (result.listings ?? [])
-        .filter((listing: Record<string, any>) => isVpnListing(listing) && Number(listing.available_slots ?? 0) > 0)
+        .filter((listing: Record<string, any>) => getProductType(listing) && Number(listing.available_slots ?? 0) > 0)
         .map((listing: Record<string, any>) => {
           const wholesalePrice = getWholesalePrice(listing);
+          const productType = getProductType(listing);
           return {
             id: `dz-${listing.id}`,
             providerListingId: String(listing.id),
             provider: "discountzar",
             providerCode: "DZ",
-            name: listing.service_name ?? "VPN or Proxy Subscription",
-            category: listing.category ?? "Privacy & Security",
+            name: listing.service_name ?? (productType === "communication" ? "Communication App" : "VPN or Proxy Subscription"),
+            category: productType === "communication" ? "Communication Apps" : (listing.category ?? "Privacy & Security"),
+            productType,
             wholesalePriceNgn: wholesalePrice,
             markupPercent: MARKUP_PERCENT,
             priceNgn: getSellingPrice(listing),
@@ -79,7 +89,7 @@ serve(async (req) => {
             billingCycle: listing.billing_cycle ?? "monthly",
             fulfillmentType: listing.fulfillment_type ?? "Credentials",
             features: [
-              `${listing.billing_cycle ?? "Monthly"} access`,
+              productType === "communication" ? "Google Voice or TextPlus access" : `${listing.billing_cycle ?? "Monthly"} access`,
               `${listing.fulfillment_type ?? "Instant credentials"}`,
               `${Number(listing.available_slots ?? 0)} slot(s) available`,
             ],
@@ -97,9 +107,10 @@ serve(async (req) => {
 
       const catalogue = await providerRequest("/listings");
       const listing = (catalogue.listings ?? []).find((item: Record<string, any>) => String(item.id) === listingId);
-      if (!listing || !isVpnListing(listing) || Number(listing.available_slots ?? 0) < 1) {
+      const productType = listing ? getProductType(listing) : null;
+      if (!listing || !productType || Number(listing.available_slots ?? 0) < 1) {
         await notifyOutOfStock("DiscountZar", String(listing?.service_name ?? payload.plan_name ?? listingId), `Available slots: ${Number(listing?.available_slots ?? 0)}.`);
-        return json({ success: false, error: "This VPN subscription is unavailable" }, 409);
+        return json({ success: false, error: "This DiscountZar product is unavailable" }, 409);
       }
 
       const requiredCharge = getSellingPrice(listing);
@@ -125,11 +136,11 @@ serve(async (req) => {
         id: localOrderId,
         user_id: user.id,
         plan_id: `discountzar:${listingId}`,
-        plan_name: String(listing.service_name ?? "VPN Subscription"),
+        plan_name: String(listing.service_name ?? (productType === "communication" ? "Communication App" : "VPN Subscription")),
         quantity: 1,
         cost: chargedCost,
         status: "processing",
-        account_details: { status: "processing", provider: "DiscountZar" },
+        account_details: { status: "processing", provider: "DiscountZar", product_type: productType },
         ologstore_order_id: pendingReference,
       }).select().single();
       if (pendingError || !pendingOrder) {
@@ -169,6 +180,7 @@ serve(async (req) => {
         portal_url: purchase.portal_url ?? null,
         expires_at: purchase.expires_at ?? null,
         provider: "DiscountZar",
+        product_type: productType,
       };
       const providerReference = `DZ:${purchase.order_id ?? localOrderId}`;
       const { data: savedOrder, error: saveError } = await admin.from("social_media_orders").update({
@@ -183,7 +195,7 @@ serve(async (req) => {
         user_id: user.id,
         amount: chargedCost,
         type: "debit",
-        method: `DiscountZar VPN: ${String(listing.service_name ?? "VPN Subscription")}`,
+        method: `DiscountZar ${productType === "communication" ? "Communication" : "VPN"}: ${String(listing.service_name ?? "Digital Service")}`,
         status: "SUCCESS",
       });
 

@@ -702,7 +702,7 @@ export const AppProvider = ({ children }) => {
                 name: o.plan_name,
                 email: details.email || user.email || 'See provider portal',
                 pass: details.password || details.pass || '',
-                screen: details.instruction || 'VPN access',
+                screen: details.instruction || (details.product_type === 'communication' ? 'Communication app access' : 'VPN access'),
                 portal_url: details.portal_url || '',
                 expiry: details.expires_at ? new Date(details.expires_at).toLocaleDateString() : 'See provider details',
                 status: 'ACTIVE'
@@ -995,7 +995,7 @@ export const AppProvider = ({ children }) => {
         const { data, error } = await supabase.functions.invoke('discountzar-gateway', {
           body: { action: 'products' }
         });
-        if (error || !data?.success) throw new Error(error?.message || data?.error || 'Unable to load VPN products');
+        if (error || !data?.success) throw new Error(error?.message || data?.error || 'Unable to load DiscountZar products');
         if (!cancelled) {
           setSubscriptions(prev => [
             ...prev.filter(item => item.provider !== 'discountzar'),
@@ -1003,7 +1003,7 @@ export const AppProvider = ({ children }) => {
           ]);
         }
       } catch (error) {
-        console.error('DiscountZar VPN catalog error:', error);
+        console.error('DiscountZar catalog error:', error);
       }
     };
 
@@ -1199,7 +1199,7 @@ export const AppProvider = ({ children }) => {
           const errorBody = await error.context.clone().json().catch(() => null);
           providerError = errorBody?.error;
         }
-        if (error || !data?.success) throw new Error(providerError || error?.message || 'VPN or proxy purchase failed');
+        if (error || !data?.success) throw new Error(providerError || error?.message || 'DiscountZar purchase failed');
 
         const order = data.order;
         const details = order?.account_details || {};
@@ -1210,7 +1210,7 @@ export const AppProvider = ({ children }) => {
           name: order.plan_name || sub.name,
           email: details.email || user?.email || 'See provider portal',
           pass: details.password || details.pass || '',
-          screen: details.instruction || 'VPN access',
+          screen: details.instruction || (details.product_type === 'communication' ? 'Communication app access' : 'VPN access'),
           portal_url: details.portal_url || '',
           expiry: details.expires_at ? new Date(details.expires_at).toLocaleDateString() : 'See provider details',
           status: 'ACTIVE'
@@ -1224,7 +1224,7 @@ export const AppProvider = ({ children }) => {
         }, ...prev.filter(item => item.id !== order.id)]);
         return { success: true, sub: newSub };
       } catch (error) {
-        console.error('DiscountZar VPN purchase error:', error);
+        console.error('DiscountZar purchase error:', error);
         return { success: false, msg: error.message };
       }
     }

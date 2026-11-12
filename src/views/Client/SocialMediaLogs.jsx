@@ -8,7 +8,7 @@ import { Share2, ShoppingCart, AlertCircle, CheckCircle, Search, Shield, Chevron
 let cachedLogs = null;
 let pendingLogsRequest = null;
 
-const platformNames = ['Facebook', 'Reddit', 'Instagram', 'TikTok', 'Twitter', 'Pinterest', 'Telegram', 'Discord', 'LinkedIn', 'YouTube', 'Google', 'VPN', 'Email', 'Tools', 'Other'];
+const platformNames = ['Facebook', 'Reddit', 'Instagram', 'TikTok', 'Twitter', 'Pinterest', 'Telegram', 'Discord', 'LinkedIn', 'YouTube', 'Google', 'Communication', 'VPN', 'Email', 'Tools', 'Other'];
 
 const getPlatform = (log) => {
   const category = String(log.category || '').trim().toLowerCase();
@@ -40,11 +40,13 @@ const asDiscountZarLog = (product) => ({
   providerCode: 'DZ',
   providerName: 'DiscountZAR',
   name: product.name,
-  category: 'VPN',
-  providerCategory: 'VPN & Proxy',
+  category: product.productType === 'communication' ? 'Communication' : 'VPN',
+  providerCategory: product.category || (product.productType === 'communication' ? 'Communication Apps' : 'VPN & Proxy'),
   priceNgn: product.priceNgn,
   stock: Number(product.stock ?? product.availableSlots ?? 0),
-  description: 'Secure VPN or proxy access delivered straight to your dashboard after purchase. Setup instructions are included with your delivery.',
+  description: product.productType === 'communication'
+    ? 'Google Voice or TextPlus access delivered straight to your dashboard after purchase. Login details and setup instructions are included.'
+    : 'Secure VPN or proxy access delivered straight to your dashboard after purchase. Setup instructions are included with your delivery.',
   isLocal: true,
 });
 
@@ -235,7 +237,9 @@ const SocialMediaLogs = () => {
                 <h2 style={{ margin: '0 0 10px', fontSize: '24px' }}>Purchase Successful!</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
                   {selectedLog.provider === 'discountzar'
-                    ? 'Your VPN or proxy access details are ready in your dashboard.'
+                    ? (selectedLog.category === 'Communication'
+                      ? 'Your communication app access details are ready in your dashboard.'
+                      : 'Your VPN or proxy access details are ready in your dashboard.')
                     : 'Your social media account details are ready. Please save them securely.'}
                 </p>
                 
