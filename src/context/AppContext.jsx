@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { getCountryFromNumber, dialCodeForCountry, withCountryCode, toUsNumber } from '../utils/phoneNumbers';
 
 export const AppContext = createContext();
 
@@ -883,93 +884,6 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('zp_transactions', JSON.stringify(transactions));
   }, [transactions]);
 
-  const getCountryFromNumber = (phone) => {
-    if (!phone) return null;
-    const cleanPhone = phone.replace('+', '').trim();
-    const prefixes = [
-      { code: '234', name: 'Nigeria', flag: '🇳🇬' },
-      { code: '1', name: 'United States', flag: '🇺🇸' },
-      { code: '44', name: 'United Kingdom', flag: '🇬🇧' },
-      { code: '7', name: 'Russia', flag: '🇷🇺' },
-      { code: '27', name: 'South Africa', flag: '🇿🇦' },
-      { code: '49', name: 'Germany', flag: '🇩🇪' },
-      { code: '33', name: 'France', flag: '🇫🇷' },
-      { code: '91', name: 'India', flag: '🇮🇳' },
-      { code: '55', name: 'Brazil', flag: '🇧🇷' },
-      { code: '380', name: 'Ukraine', flag: '🇺🇦' },
-      { code: '62', name: 'Indonesia', flag: '🇮🇩' },
-      { code: '60', name: 'Malaysia', flag: '🇲🇾' },
-      { code: '63', name: 'Philippines', flag: '🇵🇭' },
-      { code: '95', name: 'Myanmar', flag: '🇲🇲' },
-      { code: '84', name: 'Vietnam', flag: '🇻🇳' },
-      { code: '996', name: 'Kyrgyzstan', flag: '🇰🇬' },
-      { code: '20', name: 'Egypt', flag: '🇪🇬' },
-      { code: '212', name: 'Morocco', flag: '🇲🇦' },
-      { code: '90', name: 'Turkey', flag: '🇹🇷' },
-      { code: '57', name: 'Colombia', flag: '🇨🇴' },
-      { code: '52', name: 'Mexico', flag: '🇲🇽' },
-      { code: '54', name: 'Argentina', flag: '🇦🇷' },
-      { code: '40', name: 'Romania', flag: '🇷🇴' },
-      { code: '92', name: 'Pakistan', flag: '🇵🇰' },
-      { code: '880', name: 'Bangladesh', flag: '🇧🇩' },
-      { code: '66', name: 'Thailand', flag: '🇹🇭' },
-      { code: '998', name: 'Uzbekistan', flag: '🇺🇿' },
-      { code: '992', name: 'Tajikistan', flag: '🇹🇯' },
-      { code: '993', name: 'Turkmenistan', flag: '🇹🇲' },
-      { code: '994', name: 'Azerbaijan', flag: '🇦🇿' },
-      { code: '374', name: 'Armenia', flag: '🇦🇲' },
-      { code: '995', name: 'Georgia', flag: '🇬🇪' },
-      { code: '375', name: 'Belarus', flag: '🇧🇾' },
-      { code: '373', name: 'Moldova', flag: '🇲🇩' },
-      { code: '371', name: 'Latvia', flag: '🇱🇻' },
-      { code: '370', name: 'Lithuania', flag: '🇱🇹' },
-      { code: '372', name: 'Estonia', flag: '🇪🇪' },
-      { code: '34', name: 'Spain', flag: '🇪🇸' },
-      { code: '39', name: 'Italy', flag: '🇮🇹' },
-      { code: '31', name: 'Netherlands', flag: '🇳🇱' },
-      { code: '32', name: 'Belgium', flag: '🇧🇪' },
-      { code: '41', name: 'Switzerland', flag: '🇨🇭' },
-      { code: '46', name: 'Sweden', flag: '🇸🇪' },
-      { code: '47', name: 'Norway', flag: '🇳🇴' },
-      { code: '358', name: 'Finland', flag: '🇫🇮' },
-      { code: '45', name: 'Denmark', flag: '🇩🇰' },
-      { code: '43', name: 'Austria', flag: '🇦🇹' },
-      { code: '351', name: 'Portugal', flag: '🇵🇹' },
-      { code: '30', name: 'Greece', flag: '🇬🇷' },
-      { code: '353', name: 'Ireland', flag: '🇮🇪' },
-      { code: '420', name: 'Czech Republic', flag: '🇨🇿' },
-      { code: '421', name: 'Slovakia', flag: '🇸🇰' },
-      { code: '36', name: 'Hungary', flag: '🇭🇺' },
-      { code: '359', name: 'Bulgaria', flag: '🇧🇬' },
-      { code: '385', name: 'Croatia', flag: '🇭🇷' },
-      { code: '386', name: 'Slovenia', flag: '🇸🇮' },
-      { code: '381', name: 'Serbia', flag: '🇷🇸' },
-      { code: '81', name: 'Japan', flag: '🇯🇵' },
-      { code: '82', name: 'South Korea', flag: '🇰🇷' },
-      { code: '886', name: 'Taiwan', flag: '🇹🇼' },
-      { code: '852', name: 'Hong Kong', flag: '🇭🇰' },
-      { code: '65', name: 'Singapore', flag: '🇸🇬' },
-      { code: '61', name: 'Australia', flag: '🇦🇺' },
-      { code: '64', name: 'New Zealand', flag: '🇳🇿' },
-      { code: '972', name: 'Israel', flag: '🇮🇱' },
-      { code: '966', name: 'Saudi Arabia', flag: '🇸🇦' },
-      { code: '971', name: 'UAE', flag: '🇦🇪' },
-      { code: '233', name: 'Ghana', flag: '🇬🇭' },
-      { code: '221', name: 'Senegal', flag: '🇸🇳' },
-      { code: '256', name: 'Uganda', flag: '🇺🇬' },
-      { code: '255', name: 'Tanzania', flag: '🇹🇿' },
-      { code: '237', name: 'Cameroon', flag: '🇨🇲' },
-      { code: '225', name: 'Ivory Coast', flag: '🇨🇮' }
-    ];
-    prefixes.sort((a, b) => b.code.length - a.code.length);
-    for (const p of prefixes) {
-      if (cleanPhone.startsWith(p.code)) {
-        return p;
-      }
-    }
-    return null;
-  };
-
   const syncOtpOrdersFromDB = async (uid) => {
     try {
       const { data, error } = await supabase
@@ -1492,8 +1406,7 @@ export const AppProvider = ({ children }) => {
         }
 
         const detail = data.data;
-        const phone = detail.number;
-        const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
+        const formattedPhone = toUsNumber(detail.number);
 
         const autoCountry = getCountryFromNumber(formattedPhone);
 
@@ -1617,13 +1530,16 @@ export const AppProvider = ({ children }) => {
 
         // data.data has { order_id, phonenumber, number, ... }
         const orderData = data.data;
-        const phone = orderData.phonenumber || orderData.number || orderData.cc_and_number;
-        const formattedPhone = String(phone).startsWith('+') ? String(phone) : '+' + phone;
 
         // The gateway verifies SMSPool's allocated country against the selected
         // provider country. Do not infer it from shared calling codes such as +1.
         const countryName = orderData.requested_country || country.name;
         const countryFlag = country.flag || '🏳️';
+
+        // SMSPool's "phonenumber" is the local number without the country code.
+        const formattedPhone = orderData.phonenumber
+          ? withCountryCode(orderData.phonenumber, orderData.cc || dialCodeForCountry(countryName))
+          : withCountryCode('+' + String(orderData.cc_and_number || orderData.number).replace(/^\+/, ''));
 
         const newOtp = {
           id: `sp-${orderData.order_id}`,
@@ -1851,7 +1767,7 @@ export const AppProvider = ({ children }) => {
       }
 
       const resData = data.data; // Textverified verification object
-      const formattedPhone = String(resData.number).startsWith('+') ? String(resData.number) : '+' + resData.number;
+      const formattedPhone = toUsNumber(resData.number);
       const autoCountry = getCountryFromNumber(formattedPhone);
 
       const newOtp = {
@@ -1915,8 +1831,9 @@ export const AppProvider = ({ children }) => {
         }
 
         const orderData = data.data; // sms pool response
-        const rawNum = orderData.phonenumber || orderData.number;
-        const formattedPhone = String(rawNum).startsWith('+') ? String(rawNum) : '+' + rawNum;
+        const formattedPhone = orderData.phonenumber
+          ? withCountryCode(orderData.phonenumber, orderData.cc || dialCodeForCountry(rentalInfo.name))
+          : withCountryCode('+' + String(orderData.number).replace(/^\+/, ''));
 
         const newRental = {
           id: `rent-sp-${orderData.rental_code || Math.floor(100000 + Math.random() * 900000)}`,

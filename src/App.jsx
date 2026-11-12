@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigat
 import { AppProvider, AppContext } from './context/AppContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import WhatsAppFloat from './components/WhatsAppFloat';
 import LandingPage from './views/LandingPage';
 import DashboardOverview from './views/Client/DashboardOverview';
 import Subscriptions from './views/Client/Subscriptions';
@@ -103,6 +104,7 @@ function App() {
     <BrowserRouter>
       <AppProvider>
         <AppContent />
+        <WhatsAppFloat />
         <Analytics />
       </AppProvider>
     </BrowserRouter>
