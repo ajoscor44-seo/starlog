@@ -85,8 +85,16 @@ export const getCountryFromNumber = (phone) => {
 
 // SMSPool appends qualifiers such as "United States (Virtual)".
 const NANP_COUNTRIES = ['united states', 'usa', 'canada', 'anguilla', 'puerto rico', 'jamaica', 'bahamas', 'barbados', 'trinidad and tobago', 'dominican republic'];
+const COUNTRY_ALIASES = {
+  us: 'United States',
+  usa: 'United States',
+  gb: 'United Kingdom',
+  uk: 'United Kingdom',
+  ng: 'Nigeria',
+};
 export const dialCodeForCountry = (countryName) => {
-  const name = String(countryName || '').replace(/\(.*?\)/g, '').trim().toLowerCase();
+  const rawName = String(countryName || '').replace(/\(.*?\)/g, '').trim().toLowerCase();
+  const name = String(COUNTRY_ALIASES[rawName] || rawName).toLowerCase();
   if (!name) return null;
   if (NANP_COUNTRIES.includes(name)) return '1';
   return COUNTRY_DIAL_CODES.find(p => p.name.toLowerCase() === name)?.code || null;
@@ -98,8 +106,11 @@ export const withCountryCode = (number, dialCode) => {
   const raw = String(number ?? '').trim();
   if (raw.startsWith('+')) return '+' + digitsOf(raw);
   const local = digitsOf(raw).replace(/^0+/, '');
-  const code = digitsOf(dialCode);
+  const code = digitsOf(dialCode) || dialCodeForCountry(dialCode) || '';
   if (!code) return '+' + local;
+  // Some provider endpoints return an international number without the plus.
+  // Do not turn a US 1XXXXXXXXXX response into +11XXXXXXXXXX.
+  if (local.startsWith(code) && local.length >= code.length + 10) return '+' + local;
   return '+' + code + local;
 };
 
